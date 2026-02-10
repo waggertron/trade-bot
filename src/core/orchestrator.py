@@ -28,6 +28,8 @@ class Orchestrator:
         self._portfolio = portfolio
         self._event_bus = event_bus
         self._paused = False
+        self._tick_history: dict[str, list[MarketTick]] = {}
+        self._max_history = 200
 
     def pause(self) -> None:
         self._paused = True
@@ -42,6 +44,12 @@ class Orchestrator:
     async def process_tick(self, tick: MarketTick) -> list[Fill]:
         if self._paused:
             return []
+
+        # Accumulate tick history
+        history = self._tick_history.setdefault(tick.symbol, [])
+        history.append(tick)
+        if len(history) > self._max_history:
+            self._tick_history[tick.symbol] = history[-self._max_history:]
 
         signals = await self._gather_signals(tick)
         if not signals:
@@ -73,8 +81,9 @@ class Orchestrator:
         return [fill]
 
     async def _gather_signals(self, tick: MarketTick) -> list[Signal]:
+        history = self._tick_history.get(tick.symbol, [tick])
         tasks = [
-            strategy.evaluate(tick.symbol, [tick])
+            strategy.evaluate(tick.symbol, history)
             for strategy in self._strategies
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
