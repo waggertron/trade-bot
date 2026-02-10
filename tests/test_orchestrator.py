@@ -1,0 +1,157 @@
+import pytest
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from src.core.orchestrator import Orchestrator
+from src.core.event_bus import EventBus
+from src.core.models import (
+    AssetType, Fill, MarketTick, OrderSide, PortfolioSnapshot,
+    RiskAction, RiskDecision, Signal, SignalDirection,
+)
+
+
+class MockStrategy:
+    def __init__(self, name, direction=SignalDirection.BUY, confidence=0.8):
+        self.name = name
+        self._direction = direction
+        self._confidence = confidence
+
+    async def evaluate(self, symbol, market_data, research=None):
+        return Signal(
+            symbol=symbol, direction=self._direction, confidence=self._confidence,
+            strategy_name=self.name, timestamp=datetime.now(timezone.utc),
+            reasoning=f"{self.name} signal",
+        )
+
+
+class MockRiskManager:
+    def __init__(self, approve=True):
+        self._approve = approve
+
+    async def evaluate_trade(self, signal, portfolio):
+        if self._approve:
+            return RiskDecision(action=RiskAction.APPROVE, reason="approved")
+        return RiskDecision(action=RiskAction.VETO, reason="vetoed")
+
+    async def check_portfolio_health(self, portfolio):
+        return []
+
+
+class MockExecutor:
+    def __init__(self):
+        self.submitted_orders = []
+
+    async def submit_order(self, order):
+        self.submitted_orders.append(order)
+        return Fill(
+            order_id=order.id, symbol=order.symbol, side=order.side,
+            quantity=order.quantity, fill_price=Decimal("150"),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    async def cancel_order(self, order_id):
+        return True
+
+    async def cancel_all(self):
+        return 0
+
+
+class MockPortfolio:
+    async def get_snapshot(self):
+        return PortfolioSnapshot(
+            cash=Decimal("100000"), positions=[],
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    async def record_fill(self, fill):
+        pass
+
+    async def get_positions(self):
+        return []
+
+    async def get_pnl(self, period):
+        return 0.0
+
+
+@pytest.fixture
+def bus():
+    return EventBus()
+
+
+async def test_process_signals_executes_trade(bus):
+    strategies = [MockStrategy("momentum"), MockStrategy("sentiment")]
+    orchestrator = Orchestrator(
+        strategies=strategies,
+        risk_manager=MockRiskManager(approve=True),
+        executor=MockExecutor(),
+        portfolio=MockPortfolio(),
+        event_bus=bus,
+    )
+    tick = MarketTick(
+        symbol="AAPL", price=Decimal("150"), volume=1000,
+        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+    )
+    fills = await orchestrator.process_tick(tick)
+    assert len(fills) == 1  # Agreeing signals = one trade
+
+
+async def test_risk_veto_prevents_trade(bus):
+    strategies = [MockStrategy("momentum")]
+    orchestrator = Orchestrator(
+        strategies=strategies,
+        risk_manager=MockRiskManager(approve=False),
+        executor=MockExecutor(),
+        portfolio=MockPortfolio(),
+        event_bus=bus,
+    )
+    tick = MarketTick(
+        symbol="AAPL", price=Decimal("150"), volume=1000,
+        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+    )
+    fills = await orchestrator.process_tick(tick)
+    assert len(fills) == 0
+
+
+async def test_conflicting_signals_no_trade(bus):
+    strategies = [
+        MockStrategy("momentum", direction=SignalDirection.BUY),
+        MockStrategy("sentiment", direction=SignalDirection.SELL),
+    ]
+    orchestrator = Orchestrator(
+        strategies=strategies,
+        risk_manager=MockRiskManager(approve=True),
+        executor=MockExecutor(),
+        portfolio=MockPortfolio(),
+        event_bus=bus,
+    )
+    tick = MarketTick(
+        symbol="AAPL", price=Decimal("150"), volume=1000,
+        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+    )
+    fills = await orchestrator.process_tick(tick)
+    # Conflicting signals with no arbitrator = no trade
+    assert len(fills) == 0
+
+
+async def test_pause_and_resume(bus):
+    strategies = [MockStrategy("momentum")]
+    executor = MockExecutor()
+    orchestrator = Orchestrator(
+        strategies=strategies,
+        risk_manager=MockRiskManager(approve=True),
+        executor=executor,
+        portfolio=MockPortfolio(),
+        event_bus=bus,
+    )
+    orchestrator.pause()
+    tick = MarketTick(
+        symbol="AAPL", price=Decimal("150"), volume=1000,
+        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+    )
+    fills = await orchestrator.process_tick(tick)
+    assert len(fills) == 0
+    assert len(executor.submitted_orders) == 0
+
+    orchestrator.resume()
+    fills = await orchestrator.process_tick(tick)
+    assert len(fills) == 1
