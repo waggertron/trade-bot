@@ -1,0 +1,46 @@
+mode: paper  # paper | live
+
+trading:
+  symbols:
+    stocks: ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA"]
+    crypto: ["BTC/USD", "ETH/USD", "SOL/USD"]
+  market_hours:
+    stocks_open: "09:30"
+    stocks_close: "16:00"
+    timezone: "US/Eastern"
+
+risk:
+  max_position_pct: 2.0
+  max_sector_exposure_pct: 20.0
+  daily_loss_limit_pct: 3.0
+  weekly_drawdown_limit_pct: 5.0
+  max_open_positions: 10
+  stop_loss_pct: 5.0
+  trailing_stop_enabled: false
+  trailing_stop_pct: 3.0
+  max_correlation: 0.7
+
+research:
+  interval_minutes: 30
+  max_concurrent: 5
+
+strategies:
+  momentum:
+    enabled: true
+    weight: 0.4
+    lookback_periods: [14, 50, 200]
+  sentiment:
+    enabled: true
+    weight: 0.35
+  quantitative:
+    enabled: true
+    weight: 0.25
+    mean_reversion_threshold: 2.0
+
+ai:
+  claude_model: "claude-sonnet-4-5-20250929"
+  ollama_model: "llama3.2"
+
+dashboard:
+  host: "0.0.0.0"
+  port: 8080
