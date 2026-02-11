@@ -1,12 +1,16 @@
+"""Pydantic models for database records."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import uuid4
 
+from pydantic import BaseModel, ConfigDict, Field
 
-@dataclass
-class TradeRecord:
+
+class TradeRecord(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     symbol: str
     side: str
     quantity: str
@@ -15,15 +19,30 @@ class TradeRecord:
     strategy: str
     paper: bool
     timestamp: datetime
-    id: str = field(default_factory=lambda: str(uuid4()))
+    id: str = Field(default_factory=lambda: str(uuid4()))
 
 
-@dataclass
-class SignalRecord:
+class SignalRecord(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     symbol: str
     direction: str
-    confidence: float
+    confidence: float = Field(ge=0, le=1)
     strategy: str
     reasoning: str
     timestamp: datetime
-    id: str = field(default_factory=lambda: str(uuid4()))
+    id: str = Field(default_factory=lambda: str(uuid4()))
+
+
+class OHLCRecord(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    symbol: str
+    interval: str
+    timestamp: int
+    open: str
+    high: str
+    low: str
+    close: str
+    volume: str
+    source: str
