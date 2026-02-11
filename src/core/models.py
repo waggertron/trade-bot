@@ -130,6 +130,7 @@ class RiskDecision(BaseModel):
     action: RiskAction
     reason: str
     adjusted_quantity: Decimal | None = None
+    size_multiplier: Decimal | None = None
 
     @property
     def is_approved(self) -> bool:
