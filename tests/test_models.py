@@ -259,3 +259,101 @@ class TestRiskDecisionProperties:
     def test_resize_is_approved(self):
         d = RiskDecision(action=RiskAction.RESIZE, reason="reducing", adjusted_quantity=Decimal("5"))
         assert d.is_approved is True
+
+
+# -- Missing validation tests (code review fixes) --------------------------
+
+class TestMarketTickZeroPrice:
+    def test_rejects_zero_price(self):
+        with pytest.raises(ValidationError):
+            MarketTick(
+                symbol="BTC/USD", price=Decimal("0"),
+                volume=100, timestamp=datetime.now(UTC),
+                asset_type=AssetType.CRYPTO,
+            )
+
+
+class TestOrderQuantityValidation:
+    def test_rejects_zero_quantity(self):
+        with pytest.raises(ValidationError):
+            Order(
+                symbol="AAPL", side=OrderSide.BUY,
+                order_type=OrderType.MARKET, quantity=Decimal("0"),
+                asset_type=AssetType.STOCK,
+            )
+
+    def test_rejects_negative_quantity(self):
+        with pytest.raises(ValidationError):
+            Order(
+                symbol="AAPL", side=OrderSide.BUY,
+                order_type=OrderType.MARKET, quantity=Decimal("-5"),
+                asset_type=AssetType.STOCK,
+            )
+
+
+class TestFillValidation:
+    def test_rejects_zero_quantity(self):
+        with pytest.raises(ValidationError):
+            Fill(
+                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
+                quantity=Decimal("0"), fill_price=Decimal("150"),
+                timestamp=datetime.now(UTC), commission=Decimal("1"),
+            )
+
+    def test_rejects_negative_quantity(self):
+        with pytest.raises(ValidationError):
+            Fill(
+                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
+                quantity=Decimal("-10"), fill_price=Decimal("150"),
+                timestamp=datetime.now(UTC), commission=Decimal("1"),
+            )
+
+    def test_rejects_zero_fill_price(self):
+        with pytest.raises(ValidationError):
+            Fill(
+                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
+                quantity=Decimal("10"), fill_price=Decimal("0"),
+                timestamp=datetime.now(UTC), commission=Decimal("1"),
+            )
+
+    def test_rejects_negative_fill_price(self):
+        with pytest.raises(ValidationError):
+            Fill(
+                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
+                quantity=Decimal("10"), fill_price=Decimal("-50"),
+                timestamp=datetime.now(UTC), commission=Decimal("1"),
+            )
+
+    def test_rejects_negative_commission(self):
+        with pytest.raises(ValidationError):
+            Fill(
+                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
+                quantity=Decimal("10"), fill_price=Decimal("150"),
+                timestamp=datetime.now(UTC), commission=Decimal("-1"),
+            )
+
+
+class TestResearchReportSentimentValidation:
+    def test_rejects_sentiment_above_one(self):
+        with pytest.raises(ValidationError):
+            ResearchReport(
+                symbol="AAPL", summary="test",
+                sentiment_score=1.5, timestamp=datetime.now(UTC),
+            )
+
+    def test_rejects_sentiment_below_negative_one(self):
+        with pytest.raises(ValidationError):
+            ResearchReport(
+                symbol="AAPL", summary="test",
+                sentiment_score=-1.5, timestamp=datetime.now(UTC),
+            )
+
+
+class TestPortfolioSnapshotCashValidation:
+    def test_rejects_negative_cash(self):
+        with pytest.raises(ValidationError):
+            PortfolioSnapshot(
+                cash=Decimal("-100"),
+                positions=[],
+                timestamp=datetime.now(UTC),
+            )
