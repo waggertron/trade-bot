@@ -6,6 +6,7 @@ from src.core.models import (
     Fill, MarketTick, Order, PortfolioSnapshot, Position,
     ResearchReport, RiskDecision, Signal,
 )
+from src.ml.models import FeatureVector
 
 
 @runtime_checkable
@@ -56,3 +57,16 @@ class PortfolioAgent(Protocol):
     async def record_fill(self, fill: Fill) -> None: ...
     async def get_positions(self) -> list[Position]: ...
     async def get_pnl(self, period: str) -> float: ...
+
+
+@runtime_checkable
+class FeatureStrategy(Protocol):
+    """Strategy that evaluates features from the feature store."""
+
+    name: str
+
+    async def evaluate(
+        self, symbol: str, features: FeatureVector,
+    ) -> Signal | None: ...
+
+    def required_features(self) -> list[str]: ...
