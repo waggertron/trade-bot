@@ -62,6 +62,17 @@ class EvalMetrics(BaseModel):
     test_samples: int = 0
 
 
+class WalkForwardResult(BaseModel):
+    """Immutable result of a single walk-forward validation fold."""
+
+    model_config = ConfigDict(frozen=True)
+
+    train_period: tuple[int, int]  # (start_ts, end_ts)
+    test_period: tuple[int, int]  # (start_ts, end_ts)
+    train_result: TrainResult
+    eval_result: EvalMetrics
+
+
 class Dataset(BaseModel):
     """Mutable container for building training/test datasets."""
 
