@@ -16,14 +16,14 @@ class Event:
 
 
 class EventBus:
-    def __init__(self):
-        self._subscribers: dict[str, list[Callable]] = {}
+    def __init__(self) -> None:
+        self._subscribers: dict[str, list[Callable[..., Any]]] = {}
         self._history: list[Event] | None = None
 
-    def subscribe(self, event_type: str, handler: Callable[[Event], Coroutine]) -> None:
+    def subscribe(self, event_type: str, handler: Callable[[Event], Coroutine[Any, Any, None]]) -> None:
         self._subscribers.setdefault(event_type, []).append(handler)
 
-    def unsubscribe(self, event_type: str, handler: Callable) -> None:
+    def unsubscribe(self, event_type: str, handler: Callable[..., Any]) -> None:
         handlers = self._subscribers.get(event_type, [])
         if handler in handlers:
             handlers.remove(handler)

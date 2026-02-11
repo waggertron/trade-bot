@@ -21,12 +21,16 @@ class Orchestrator:
         executor,
         portfolio,
         event_bus: EventBus,
+        position_size_pct: float = 2.0,
+        min_order_value: Decimal = Decimal("10"),
     ):
         self._strategies = strategies
         self._risk_manager = risk_manager
         self._executor = executor
         self._portfolio = portfolio
         self._event_bus = event_bus
+        self._position_size_pct = Decimal(str(position_size_pct))
+        self._min_order_value = min_order_value
         self._paused = False
         self._tick_history: dict[str, list[MarketTick]] = {}
         self._max_history = 200
@@ -66,10 +70,16 @@ class Orchestrator:
             logger.info("Trade vetoed for %s: %s", tick.symbol, decision.reason)
             return []
 
-        quantity = decision.adjusted_quantity or Decimal("10")
+        side = OrderSide.BUY if consensus.direction == SignalDirection.BUY else OrderSide.SELL
+        quantity = self._compute_quantity(side, tick, portfolio, decision)
+
+        if quantity <= 0:
+            logger.info("Skipping %s %s: computed quantity is zero", side.value, tick.symbol)
+            return []
+
         order = Order(
             symbol=tick.symbol,
-            side=OrderSide.BUY if consensus.direction == SignalDirection.BUY else OrderSide.SELL,
+            side=side,
             order_type=OrderType.MARKET,
             quantity=quantity,
             asset_type=tick.asset_type,
@@ -79,6 +89,53 @@ class Orchestrator:
         fill = await self._executor.submit_order(order)
         await self._portfolio.record_fill(fill)
         return [fill]
+
+    def _compute_quantity(
+        self,
+        side: OrderSide,
+        tick: MarketTick,
+        portfolio,
+        decision,
+    ) -> Decimal:
+        """Compute order quantity with position sizing and hard limits."""
+        if tick.price <= 0:
+            return Decimal("0")
+
+        if side == OrderSide.BUY:
+            # Size based on % of portfolio value
+            trade_value = portfolio.total_value * self._position_size_pct / Decimal("100")
+            # Never spend more than available cash
+            trade_value = min(trade_value, portfolio.cash)
+            # Skip if below minimum order value
+            if trade_value < self._min_order_value:
+                return Decimal("0")
+            quantity = trade_value / tick.price
+        else:
+            # Sells: can only sell what we hold
+            held = Decimal("0")
+            for pos in portfolio.positions:
+                if pos.symbol == tick.symbol:
+                    held = pos.quantity
+                    break
+            if held <= 0:
+                return Decimal("0")
+            quantity = held
+
+        # Risk manager can override quantity, but hard limits still apply
+        if decision.adjusted_quantity is not None:
+            quantity = decision.adjusted_quantity
+            if side == OrderSide.BUY:
+                max_affordable = portfolio.cash / tick.price
+                quantity = min(quantity, max_affordable)
+            else:
+                held = Decimal("0")
+                for pos in portfolio.positions:
+                    if pos.symbol == tick.symbol:
+                        held = pos.quantity
+                        break
+                quantity = min(quantity, held)
+
+        return quantity
 
     async def _gather_signals(self, tick: MarketTick) -> list[Signal]:
         history = self._tick_history.get(tick.symbol, [tick])

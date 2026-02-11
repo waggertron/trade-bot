@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from src.db.models import TradeRecord, SignalRecord
+from src.db.models import OHLCRecord, SignalRecord, TradeRecord
 
 metadata = sa.MetaData()
 
@@ -31,9 +31,23 @@ signals_table = sa.Table(
     sa.Column("timestamp", sa.DateTime, nullable=False),
 )
 
+ohlc_bars_table = sa.Table(
+    "ohlc_bars", metadata,
+    sa.Column("symbol", sa.String, nullable=False),
+    sa.Column("interval", sa.String, nullable=False),
+    sa.Column("timestamp", sa.Integer, nullable=False),
+    sa.Column("open", sa.String, nullable=False),
+    sa.Column("high", sa.String, nullable=False),
+    sa.Column("low", sa.String, nullable=False),
+    sa.Column("close", sa.String, nullable=False),
+    sa.Column("volume", sa.String, nullable=False),
+    sa.Column("source", sa.String, nullable=False),
+    sa.PrimaryKeyConstraint("symbol", "interval", "timestamp"),
+)
+
 
 class Database:
-    def __init__(self, url: str):
+    def __init__(self, url: str) -> None:
         self._engine = create_async_engine(url)
         self._session_factory = async_sessionmaker(self._engine, expire_on_commit=False)
 
@@ -88,3 +102,77 @@ class Database:
                 signals_table.select().order_by(signals_table.c.timestamp.desc()).limit(limit)
             )).fetchall()
         return [SignalRecord(**r._asdict()) for r in rows]
+
+    async def load_ohlc_bars(self, records: list[OHLCRecord]) -> int:
+        """Bulk INSERT OR REPLACE OHLC records in batches of 1000."""
+        if not records:
+            return 0
+        batch_size = 1000
+        total = 0
+        async with self._engine.begin() as conn:
+            for i in range(0, len(records), batch_size):
+                batch = records[i : i + batch_size]
+                # Use SQLite dialect INSERT OR REPLACE via raw text
+                for rec in batch:
+                    await conn.execute(
+                        sa.text(
+                            "INSERT OR REPLACE INTO ohlc_bars "
+                            "(symbol, interval, timestamp, open, high, low, close, volume, source) "
+                            "VALUES (:symbol, :interval, :timestamp, :open, :high, :low, "
+                            ":close, :volume, :source)"
+                        ),
+                        {
+                            "symbol": rec.symbol,
+                            "interval": rec.interval,
+                            "timestamp": rec.timestamp,
+                            "open": rec.open,
+                            "high": rec.high,
+                            "low": rec.low,
+                            "close": rec.close,
+                            "volume": rec.volume,
+                            "source": rec.source,
+                        },
+                    )
+                total += len(batch)
+        return total
+
+    async def query_ohlc_bars(
+        self,
+        symbol: str | None = None,
+        interval: str | None = None,
+        start_ts: int | None = None,
+        end_ts: int | None = None,
+        source: str | None = None,
+        limit: int = 10000,
+    ) -> list[OHLCRecord]:
+        """Query OHLC bars with optional filters."""
+        query = ohlc_bars_table.select().order_by(ohlc_bars_table.c.timestamp.asc())
+        if symbol is not None:
+            query = query.where(ohlc_bars_table.c.symbol == symbol)
+        if interval is not None:
+            query = query.where(ohlc_bars_table.c.interval == interval)
+        if start_ts is not None:
+            query = query.where(ohlc_bars_table.c.timestamp >= start_ts)
+        if end_ts is not None:
+            query = query.where(ohlc_bars_table.c.timestamp <= end_ts)
+        if source is not None:
+            query = query.where(ohlc_bars_table.c.source == source)
+        query = query.limit(limit)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+        return [OHLCRecord(**r._asdict()) for r in rows]
+
+    async def count_ohlc_bars(
+        self,
+        symbol: str | None = None,
+        interval: str | None = None,
+    ) -> int:
+        """Count OHLC bars with optional filters."""
+        query = sa.select(sa.func.count()).select_from(ohlc_bars_table)
+        if symbol is not None:
+            query = query.where(ohlc_bars_table.c.symbol == symbol)
+        if interval is not None:
+            query = query.where(ohlc_bars_table.c.interval == interval)
+        async with self._engine.connect() as conn:
+            result = await conn.execute(query)
+            return int(result.scalar() or 0)
