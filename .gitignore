@@ -1,12 +1,35 @@
+# OS
+.DS_Store
+
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
+build/
+
+# Virtual environments
 .venv/
 venv/
+
+# Environment
 .env
-*.db
-.ruff_cache/
-.pytest_cache/
+
+# Data
+data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Coverage
 htmlcov/
 .coverage
+
+# Database
+*.db
+
+# Tool caches
+.ruff_cache/
+.pytest_cache/
