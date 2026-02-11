@@ -17,8 +17,8 @@ from src.providers.mock import (
     MockNewsProvider,
     MockOnChainProvider,
     MockSentimentAnalyzer,
-    SentimentResult,
 )
+from src.sentiment.models import SentimentResult
 from src.providers.protocols import (
     DataStore,
     FeatureProvider,

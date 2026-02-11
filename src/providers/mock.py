@@ -7,9 +7,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from src.core.models import AssetType, MarketTick
+from src.sentiment.models import SentimentResult
 from src.db.models import SignalRecord, TradeRecord
 from src.providers.configs import (
     MockFeatureConfig,
@@ -19,18 +18,6 @@ from src.providers.configs import (
     MockSentimentConfig,
 )
 from src.providers.protocols import HttpResponse
-
-
-# -- Shared model -------------------------------------------------------------
-
-
-class SentimentResult(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    score: float = Field(ge=-1, le=1)
-    magnitude: float = Field(ge=0, le=1)
-    timestamp: datetime
-    reasoning: str | None = None
 
 
 # -- Mock HttpClient ----------------------------------------------------------
