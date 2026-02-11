@@ -175,7 +175,7 @@ class TestMockOnChainProvider:
         from src.providers.configs import MockOnChainConfig
 
         provider = MockOnChainProvider(MockOnChainConfig(should_fail=True))
-        with pytest.raises(RuntimeError, match="configured to fail"):
+        with pytest.raises(ConnectionError, match="Mock on-chain provider failure"):
             await provider.get_metrics("BTC")
 
 

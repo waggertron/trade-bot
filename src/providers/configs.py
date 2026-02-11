@@ -114,7 +114,9 @@ class OnChainConfig(BaseModel):
 
 class BlockchairConfig(OnChainConfig):
     base_url: str = "https://api.blockchair.com"
-    timeout: float = 15.0
+    api_key: str = ""
+    timeout_seconds: int = 10
+    cache_ttl_seconds: int = 300
 
 
 class MockOnChainConfig(OnChainConfig):

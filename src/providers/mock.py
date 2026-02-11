@@ -171,22 +171,58 @@ class MockSentimentAnalyzer:
 
 
 class MockOnChainProvider:
-    """Mock on-chain provider."""
+    """Mock on-chain provider for testing.
 
-    def __init__(self, config: MockOnChainConfig | None = None) -> None:
-        self._config = config or MockOnChainConfig()
+    Supports two construction styles for backwards-compatibility:
+    1. ``MockOnChainProvider(config=MockOnChainConfig(...))``
+    2. ``MockOnChainProvider(metrics=..., should_fail=True)``
+    """
+
+    def __init__(
+        self,
+        config: MockOnChainConfig | None = None,
+        *,
+        metrics: dict[str, dict[str, Any]] | None = None,
+        should_fail: bool = False,
+    ) -> None:
+        # Legacy config-based construction
+        if config is not None:
+            self._should_fail = config.should_fail
+        else:
+            self._should_fail = should_fail
+
+        self._metrics: dict[str, dict[str, Any]] = metrics if metrics is not None else {
+            "BTC": {
+                "symbol": "BTC",
+                "timestamp": 1700000000,
+                "active_addresses": 1000000,
+                "transaction_count": 500000,
+                "average_transaction_value": 25000.0,
+                "blocks_24h": 144,
+            },
+            "ETH": {
+                "symbol": "ETH",
+                "timestamp": 1700000000,
+                "active_addresses": 500000,
+                "transaction_count": 1200000,
+                "average_transaction_value": 800.0,
+                "blocks_24h": 7200,
+            },
+        }
+        self.call_count: int = 0
 
     @property
     def name(self) -> str:
         return "mock_onchain"
 
     async def get_metrics(self, symbol: str) -> dict[str, Any]:
-        if self._config.should_fail:
-            raise RuntimeError("MockOnChainProvider configured to fail")
-        return {"symbol": symbol, "mock": True}
+        self.call_count += 1
+        if self._should_fail:
+            raise ConnectionError("Mock on-chain provider failure")
+        return dict(self._metrics.get(symbol, {"symbol": symbol, "error": "unknown"}))
 
     async def health_check(self) -> bool:
-        return not self._config.should_fail
+        return not self._should_fail
 
 
 # -- Mock FeatureProvider -----------------------------------------------------
