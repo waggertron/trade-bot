@@ -17,6 +17,7 @@ venv/
 
 # Data
 data/
+!web/src/lib/mock/data/
 
 # IDE
 .idea/
