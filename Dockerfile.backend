@@ -1,0 +1,32 @@
+FROM python:3.12-slim AS builder
+
+# Install build deps + TA-Lib C library
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential wget \
+    && wget -q https://github.com/TA-Lib/ta-lib/releases/download/v0.6.4/ta-lib-0.6.4-src.tar.gz \
+    && tar xzf ta-lib-0.6.4-src.tar.gz \
+    && cd ta-lib-0.6.4 \
+    && ./configure --prefix=/usr \
+    && make -j$(nproc) && make install \
+    && cd .. && rm -rf ta-lib-0.6.4* \
+    && apt-get purge -y wget && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY pyproject.toml .
+RUN uv pip install --system --no-cache -e ".[yfinance]"
+
+# Copy application code
+COPY src/ src/
+COPY config/ config/
+
+RUN mkdir -p /app/data
+
+EXPOSE 8080
+
+CMD ["uvicorn", "src.dashboard.app:create_app", "--host", "0.0.0.0", "--port", "8080", "--factory"]

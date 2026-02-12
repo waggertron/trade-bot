@@ -11,7 +11,7 @@ import DataTable from "@/components/shared/DataTable";
 import { StatCardSkeleton, ChartSkeleton } from "@/components/shared/LoadingSkeleton";
 import StatCard from "@/components/shared/StatCard";
 import { formatCurrency, formatPercent, formatNumber, cn } from "@/lib/formatters";
-import { themeColors, chartAxisTick, chartGridProps, chartTooltipStyle } from "@/lib/chartTheme";
+import { themeColors, themeRgba, chartAxisTick, chartGridProps, chartTooltipStyle } from "@/lib/chartTheme";
 import { TrendingUp, TrendingDown, BarChart3, Target } from "lucide-react";
 
 export default function AnalyticsPage() {
@@ -222,10 +222,9 @@ export default function AnalyticsPage() {
                       <td className="p-2 text-muted">{s}</td>
                       {((correlation as Record<string, unknown>).matrix as number[][])[i].map((val, j) => {
                         const intensity = Math.abs(val);
-                        // Dynamic opacity requires rgba — derived from themeColors.accent and themeColors.red
                         const color = val > 0
-                          ? `rgba(59, 130, 246, ${intensity * 0.8})`
-                          : `rgba(239, 68, 68, ${intensity * 0.8})`;
+                          ? themeRgba("--accent-rgb", intensity * 0.8)
+                          : themeRgba("--red-rgb", intensity * 0.8);
                         return (
                           <td
                             key={j}

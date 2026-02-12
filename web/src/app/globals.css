@@ -1,20 +1,35 @@
 @import "tailwindcss";
 
 :root {
+  /* ── Core palette ─────────────────────────────────────────────────── */
   --background: #0a0a0f;
-  --foreground: #e4e4e7;
-  --card: #111118;
-  --card-hover: #1a1a24;
-  --border: #27272a;
+  --foreground: #f0f0f3;
+  --card: rgba(17, 17, 24, 0.65);
+  --card-hover: rgba(30, 30, 42, 0.7);
+  --border: rgba(55, 55, 68, 0.6);
   --accent: #3b82f6;
   --accent-hover: #2563eb;
   --green: #22c55e;
   --red: #ef4444;
   --yellow: #eab308;
-  --muted: #71717a;
+  --muted: #9ca3af;
   --purple: #a855f7;
   --cyan: #06b6d4;
   --orange: #f97316;
+
+  /* ── RGB channels (for dynamic opacity via rgba) ──────────────────── */
+  --accent-rgb: 59, 130, 246;
+  --red-rgb: 239, 68, 68;
+  --purple-rgb: 168, 85, 247;
+  --purple-deep-rgb: 88, 28, 135;
+  --purple-dark-rgb: 59, 7, 100;
+
+  /* ── Layout ───────────────────────────────────────────────────────── */
+  --glass-blur: 12px;
+  --radius-lg: 8px;
+
+  /* ── Typography scale bump (~7%) ──────────────────────────────────── */
+  font-size: 107%;
 }
 
 @theme inline {
@@ -43,7 +58,19 @@
 
 body {
   background: var(--background);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 80%, rgba(var(--purple-deep-rgb), 0.15), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(var(--purple-dark-rgb), 0.12), transparent);
+  background-attachment: fixed;
   color: var(--foreground);
+  min-height: 100vh;
+}
+
+/* Glass effect for cards, sidebar, and header */
+[class*="bg-card"],
+[class*="bg-card/"] {
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 /* Chart container defaults */

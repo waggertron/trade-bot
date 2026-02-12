@@ -1,28 +1,47 @@
 import { type DeepPartial, type ChartOptions, ColorType } from "lightweight-charts";
 
 // ---------------------------------------------------------------------------
-// Design tokens — mirrors CSS variables in globals.css
-// Chart libraries (Recharts, TradingView) need JS values; this is the single
-// source of truth. Every hex value in the app should come from here or from
-// Tailwind utility classes that reference the same CSS variables.
+// Design tokens — reads CSS variables from globals.css at runtime.
+// globals.css is the single source of truth for all color values.
+// Chart libraries (Recharts, TradingView) need JS values; this module
+// resolves them from CSS custom properties so nothing is duplicated.
 // ---------------------------------------------------------------------------
 
+function cssVar(name: string): string {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** Read a CSS variable, returning a fallback during SSR */
+function token(name: string, fallback: string): string {
+  const val = cssVar(name);
+  return val || fallback;
+}
+
+// Eagerly-resolved tokens for chart libraries that need plain strings.
+// Fallbacks match globals.css so SSR / static builds still look correct.
 export const themeColors = {
-  background: "#0a0a0f",
-  foreground: "#e4e4e7",
-  card: "#111118",
-  cardHover: "#1a1a24",
-  border: "#27272a",
-  accent: "#3b82f6",
-  accentHover: "#2563eb",
-  green: "#22c55e",
-  red: "#ef4444",
-  yellow: "#eab308",
-  muted: "#71717a",
-  purple: "#a855f7",
-  cyan: "#06b6d4",
-  orange: "#f97316",
+  get background() { return token("--background", "#0a0a0f"); },
+  get foreground() { return token("--foreground", "#f0f0f3"); },
+  get card()       { return token("--card", "rgba(17, 17, 24, 0.65)"); },
+  get cardHover()  { return token("--card-hover", "rgba(30, 30, 42, 0.7)"); },
+  get border()     { return token("--border", "rgba(55, 55, 68, 0.6)"); },
+  get accent()     { return token("--accent", "#3b82f6"); },
+  get accentHover(){ return token("--accent-hover", "#2563eb"); },
+  get green()      { return token("--green", "#22c55e"); },
+  get red()        { return token("--red", "#ef4444"); },
+  get yellow()     { return token("--yellow", "#eab308"); },
+  get muted()      { return token("--muted", "#9ca3af"); },
+  get purple()     { return token("--purple", "#a855f7"); },
+  get cyan()       { return token("--cyan", "#06b6d4"); },
+  get orange()     { return token("--orange", "#f97316"); },
 } as const;
+
+/** Build an rgba() string from a CSS `--*-rgb` channel variable with dynamic opacity */
+export function themeRgba(channelVar: string, opacity: number): string {
+  const channels = cssVar(channelVar) || "128, 128, 128";
+  return `rgba(${channels}, ${opacity})`;
+}
 
 // ---------------------------------------------------------------------------
 // Reusable Recharts style objects

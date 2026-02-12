@@ -563,6 +563,95 @@ uv sync --extra yfinance  # Yahoo Finance provider
 
 ---
 
+## Docker
+
+Run the full stack (backend API, frontend, and trading bot) in containers with Docker Compose.
+
+### Prerequisites
+
+Docker and Docker Compose installed. Copy `.env.example` to `.env` and fill in your API keys:
+
+```bash
+cp .env.example .env
+```
+
+### Quick Start
+
+```bash
+make build   # Build all 3 images
+make up      # Start all containers (detached)
+make test    # Health-check all running services
+make logs    # Tail logs from all containers
+make down    # Stop and remove all containers
+```
+
+### Full Stack Commands
+
+| Command | Description |
+|---------|-------------|
+| `make build` | Build all container images |
+| `make rebuild` | Rebuild all images from scratch (no cache) |
+| `make up` | Start all containers in detached mode |
+| `make down` | Stop and remove all containers |
+| `make restart` | Restart all containers |
+| `make stop` | Stop all containers (preserves state) |
+| `make start` | Start previously stopped containers |
+| `make logs` | Tail logs from all containers |
+| `make ps` | Show container status |
+| `make clean` | Stop containers, remove volumes and images |
+
+### Per-Service Commands
+
+Replace `<service>` with `backend`, `frontend`, or `bot`:
+
+| Command | Description |
+|---------|-------------|
+| `make build-<service>` | Build a single service |
+| `make rebuild-<service>` | Rebuild a single service (no cache) |
+| `make up-<service>` | Start a single service |
+| `make down-<service>` | Stop and remove a single service |
+| `make restart-<service>` | Restart a single service |
+| `make stop-<service>` | Stop a single service |
+| `make start-<service>` | Start a stopped service |
+| `make logs-<service>` | Tail logs for a single service |
+
+Examples:
+
+```bash
+make rebuild-backend   # Rebuild just the backend after code changes
+make logs-bot          # Watch trading bot output
+make restart-frontend  # Restart the Next.js frontend
+```
+
+### Testing
+
+| Command | Description |
+|---------|-------------|
+| `make test` | Health-check all running services |
+| `make test-backend` | Hit the backend `/api/health` endpoint |
+| `make test-frontend` | Check the frontend is serving pages |
+| `make test-bot` | Show recent bot log output |
+
+### Local Dev (Outside Containers)
+
+| Command | Description |
+|---------|-------------|
+| `make dev-backend` | Run FastAPI backend locally with hot reload |
+| `make dev-frontend` | Run Next.js dev server locally |
+| `make dev-bot` | Run the trading bot locally |
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `backend` | 8080 | FastAPI dashboard API |
+| `frontend` | 3000 | Next.js web UI (proxies `/api/*` to backend) |
+| `bot` | -- | Trading bot loop (no exposed port) |
+
+The `backend` and `bot` services share a Docker volume (`db-data`) for the SQLite database and mount `config/` read-only.
+
+---
+
 ## CLI Commands
 
 | Command | Description |
