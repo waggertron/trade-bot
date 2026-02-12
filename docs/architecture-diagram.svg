@@ -81,12 +81,12 @@
     <rect x="80" y="392" width="90" height="24" rx="4" ry="4" fill="#F1F8E9" stroke="#AED581" stroke-width="0.8" />
     <text x="125" y="408" text-anchor="middle" font-size="10" fill="#555">ArticleBuffer</text>
 
-    <text x="178" y="409" text-anchor="middle" font-size="12" fill="#999">&rarr;</text>
+    <text x="178" y="409" text-anchor="middle" font-size="12" fill="#999">&#x2192;</text>
 
     <rect x="190" y="392" width="90" height="24" rx="4" ry="4" fill="#F1F8E9" stroke="#AED581" stroke-width="0.8" />
     <text x="235" y="408" text-anchor="middle" font-size="10" fill="#555">Analyzer</text>
 
-    <text x="288" y="409" text-anchor="middle" font-size="12" fill="#999">&rarr;</text>
+    <text x="288" y="409" text-anchor="middle" font-size="12" fill="#999">&#x2192;</text>
 
     <rect x="298" y="392" width="82" height="24" rx="4" ry="4" fill="#F1F8E9" stroke="#AED581" stroke-width="0.8" />
     <text x="339" y="408" text-anchor="middle" font-size="10" fill="#555">Aggregator</text>
@@ -112,7 +112,7 @@
     <!-- DB icon hint -->
     <text x="344" y="508" text-anchor="start" font-size="12" fill="#2E7D32">&#9707;</text>
     <text x="460" y="508" text-anchor="middle" font-size="13" font-weight="bold" fill="#2E7D32">FeatureStore (DB)</text>
-    <text x="460" y="535" text-anchor="middle" font-size="10" fill="#999" font-style="italic">symbol x timestamp x feature_name &rarr; value</text>
+    <text x="460" y="535" text-anchor="middle" font-size="10" fill="#999" font-style="italic">symbol x timestamp x feature_name &#x2192; value</text>
 
     <!-- Arrow from FeatureEngine down to FeatureStore -->
     <line x1="690" y1="466" x2="690" y2="496" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
@@ -218,7 +218,7 @@
     <text x="715" y="928" text-anchor="middle" font-size="10" fill="#999">Fixed, Kelly, Vol-Targeted</text>
 
     <!-- Orchestrator label -->
-    <text x="460" y="960" text-anchor="middle" font-size="10" fill="#999" font-style="italic">Orchestrator: majority consensus &rarr; risk evaluation &rarr; sized order</text>
+    <text x="460" y="960" text-anchor="middle" font-size="10" fill="#999" font-style="italic">Orchestrator: majority consensus &#x2192; risk evaluation &#x2192; sized order</text>
   </g>
 
   <!-- Arrow: Decision Layer -> Execution Layer -->
