@@ -20,7 +20,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     set((s) => ({
       notifications: [
         ...s.notifications,
-        { ...n, id: crypto.randomUUID(), timestamp: Date.now() },
+        { ...n, id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`, timestamp: Date.now() },
       ].slice(-20),
     })),
   dismiss: (id) =>

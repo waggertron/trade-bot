@@ -272,7 +272,7 @@ function RecentSignals() {
             return (
               <div
                 key={sig.id}
-                className="flex items-center gap-3 rounded-lg border border-border/50 px-3 py-2"
+                className="flex items-center gap-3 rounded-lg border border-border/50 px-4 py-2.5"
               >
                 <span
                   className={cn(
@@ -463,14 +463,14 @@ function MarketOverview() {
 
   return (
     <ChartContainer title="Market Overview" subtitle="Watchlist">
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {symbols.map((symbol) => {
           const item = sparklines![symbol];
           const positive = item.change_pct >= 0;
           return (
             <div
               key={symbol}
-              className="flex items-center gap-3 rounded-lg px-3 py-1.5 hover:bg-card-hover/50"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-card-hover/50"
             >
               <span className="w-16 text-sm font-medium text-foreground">{symbol}</span>
               <MiniSparkline prices={item.prices} positive={positive} />

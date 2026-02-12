@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ReconnectingWebSocket } from "@/lib/websocket";
+import { MOCK_ENABLED, MockWebSocket } from "@/lib/mock";
 import { useNotificationStore } from "@/stores/notificationStore";
 
 /**
@@ -13,7 +14,7 @@ import { useNotificationStore } from "@/stores/notificationStore";
 export function useWebSocket() {
   const queryClient = useQueryClient();
   const addNotification = useNotificationStore((s) => s.add);
-  const wsRef = useRef<ReconnectingWebSocket | null>(null);
+  const wsRef = useRef<ReconnectingWebSocket | MockWebSocket | null>(null);
 
   useEffect(() => {
     const wsUrl =
@@ -21,7 +22,8 @@ export function useWebSocket() {
         ? `ws://${window.location.hostname}:8080/api/ws`
         : "ws://localhost:8080/api/ws";
 
-    const ws = new ReconnectingWebSocket(wsUrl);
+    const WS = MOCK_ENABLED ? MockWebSocket : ReconnectingWebSocket;
+    const ws = new WS(wsUrl);
     wsRef.current = ws;
 
     // Price updates → invalidate market queries

@@ -34,7 +34,7 @@ export default function RootLayout({
           <Sidebar />
           <div className="pl-56 transition-all duration-200">
             <Header />
-            <main className="p-6">{children}</main>
+            <main className="p-8">{children}</main>
           </div>
           <WebSocketProvider />
           <NotificationProvider />

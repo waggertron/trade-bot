@@ -12,8 +12,8 @@ interface ChartContainerProps {
 
 export default function ChartContainer({ title, subtitle, children, className, actions }: ChartContainerProps) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
-      <div className="mb-4 flex items-center justify-between">
+    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <div className="mb-5 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-foreground">{title}</h3>
           {subtitle && <p className="text-xs text-muted">{subtitle}</p>}

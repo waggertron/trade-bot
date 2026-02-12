@@ -1,6 +1,9 @@
+import { MOCK_ENABLED, getMockResponse } from "./mock";
+
 const API_BASE = "";
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
+  if (MOCK_ENABLED) return getMockResponse<T>(path, options);
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     ...options,

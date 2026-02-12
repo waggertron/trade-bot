@@ -28,8 +28,8 @@
   --glass-blur: 12px;
   --radius-lg: 8px;
 
-  /* ── Typography scale bump (~7%) ──────────────────────────────────── */
-  font-size: 107%;
+  /* ── Global scale (~12% bump to text + spacing) ────────────────────── */
+  font-size: 112%;
 }
 
 @theme inline {

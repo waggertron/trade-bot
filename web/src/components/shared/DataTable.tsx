@@ -34,7 +34,7 @@ export default function DataTable<T extends object>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={cn("px-3 py-2 text-left text-xs font-medium text-muted", col.className)}
+                className={cn("px-4 py-3 text-left text-xs font-medium text-muted", col.className)}
               >
                 {col.header}
               </th>
@@ -44,7 +44,7 @@ export default function DataTable<T extends object>({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-3 py-8 text-center text-muted">
+              <td colSpan={columns.length} className="px-4 py-8 text-center text-muted">
                 {emptyMessage}
               </td>
             </tr>
@@ -52,7 +52,7 @@ export default function DataTable<T extends object>({
             rows.map((row, i) => (
               <tr key={i} className="border-b border-border/50 hover:bg-card-hover/50">
                 {columns.map((col) => (
-                  <td key={col.key} className={cn("px-3 py-2", col.className)}>
+                  <td key={col.key} className={cn("px-4 py-3", col.className)}>
                     {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
                   </td>
                 ))}
