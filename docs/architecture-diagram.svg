@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1150" width="920" height="1150" font-family="Arial, Helvetica, sans-serif">
+
+  <defs>
+    <!-- Arrowhead marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto" fill="#555">
+      <polygon points="0 0, 10 3.5, 0 7" />
+    </marker>
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-opacity="0.08" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="920" height="1150" fill="#FAFAFA" rx="4" ry="4" />
+
+  <!-- Title -->
+  <text x="460" y="36" text-anchor="middle" font-size="20" font-weight="bold" fill="#212121">Trading Bot Architecture</text>
+  <text x="460" y="54" text-anchor="middle" font-size="11" fill="#888">Protocol-First, Async Multi-Asset Trading System</text>
+
+  <!-- ================================================================== -->
+  <!-- LAYER 1: PROVIDER LAYER                                            -->
+  <!-- ================================================================== -->
+  <g id="provider-layer">
+    <rect x="30" y="72" width="860" height="220" rx="12" ry="12" fill="#E3F2FD" stroke="#90CAF9" stroke-width="1" />
+    <text x="460" y="96" text-anchor="middle" font-size="15" font-weight="bold" fill="#1565C0">PROVIDER LAYER</text>
+
+    <!-- NewsProvider -->
+    <rect x="60" y="110" width="240" height="100" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="180" y="132" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">NewsProvider</text>
+    <line x1="80" y1="138" x2="280" y2="138" stroke="#E0E0E0" stroke-width="0.5" />
+    <text x="180" y="156" text-anchor="middle" font-size="11" fill="#666">RSS</text>
+    <text x="180" y="172" text-anchor="middle" font-size="11" fill="#666">Reddit</text>
+    <text x="180" y="188" text-anchor="middle" font-size="11" fill="#666">NewsAPI</text>
+
+    <!-- MarketDataProvider -->
+    <rect x="340" y="110" width="240" height="100" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="460" y="132" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">MarketDataProvider</text>
+    <line x1="360" y1="138" x2="560" y2="138" stroke="#E0E0E0" stroke-width="0.5" />
+    <text x="460" y="156" text-anchor="middle" font-size="11" fill="#666">Kraken</text>
+    <text x="460" y="172" text-anchor="middle" font-size="11" fill="#666">Binance</text>
+    <text x="460" y="188" text-anchor="middle" font-size="11" fill="#666">Yahoo Finance</text>
+
+    <!-- OnChainProvider -->
+    <rect x="620" y="110" width="240" height="100" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="740" y="132" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">OnChainProvider</text>
+    <line x1="640" y1="138" x2="840" y2="138" stroke="#E0E0E0" stroke-width="0.5" />
+    <text x="740" y="156" text-anchor="middle" font-size="11" fill="#666">Blockchair</text>
+    <text x="740" y="172" text-anchor="middle" font-size="11" fill="#666">(Glassnode)</text>
+
+    <!-- Arrows from providers down to registry -->
+    <line x1="180" y1="210" x2="180" y2="232" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
+    <line x1="180" y1="232" x2="460" y2="248" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
+
+    <line x1="460" y1="210" x2="460" y2="248" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
+
+    <line x1="740" y1="210" x2="740" y2="232" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
+    <line x1="740" y1="232" x2="460" y2="248" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
+
+    <!-- ProviderRegistry -->
+    <rect x="220" y="248" width="480" height="34" rx="8" ry="8" fill="#FFFFFF" stroke="#1565C0" stroke-width="1.5" filter="url(#shadow)" />
+    <text x="460" y="270" text-anchor="middle" font-size="13" font-weight="bold" fill="#1565C0">ProviderRegistry</text>
+    <text x="730" y="270" text-anchor="start" font-size="10" fill="#999" font-style="italic">instantiate, validate, health check</text>
+  </g>
+
+  <!-- Arrow: Provider Layer -> Processing Layer -->
+  <line x1="460" y1="292" x2="460" y2="316" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+
+  <!-- ================================================================== -->
+  <!-- LAYER 2: PROCESSING LAYER                                          -->
+  <!-- ================================================================== -->
+  <g id="processing-layer">
+    <rect x="30" y="316" width="860" height="230" rx="12" ry="12" fill="#E8F5E9" stroke="#A5D6A7" stroke-width="1" />
+    <text x="460" y="340" text-anchor="middle" font-size="15" font-weight="bold" fill="#2E7D32">PROCESSING LAYER</text>
+
+    <!-- SentimentPipeline -->
+    <rect x="60" y="354" width="340" height="112" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="230" y="376" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">SentimentPipeline</text>
+    <line x1="80" y1="382" x2="380" y2="382" stroke="#E0E0E0" stroke-width="0.5" />
+    <!-- Pipeline stages -->
+    <rect x="80" y="392" width="90" height="24" rx="4" ry="4" fill="#F1F8E9" stroke="#AED581" stroke-width="0.8" />
+    <text x="125" y="408" text-anchor="middle" font-size="10" fill="#555">ArticleBuffer</text>
+
+    <text x="178" y="409" text-anchor="middle" font-size="12" fill="#999">&rarr;</text>
+
+    <rect x="190" y="392" width="90" height="24" rx="4" ry="4" fill="#F1F8E9" stroke="#AED581" stroke-width="0.8" />
+    <text x="235" y="408" text-anchor="middle" font-size="10" fill="#555">Analyzer</text>
+
+    <text x="288" y="409" text-anchor="middle" font-size="12" fill="#999">&rarr;</text>
+
+    <rect x="298" y="392" width="82" height="24" rx="4" ry="4" fill="#F1F8E9" stroke="#AED581" stroke-width="0.8" />
+    <text x="339" y="408" text-anchor="middle" font-size="10" fill="#555">Aggregator</text>
+
+    <text x="230" y="440" text-anchor="middle" font-size="10" fill="#888">Ollama (bulk) / FinBERT / Claude (deep)</text>
+    <text x="230" y="454" text-anchor="middle" font-size="10" fill="#888">Rolling sentiment scores</text>
+
+    <!-- FeatureEngine -->
+    <rect x="520" y="354" width="340" height="112" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="690" y="376" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">FeatureEngine</text>
+    <line x1="540" y1="382" x2="840" y2="382" stroke="#E0E0E0" stroke-width="0.5" />
+    <text x="690" y="400" text-anchor="middle" font-size="11" fill="#666">Technical (TA-Lib)</text>
+    <text x="690" y="416" text-anchor="middle" font-size="11" fill="#666">Sentiment (rolling)</text>
+    <text x="690" y="432" text-anchor="middle" font-size="11" fill="#666">Cross-asset (correlation)</text>
+    <text x="690" y="448" text-anchor="middle" font-size="11" fill="#666">Regime (vol detect) / On-chain (flows)</text>
+
+    <!-- Arrow from SentimentPipeline to FeatureEngine -->
+    <line x1="400" y1="410" x2="520" y2="410" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+    <text x="460" y="403" text-anchor="middle" font-size="10" font-style="italic" fill="#777">scores</text>
+
+    <!-- FeatureStore -->
+    <rect x="320" y="484" width="280" height="38" rx="8" ry="8" fill="#FFFFFF" stroke="#2E7D32" stroke-width="1.5" filter="url(#shadow)" />
+    <!-- DB icon hint -->
+    <text x="344" y="508" text-anchor="start" font-size="12" fill="#2E7D32">&#9707;</text>
+    <text x="460" y="508" text-anchor="middle" font-size="13" font-weight="bold" fill="#2E7D32">FeatureStore (DB)</text>
+    <text x="460" y="535" text-anchor="middle" font-size="10" fill="#999" font-style="italic">symbol x timestamp x feature_name &rarr; value</text>
+
+    <!-- Arrow from FeatureEngine down to FeatureStore -->
+    <line x1="690" y1="466" x2="690" y2="496" stroke="#555" stroke-width="1.5" stroke-dasharray="4,3" />
+    <line x1="690" y1="496" x2="600" y2="496" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead)" />
+  </g>
+
+  <!-- Arrow: Processing Layer -> ML + Strategy Layers -->
+  <line x1="460" y1="546" x2="460" y2="570" stroke="#555" stroke-width="2" />
+  <line x1="460" y1="570" x2="240" y2="586" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+  <line x1="460" y1="570" x2="680" y2="586" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+
+  <!-- ================================================================== -->
+  <!-- LAYER 3: ML LAYER + STRATEGY LAYER (side by side)                  -->
+  <!-- ================================================================== -->
+  <g id="ml-layer">
+    <rect x="30" y="586" width="420" height="190" rx="12" ry="12" fill="#F3E5F5" stroke="#CE93D8" stroke-width="1" />
+    <text x="240" y="610" text-anchor="middle" font-size="15" font-weight="bold" fill="#6A1B9A">ML LAYER</text>
+
+    <!-- ModelProvider -->
+    <rect x="60" y="624" width="200" height="100" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="160" y="646" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">ModelProvider</text>
+    <line x1="80" y1="652" x2="240" y2="652" stroke="#E0E0E0" stroke-width="0.5" />
+    <text x="160" y="670" text-anchor="middle" font-size="11" fill="#666">XGBoost</text>
+    <text x="160" y="686" text-anchor="middle" font-size="11" fill="#666">LSTM</text>
+    <text x="160" y="702" text-anchor="middle" font-size="11" fill="#666">Ensemble</text>
+
+    <!-- WalkForwardTrainer -->
+    <rect x="290" y="624" width="140" height="100" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="360" y="646" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">WalkForward</text>
+    <text x="360" y="660" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">Trainer</text>
+    <line x1="310" y1="666" x2="410" y2="666" stroke="#E0E0E0" stroke-width="0.5" />
+    <text x="360" y="684" text-anchor="middle" font-size="10" fill="#888">Weekly retrain</text>
+    <text x="360" y="698" text-anchor="middle" font-size="10" fill="#888">Evaluate / backtest</text>
+    <text x="360" y="712" text-anchor="middle" font-size="10" fill="#888">Walk-forward splits</text>
+
+    <!-- Arrow from ModelProvider to WalkForwardTrainer -->
+    <line x1="260" y1="674" x2="290" y2="674" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead)" />
+    <text x="275" y="668" text-anchor="middle" font-size="9" font-style="italic" fill="#777">train</text>
+
+    <!-- Prediction output text -->
+    <text x="240" y="754" text-anchor="middle" font-size="10" fill="#999" font-style="italic">Prediction: direction, confidence, attribution</text>
+  </g>
+
+  <g id="strategy-layer">
+    <rect x="470" y="586" width="420" height="190" rx="12" ry="12" fill="#FFF3E0" stroke="#FFCC80" stroke-width="1" />
+    <text x="680" y="610" text-anchor="middle" font-size="15" font-weight="bold" fill="#E65100">STRATEGY LAYER</text>
+
+    <!-- FeatureStrategy -->
+    <rect x="500" y="624" width="360" height="128" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="680" y="646" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">FeatureStrategy</text>
+    <line x1="520" y1="652" x2="840" y2="652" stroke="#E0E0E0" stroke-width="0.5" />
+
+    <!-- Strategy items in two columns -->
+    <text x="600" y="672" text-anchor="middle" font-size="11" fill="#666">Momentum (adapter)</text>
+    <text x="600" y="690" text-anchor="middle" font-size="11" fill="#666">Sentiment (adapter)</text>
+    <text x="600" y="708" text-anchor="middle" font-size="11" fill="#666">Quantitative (adapter)</text>
+
+    <text x="780" y="672" text-anchor="middle" font-size="11" fill="#E65100" font-weight="600">ML Ensemble (new)</text>
+    <text x="780" y="690" text-anchor="middle" font-size="11" fill="#E65100" font-weight="600">Event-Driven (new)</text>
+    <text x="780" y="708" text-anchor="middle" font-size="11" fill="#E65100" font-weight="600">Cross-Asset (new)</text>
+
+    <!-- Divider between legacy and new -->
+    <line x1="690" y1="658" x2="690" y2="720" stroke="#E0E0E0" stroke-width="0.5" stroke-dasharray="3,2" />
+
+    <text x="600" y="738" text-anchor="middle" font-size="9" fill="#999">legacy adapters</text>
+    <text x="780" y="738" text-anchor="middle" font-size="9" fill="#999">native FeatureVector</text>
+  </g>
+
+  <!-- Merging arrows from ML + Strategy -> Decision Layer -->
+  <line x1="240" y1="776" x2="240" y2="800" stroke="#555" stroke-width="2" />
+  <line x1="680" y1="776" x2="680" y2="800" stroke="#555" stroke-width="2" />
+  <line x1="240" y1="800" x2="460" y2="814" stroke="#555" stroke-width="2" />
+  <line x1="680" y1="800" x2="460" y2="814" stroke="#555" stroke-width="2" />
+  <line x1="460" y1="814" x2="460" y2="832" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+  <text x="460" y="810" text-anchor="middle" font-size="10" font-style="italic" fill="#777">FeatureVector + Signals</text>
+
+  <!-- ================================================================== -->
+  <!-- LAYER 4: DECISION LAYER                                            -->
+  <!-- ================================================================== -->
+  <g id="decision-layer">
+    <rect x="30" y="832" width="860" height="140" rx="12" ry="12" fill="#FFFDE7" stroke="#FFF176" stroke-width="1" />
+    <text x="460" y="856" text-anchor="middle" font-size="15" font-weight="bold" fill="#F57F17">DECISION LAYER</text>
+
+    <!-- WeightedConsensus -->
+    <rect x="80" y="870" width="210" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="185" y="897" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">WeightedConsensus</text>
+    <text x="185" y="928" text-anchor="middle" font-size="10" fill="#999">config x accuracy x regime</text>
+
+    <!-- Arrow -->
+    <line x1="290" y1="892" x2="345" y2="892" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <!-- RiskManager -->
+    <rect x="345" y="870" width="210" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="450" y="897" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">RiskManager</text>
+    <text x="450" y="928" text-anchor="middle" font-size="10" fill="#999">regime limits, correlation, circuit breaker</text>
+
+    <!-- Arrow -->
+    <line x1="555" y1="892" x2="610" y2="892" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <!-- PositionSizer -->
+    <rect x="610" y="870" width="210" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="715" y="897" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">PositionSizer</text>
+    <text x="715" y="928" text-anchor="middle" font-size="10" fill="#999">Fixed, Kelly, Vol-Targeted</text>
+
+    <!-- Orchestrator label -->
+    <text x="460" y="960" text-anchor="middle" font-size="10" fill="#999" font-style="italic">Orchestrator: majority consensus &rarr; risk evaluation &rarr; sized order</text>
+  </g>
+
+  <!-- Arrow: Decision Layer -> Execution Layer -->
+  <line x1="460" y1="972" x2="460" y2="998" stroke="#555" stroke-width="2" marker-end="url(#arrowhead)" />
+
+  <!-- ================================================================== -->
+  <!-- LAYER 5: EXECUTION & ANALYTICS                                     -->
+  <!-- ================================================================== -->
+  <g id="execution-layer">
+    <rect x="30" y="998" width="860" height="130" rx="12" ry="12" fill="#FFEBEE" stroke="#EF9A9A" stroke-width="1" />
+    <text x="460" y="1022" text-anchor="middle" font-size="15" font-weight="bold" fill="#C62828">EXECUTION &amp; ANALYTICS</text>
+
+    <!-- ExecutionAgent -->
+    <rect x="55" y="1038" width="185" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="147" y="1058" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">ExecutionAgent</text>
+    <text x="147" y="1072" text-anchor="middle" font-size="10" fill="#999">Paper / Live</text>
+
+    <!-- PortfolioManager -->
+    <rect x="260" y="1038" width="185" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="352" y="1058" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">PortfolioManager</text>
+    <text x="352" y="1072" text-anchor="middle" font-size="10" fill="#999">Positions / P&amp;L</text>
+
+    <!-- AnalyticsReporter -->
+    <rect x="465" y="1038" width="185" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="557" y="1058" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">AnalyticsReporter</text>
+    <text x="557" y="1072" text-anchor="middle" font-size="10" fill="#999">Attribution / Monte Carlo</text>
+
+    <!-- Dashboard -->
+    <rect x="670" y="1038" width="185" height="44" rx="8" ry="8" fill="#FFFFFF" stroke="#78909C" stroke-width="1" filter="url(#shadow)" />
+    <text x="762" y="1058" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">Dashboard</text>
+    <text x="762" y="1072" text-anchor="middle" font-size="10" fill="#999">FastAPI / Discord Bot</text>
+
+    <!-- EventBus label -->
+    <rect x="280" y="1098" width="360" height="22" rx="6" ry="6" fill="#FFCDD2" stroke="#EF9A9A" stroke-width="0.8" />
+    <text x="460" y="1114" text-anchor="middle" font-size="10" font-weight="bold" fill="#C62828">EventBus: pub/sub for trade alerts, logging, cross-cutting events</text>
+  </g>
+
+  <!-- Side annotation: Design principles -->
+  <g id="side-notes" opacity="0.6">
+    <text x="908" y="450" text-anchor="end" font-size="9" fill="#AAA" transform="rotate(-90, 908, 450)">Protocol-first  |  Pydantic v2 frozen models  |  Async throughout  |  Test-driven</text>
+  </g>
+
+</svg>
