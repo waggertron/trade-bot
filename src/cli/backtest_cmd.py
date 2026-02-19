@@ -9,6 +9,7 @@ from decimal import Decimal
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.rule import Rule
 
 from src.analytics.attribution import StrategyAttribution
 from src.analytics.models import AttributedFill
@@ -154,10 +155,12 @@ def example() -> None:
     simulator = MonteCarloSimulator(n_simulations=100, seed=42)
     reporter = AnalyticsReporter(attribution=attribution, simulator=simulator)
 
+    console.print(Rule("[bold]Backtest Report[/bold]"))
     report = reporter.generate_report(fills, initial_cash)
     typer.echo(report)
 
     # --- Charts (best-effort, don't crash the command) ---
+    console.print(Rule("[bold]Charts[/bold]"))
     _print_backtest_charts(fills, initial_cash, attribution)
 
 
@@ -209,6 +212,7 @@ def _print_backtest_charts(
         return
 
     # --- Chart: Equity curve ---
+    console.print(Rule("[bold]Equity Curve[/bold]"))
     try:
         equity = [initial_cash]
         running = initial_cash
@@ -222,6 +226,7 @@ def _print_backtest_charts(
         pass
 
     # --- Chart: Strategy attribution bar chart ---
+    console.print(Rule("[bold]Strategy Attribution[/bold]"))
     try:
         strat_pnl: dict[str, float] = defaultdict(float)
         for t in trades:
@@ -238,6 +243,7 @@ def _print_backtest_charts(
         pass
 
     # --- Chart: Drawdown chart (inverted) ---
+    console.print(Rule("[bold]Drawdown[/bold]"))
     try:
         equity = [initial_cash]
         running = initial_cash

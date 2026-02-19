@@ -49,6 +49,31 @@ class SimulationEngine:
                 risk_results[risk_level.value] = result
 
             report.risk_level_results = risk_results
+
+            # Compute SPY benchmarks (once per simulation)
+            try:
+                spy_bars = await self._fetch_bars("SPY")
+                total_needed = self._config.train_days + self._config.test_days
+                if len(spy_bars) >= total_needed:
+                    test_bars = spy_bars[self._config.train_days:total_needed]
+                else:
+                    split = len(spy_bars) * 2 // 3
+                    test_bars = spy_bars[split:]
+
+                if test_bars:
+                    from src.simulation.benchmark import BenchmarkSimulator
+                    bench = BenchmarkSimulator()
+                    report.benchmarks = {
+                        "spy_buy_hold": bench.buy_and_hold(
+                            test_bars, self._config.initial_balance,
+                        ),
+                        "spy_dca": bench.monthly_dca(
+                            test_bars, self._config.initial_balance,
+                        ),
+                    }
+            except Exception:
+                logger.warning("Failed to compute SPY benchmarks", exc_info=True)
+
             report.recommendation = self._generate_recommendation(risk_results)
             report.status = "completed"
         except Exception as e:

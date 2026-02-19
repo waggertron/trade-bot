@@ -10,6 +10,7 @@ import typer
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
+from rich.rule import Rule
 from rich.tree import Tree
 
 from src.core.config import (
@@ -122,6 +123,8 @@ def show(
         raise typer.Exit(code=1) from None
 
     data = settings.model_dump(mode="json")
+    if fmt != "json":
+        console.print(Rule("[bold]Configuration[/bold]"))
     if fmt == "json":
         console.print(json.dumps(data, indent=2))
     elif fmt == "tree":

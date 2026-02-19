@@ -7,6 +7,7 @@ import typer
 from src.cli.analytics_cmd import app as analytics_app
 from src.cli.backtest_cmd import app as backtest_app
 from src.cli.config_cmd import app as config_app
+from src.cli.dashboard_cmd import app as dashboard_app
 from src.cli.features_cmd import app as features_app
 from src.cli.ml_cmd import app as ml_app
 from src.cli.news_cmd import app as news_app
@@ -21,6 +22,7 @@ app = typer.Typer(name="tradebot", help="Trading bot CLI.", no_args_is_help=True
 app.add_typer(analytics_app, name="analytics")
 app.add_typer(backtest_app, name="backtest")
 app.add_typer(config_app, name="config")
+app.add_typer(dashboard_app, name="dashboard")
 app.add_typer(features_app, name="features")
 app.add_typer(ml_app, name="ml")
 app.add_typer(news_app, name="news")

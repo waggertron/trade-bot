@@ -163,6 +163,19 @@ class Recommendation(StrictBase):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class BenchmarkResult(StrictBase):
+    """Passive benchmark result (buy-and-hold or DCA)."""
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    initial_balance: float
+    final_value: float
+    return_pct: float
+    max_drawdown: float
+    sharpe_ratio: float
+    equity_curve: list[float] = Field(default_factory=list)
+
+
 class SimulationReport(StrictBase):
     """Complete simulation report across all risk levels."""
 
@@ -170,6 +183,7 @@ class SimulationReport(StrictBase):
     status: str = "pending"
     config: SimulationConfig
     risk_level_results: dict[str, RiskLevelResult] = Field(default_factory=dict)
+    benchmarks: dict[str, BenchmarkResult] = Field(default_factory=dict)
     recommendation: Recommendation | None = None
     started_at: str = ""
     completed_at: str = ""

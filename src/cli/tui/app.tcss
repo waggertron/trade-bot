@@ -1,0 +1,21 @@
+/* Trade Bot TUI Dashboard styles */
+
+Screen {
+    background: $surface;
+}
+
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 1;
+}
+
+Header {
+    dock: top;
+}
+
+Footer {
+    dock: bottom;
+}

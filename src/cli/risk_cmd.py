@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich.console import Console
+from rich.rule import Rule
 
 from src.agents.risk_manager import REGIME_LIMITS
 from src.cli.charts import plotext_bar_chart
@@ -64,7 +65,7 @@ def status() -> None:
     # Visual risk gauges for each setting
     try:
         console.print()
-        console.print("[bold]Risk Gauges[/bold]")
+        console.print(Rule("[bold]Risk Gauges[/bold]"))
         console.print(f"  Position Size:    {_risk_gauge(settings.max_position_pct, 10.0)}")
         console.print(f"  Daily Loss Limit: {_risk_gauge(settings.daily_loss_limit_pct, 10.0)}")
         console.print(f"  Stop Loss:        {_risk_gauge(settings.stop_loss_pct, 15.0)}")
@@ -90,7 +91,7 @@ def limits(
     # Regime comparison bar chart showing limits across all regimes
     try:
         console.print()
-        console.print("[bold]Regime Comparison[/bold]")
+        console.print(Rule("[bold]Regime Comparison[/bold]"))
         regime_names = ["LOW", "MEDIUM", "HIGH"]
         regime_enums = [
             VolatilityRegime.LOW,

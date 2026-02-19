@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich.console import Console
+from rich.rule import Rule
 from rich.table import Table
 from rich.tree import Tree
 
@@ -71,6 +72,7 @@ def status() -> None:
     # Feature category breakdown as a Rich tree
     try:
         console.print()
+        console.print(Rule("[bold]Feature Categories[/bold]"))
         tree = Tree("[bold]Feature Categories[/bold]")
         for category, feats in _FEATURE_CATEGORIES.items():
             branch = tree.add(f"[cyan]{category}[/cyan] ({len(feats)} features)")
@@ -83,7 +85,7 @@ def status() -> None:
     # Feature importance bar chart (example data)
     try:
         console.print()
-        console.print("[bold]Feature Importance (example)[/bold]")
+        console.print(Rule("[bold]Feature Importance[/bold]"))
         # Sort by importance descending
         sorted_features = sorted(
             _EXAMPLE_FEATURE_IMPORTANCE.items(), key=lambda x: x[1], reverse=True
@@ -101,6 +103,7 @@ def features(
     symbol: str = typer.Option(..., help="Symbol to show features for"),
 ) -> None:
     """Show stored features for a symbol."""
+    console.print(Rule(f"[bold]Features: {symbol}[/bold]"))
     table = Table(title=f"Features: {symbol}")
     table.add_column("Feature")
     table.add_column("Value")

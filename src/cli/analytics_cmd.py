@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typer
 from rich.console import Console
+from rich.rule import Rule
 
 from src.cli.charts import plotext_bar_chart
 
@@ -47,7 +48,7 @@ def attribution() -> None:
     # Strategy P&L bar chart using example attribution data
     try:
         console.print()
-        console.print("[bold]Example Attribution (sample data)[/bold]")
+        console.print(Rule("[bold]Example Attribution (sample data)[/bold]"))
         labels = list(_EXAMPLE_ATTRIBUTION.keys())
         pnl_values = [v["pnl"] for v in _EXAMPLE_ATTRIBUTION.values()]
         chart = plotext_bar_chart(labels, pnl_values, title="Strategy P&L ($)")
@@ -58,7 +59,7 @@ def attribution() -> None:
     # Contribution horizontal bars using Unicode blocks
     try:
         console.print()
-        console.print("[bold]Contribution Breakdown[/bold]")
+        console.print(Rule("[bold]Contribution Breakdown[/bold]"))
         max_abs = max(abs(v["contribution_pct"]) for v in _EXAMPLE_ATTRIBUTION.values())
         bar_width = 30
         for name, data in _EXAMPLE_ATTRIBUTION.items():

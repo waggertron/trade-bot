@@ -123,12 +123,27 @@ export const RecommendationSchema = z
 
 export type Recommendation = z.infer<typeof RecommendationSchema>;
 
+export const BenchmarkResultSchema = z
+  .object({
+    name: z.string(),
+    initial_balance: z.number(),
+    final_value: z.number(),
+    return_pct: z.number(),
+    max_drawdown: z.number(),
+    sharpe_ratio: z.number(),
+    equity_curve: z.array(z.number()),
+  })
+  .passthrough();
+
+export type BenchmarkResult = z.infer<typeof BenchmarkResultSchema>;
+
 export const SimulationRunSchema = z
   .object({
     id: z.string(),
     status: z.string(),
     config: SimulationConfigSchema,
     risk_level_results: z.record(z.string(), RiskLevelResultSchema),
+    benchmarks: z.record(z.string(), BenchmarkResultSchema).optional(),
     recommendation: RecommendationSchema,
     started_at: z.string(),
     completed_at: z.string().optional(),

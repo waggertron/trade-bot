@@ -8,6 +8,7 @@ from decimal import Decimal
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
 
 from src.cli.charts import (
@@ -141,12 +142,13 @@ def show() -> None:
     total_value = cash + positions_value
 
     console.print()
-    console.print("[bold]Portfolio Summary[/bold]")
+    console.print(Rule("[bold]Portfolio Summary[/bold]"))
     console.print(f"  Total Value:      ${total_value:,.2f}")
     console.print(f"  Cash:             ${cash:,.2f}")
     console.print(f"  Positions Value:  ${positions_value:,.2f}")
     console.print()
 
+    console.print(Rule("[bold]Positions[/bold]"))
     table = Table(title="Positions")
     table.add_column("Symbol", style="cyan")
     table.add_column("Qty", justify="right")
@@ -188,6 +190,7 @@ def show() -> None:
     console.print(table)
 
     # --- Chart: Allocation horizontal bar chart ---
+    console.print(Rule("[bold]Allocation[/bold]"))
     try:
         alloc_labels = [p.symbol for p in positions]
         alloc_values = [float(p.market_value) for p in positions]
@@ -202,6 +205,7 @@ def show() -> None:
         pass
 
     # --- Chart: P&L bar chart per position ---
+    console.print(Rule("[bold]Unrealized P&L[/bold]"))
     try:
         pnl_labels = [p.symbol for p in positions]
         pnl_values = [float(p.unrealized_pnl) for p in positions]
@@ -225,7 +229,8 @@ def trades(
     display_trades = all_trades[:limit]
 
     console.print()
-    console.print(f"[bold]Recent Trades[/bold] (showing {len(display_trades)})")
+    console.print(Rule("[bold]Recent Trades[/bold]"))
+    console.print(f"  Showing {len(display_trades)} trades")
     console.print()
 
     table = Table(title="Trade History")
@@ -279,7 +284,7 @@ def pnl(
     win_rate = winning_trades / total_trades * 100
 
     console.print()
-    console.print(f"[bold]P&L Summary[/bold] (period: {period})")
+    console.print(Rule(f"[bold]P&L Summary[/bold] (period: {period})"))
     console.print()
     console.print(f"  Realized P&L:    [green]${realized:,.2f}[/green]")
     console.print(f"  Unrealized P&L:  [green]${unrealized:,.2f}[/green]")
@@ -291,6 +296,7 @@ def pnl(
     console.print(f"  Win Rate:        {win_rate:.1f}%")
 
     # --- Chart: Synthetic equity curve from example P&L data ---
+    console.print(Rule("[bold]Equity Curve[/bold]"))
     try:
         # Build a simple synthetic equity curve from available data
         base = 100_000.0
@@ -313,6 +319,7 @@ def pnl(
         pass
 
     # --- Chart: Win/Loss distribution bar chart ---
+    console.print(Rule("[bold]Win/Loss Distribution[/bold]"))
     try:
         chart = plotext_bar_chart(
             ["Winning Trades", "Losing Trades"],

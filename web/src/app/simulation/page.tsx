@@ -111,11 +111,22 @@ type RiskResult = {
   portfolio_monte_carlo?: PortfolioMCType | null;
 };
 
+type BenchmarkResultType = {
+  name: string;
+  initial_balance: number;
+  final_value: number;
+  return_pct: number;
+  max_drawdown: number;
+  sharpe_ratio: number;
+  equity_curve: number[];
+};
+
 type SimReport = {
   id: string;
   status: string;
   config: Record<string, unknown>;
   risk_level_results: Record<string, RiskResult>;
+  benchmarks?: Record<string, BenchmarkResultType>;
   recommendation: {
     optimal_risk_level: string;
     reasoning: string;
@@ -527,6 +538,139 @@ export default function SimulationPage() {
                   );
                 })}
               </div>
+
+              {/* Benchmark Comparison */}
+              {report.benchmarks && Object.keys(report.benchmarks).length > 0 && (
+                <ChartContainer
+                  title="Benchmark Comparison"
+                  subtitle="Strategy performance vs passive SPY benchmarks"
+                >
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs text-muted">
+                          <th className="px-4 py-2">Strategy</th>
+                          <th className="px-4 py-2 text-right">Return %</th>
+                          <th className="px-4 py-2 text-right">Sharpe</th>
+                          <th className="px-4 py-2 text-right">Max DD %</th>
+                          <th className="px-4 py-2 text-right">Final Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.values(report.benchmarks).map((bm) => (
+                          <tr key={bm.name} className="border-b border-border/50">
+                            <td className="px-4 py-2 font-medium">{bm.name}</td>
+                            <td
+                              className={cn(
+                                "px-4 py-2 text-right",
+                                bm.return_pct >= 0 ? "text-profit" : "text-loss",
+                              )}
+                            >
+                              {bm.return_pct >= 0 ? "+" : ""}
+                              {formatPercent(bm.return_pct)}
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              {formatNumber(bm.sharpe_ratio)}
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              {formatPercent(bm.max_drawdown)}
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              {formatCurrency(bm.final_value)}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Best risk level row */}
+                        {(() => {
+                          const entries = Object.entries(report.risk_level_results);
+                          if (entries.length === 0) return null;
+                          const [bestLevel, bestResult] = entries.reduce((best, curr) =>
+                            curr[1].total_return_pct > best[1].total_return_pct ? curr : best,
+                          );
+                          const pm = bestResult.portfolio_metrics;
+                          const ret = pm ? pm.total_return_pct : bestResult.total_return_pct;
+                          const sharpe = pm ? pm.sharpe_ratio : bestResult.avg_sharpe;
+                          const dd = pm ? pm.max_drawdown : bestResult.avg_max_drawdown;
+                          const finalVal = pm ? pm.final_value : 0;
+                          return (
+                            <tr className="border-t-2 border-accent/30 font-semibold">
+                              <td className="px-4 py-2">
+                                Best ({bestLevel.replace("_", " ")})
+                              </td>
+                              <td
+                                className={cn(
+                                  "px-4 py-2 text-right",
+                                  ret >= 0 ? "text-profit" : "text-loss",
+                                )}
+                              >
+                                {ret >= 0 ? "+" : ""}
+                                {formatPercent(ret)}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {formatNumber(sharpe)}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {formatPercent(dd)}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                {finalVal > 0 ? formatCurrency(finalVal) : "\u2014"}
+                              </td>
+                            </tr>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Benchmark equity curve overlay */}
+                  {(() => {
+                    const benchmarks = report.benchmarks!;
+                    const curves = Object.values(benchmarks)
+                      .filter((bm) => bm.equity_curve.length > 1);
+                    if (curves.length === 0) return null;
+                    const maxLen = Math.max(...curves.map((c) => c.equity_curve.length));
+                    const chartData = Array.from({ length: maxLen }, (_, i) => {
+                      const point: Record<string, number> = { day: i };
+                      for (const bm of curves) {
+                        if (i < bm.equity_curve.length) {
+                          point[bm.name] = bm.equity_curve[i];
+                        }
+                      }
+                      return point;
+                    });
+                    const colors = [themeColors.cyan, themeColors.orange, themeColors.purple];
+                    return (
+                      <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={chartData}>
+                          <CartesianGrid {...chartGridProps} />
+                          <XAxis dataKey="day" tick={chartAxisTick} />
+                          <YAxis
+                            tick={chartAxisTick}
+                            tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
+                          />
+                          <Tooltip
+                            contentStyle={chartTooltipStyle}
+                            formatter={(v: number | undefined) =>
+                              v != null ? [`$${v.toFixed(2)}`, ""] : ["-", ""]
+                            }
+                          />
+                          <Legend />
+                          {curves.map((bm, idx) => (
+                            <Line
+                              key={bm.name}
+                              type="monotone"
+                              dataKey={bm.name}
+                              stroke={colors[idx % colors.length]}
+                              dot={false}
+                              strokeWidth={2}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </ChartContainer>
+              )}
 
               {/* Comparison Chart */}
               <ChartContainer

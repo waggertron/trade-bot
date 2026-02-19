@@ -7,6 +7,9 @@ import json
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.rule import Rule
+from rich.syntax import Syntax
 from rich.table import Table
 
 from src.cli.charts import (
@@ -114,7 +117,14 @@ def run(
         console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
     console.print()
 
-    with console.status("[bold green]Running simulation..."):
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total} risk levels"),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task("Running simulation...", total=1)
         report = _run_simulation(
             stock_list, balance, train_days, test_days, levels, mc_sims,
             portfolio_mode=portfolio,
@@ -124,9 +134,10 @@ def run(
             rebalance_threshold=rebalance_threshold,
             max_position_pct=max_position_pct,
         )
+        progress.update(task_id, completed=1)
 
     if output_json:
-        console.print(json.dumps(report, indent=2, default=str))
+        console.print(Syntax(json.dumps(report, indent=2, default=str), "json"))
         return
 
     _print_report(report)
@@ -135,6 +146,8 @@ def run(
 def _print_report(report: dict) -> None:
     """Pretty-print simulation results."""
     console.print(f"\n[bold green]Simulation {report['id']} — {report['status']}[/bold green]\n")
+
+    console.print(Rule("[bold]Risk Level Comparison[/bold]"))
 
     # Risk level comparison table
     table = Table(title="Risk Level Comparison")
@@ -155,6 +168,87 @@ def _print_report(report: dict) -> None:
         )
 
     console.print(table)
+
+    # Benchmark comparison section
+    benchmarks = report.get("benchmarks", {})
+    if benchmarks:
+        console.print()
+        console.print(Rule("[bold]Benchmark Comparison[/bold]"))
+
+        bench_table = Table(title="Benchmark vs Strategy Comparison")
+        bench_table.add_column("Strategy", style="bold")
+        bench_table.add_column("Return %", justify="right")
+        bench_table.add_column("Sharpe", justify="right")
+        bench_table.add_column("Max DD %", justify="right")
+
+        for _key, bm in benchmarks.items():
+            ret_style = "green" if bm["return_pct"] >= 0 else "red"
+            bench_table.add_row(
+                bm["name"],
+                f"[{ret_style}]{bm['return_pct']:.2f}%[/{ret_style}]",
+                f"{bm['sharpe_ratio']:.3f}",
+                f"{bm['max_drawdown']:.2f}%",
+            )
+
+        # Add best risk level for comparison
+        rl_results = report.get("risk_level_results", {})
+        if rl_results:
+            best_level = max(
+                rl_results.items(),
+                key=lambda x: x[1].get("total_return_pct", 0),
+            )
+            best_name = best_level[0]
+            best = best_level[1]
+            # Use portfolio metrics if available
+            pm = best.get("portfolio_metrics")
+            if pm:
+                ret = pm["total_return_pct"]
+                sharpe = pm["sharpe_ratio"]
+                dd = pm["max_drawdown"]
+            else:
+                ret = best["total_return_pct"]
+                sharpe = best["avg_sharpe"]
+                dd = best["avg_max_drawdown"]
+            ret_style = "green" if ret >= 0 else "red"
+            bench_table.add_row(
+                f"Best ({best_name})",
+                f"[{ret_style}]{ret:.2f}%[/{ret_style}]",
+                f"{sharpe:.3f}",
+                f"{dd:.2f}%",
+            )
+
+        console.print(bench_table)
+
+        # Benchmark equity curve overlay chart
+        try:
+            bench_series: dict[str, list[float]] = {}
+            for _key, bm in benchmarks.items():
+                curve = bm.get("equity_curve", [])
+                if len(curve) >= 2:
+                    bench_series[bm["name"]] = curve
+
+            # Add best risk level equity curve
+            if rl_results:
+                best = max(
+                    rl_results.values(),
+                    key=lambda x: x.get("total_return_pct", 0),
+                )
+                pm = best.get("portfolio_metrics")
+                if pm and len(pm.get("equity_curve", [])) >= 2:
+                    bench_series["Best Strategy"] = pm["equity_curve"]
+
+            if bench_series:
+                chart = plotext_multi_line(
+                    bench_series,
+                    title="Benchmark vs Strategy Equity Curves",
+                )
+                console.print()
+                console.print(Panel(chart, expand=False))
+        except Exception:
+            pass  # chart rendering is best-effort
+
+    console.print()
+    console.print(Rule("[bold]Per-Stock Details[/bold]"))
 
     # Per-stock details for each risk level
     for level_name, result in report.get("risk_level_results", {}).items():
@@ -255,6 +349,8 @@ def _print_report(report: dict) -> None:
             console.print(corr_table)
 
     # Monte Carlo projections
+    console.print()
+    console.print(Rule("[bold]Monte Carlo Projections[/bold]"))
     for level_name, result in report.get("risk_level_results", {}).items():
         if not result.get("monte_carlo_projections"):
             continue
@@ -281,6 +377,9 @@ def _print_report(report: dict) -> None:
             )
 
         console.print(mc_table)
+
+    console.print()
+    console.print(Rule("[bold]Charts[/bold]"))
 
     # --- Charts: Equity curve per stock (first risk level with stock results) ---
     try:

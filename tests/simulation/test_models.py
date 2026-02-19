@@ -1,5 +1,8 @@
 """Tests for simulation data models."""
+import pytest
+
 from src.simulation.models import (
+    BenchmarkResult,
     SimulationConfig,
     StockSimResult,
     RiskLevelResult,
@@ -62,3 +65,57 @@ def test_recommendation_model():
     )
     assert rec.optimal_risk_level == "moderate"
     assert rec.confidence == 0.75
+
+
+def test_benchmark_result_construction():
+    br = BenchmarkResult(
+        name="SPY Buy-and-Hold",
+        initial_balance=10000.0,
+        final_value=11200.0,
+        return_pct=12.0,
+        max_drawdown=5.5,
+        sharpe_ratio=1.2,
+        equity_curve=[10000.0, 10500.0, 11200.0],
+    )
+    assert br.name == "SPY Buy-and-Hold"
+    assert br.return_pct == 12.0
+    assert br.equity_curve == [10000.0, 10500.0, 11200.0]
+
+
+def test_benchmark_result_frozen():
+    br = BenchmarkResult(
+        name="SPY DCA",
+        initial_balance=10000.0,
+        final_value=10500.0,
+        return_pct=5.0,
+        max_drawdown=3.0,
+        sharpe_ratio=0.9,
+    )
+    with pytest.raises(Exception):
+        br.name = "changed"
+
+
+def test_simulation_report_benchmarks():
+    br = BenchmarkResult(
+        name="SPY Buy-and-Hold",
+        initial_balance=10000.0,
+        final_value=11200.0,
+        return_pct=12.0,
+        max_drawdown=5.5,
+        sharpe_ratio=1.2,
+    )
+    report = SimulationReport(
+        id="test123",
+        config=SimulationConfig(stocks=["AAPL"]),
+        benchmarks={"spy_buy_hold": br},
+    )
+    assert "spy_buy_hold" in report.benchmarks
+    assert report.benchmarks["spy_buy_hold"].return_pct == 12.0
+
+
+def test_simulation_report_benchmarks_default_empty():
+    report = SimulationReport(
+        id="test456",
+        config=SimulationConfig(stocks=["AAPL"]),
+    )
+    assert report.benchmarks == {}
