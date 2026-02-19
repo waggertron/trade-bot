@@ -101,7 +101,7 @@ class TestBuildPortfolioEquityCurve:
             "UP": [10_000.0, 11_000.0],
             "DOWN": [10_000.0, 9_500.0],
         }
-        result = sim.build_portfolio_equity_curve(curves)
+        result, _ = sim.build_portfolio_equity_curve(curves)
         assert len(result) == 2
         # t=0: 5000 * 1.0 + 5000 * 1.0 = 10000
         assert result[0] == pytest.approx(10_000.0)
@@ -115,12 +115,12 @@ class TestBuildPortfolioEquityCurve:
             "A": [100.0, 110.0, 120.0],
             "B": [200.0, 210.0],
         }
-        result = sim.build_portfolio_equity_curve(curves)
+        result, _ = sim.build_portfolio_equity_curve(curves)
         assert len(result) == 2  # min(3, 2)
 
     def test_empty_curves_dict(self):
         sim = PortfolioSimulator(_cfg(stocks=["A"], balance=10_000))
-        assert sim.build_portfolio_equity_curve({}) == []
+        assert sim.build_portfolio_equity_curve({}) == ([], [])
 
     def test_curve_with_zero_start_skipped(self):
         """A curve starting at 0 is skipped."""
@@ -129,7 +129,7 @@ class TestBuildPortfolioEquityCurve:
             "A": [0, 100.0],
             "B": [100.0, 110.0],
         }
-        result = sim.build_portfolio_equity_curve(curves)
+        result, _ = sim.build_portfolio_equity_curve(curves)
         # Only B contributes: allocated = 5000, normalised: 5000*1.0, 5000*1.1
         assert len(result) == 2
         assert result[0] == pytest.approx(5_000.0)
@@ -141,13 +141,13 @@ class TestBuildPortfolioEquityCurve:
             "A": [],
             "B": [100.0, 110.0],
         }
-        result = sim.build_portfolio_equity_curve(curves)
+        result, _ = sim.build_portfolio_equity_curve(curves)
         assert len(result) == 2
 
     def test_all_curves_unusable(self):
         sim = PortfolioSimulator(_cfg(stocks=["A"], balance=10_000))
         curves = {"A": []}
-        assert sim.build_portfolio_equity_curve(curves) == []
+        assert sim.build_portfolio_equity_curve(curves) == ([], [])
 
 
 # ===================================================================
@@ -288,3 +288,67 @@ class TestWeightsProperty:
         w = sim.weights
         w["A"] = 999.0
         assert sim.weights["A"] == pytest.approx(0.5)
+
+
+# ===================================================================
+# 7. Rebalancing wired into equity curve
+# ===================================================================
+
+class TestEquityCurveRebalancing:
+    def test_build_equity_curve_no_rebalance_unchanged(self):
+        """With frequency='none', result matches current fixed-weight behavior."""
+        sim = PortfolioSimulator(
+            _cfg(stocks=["UP", "DOWN"], balance=10_000, rebalance_freq="none")
+        )
+        curves = {
+            "UP": [100.0, 110.0, 120.0],
+            "DOWN": [100.0, 95.0, 90.0],
+        }
+        result, rebalance_days = sim.build_portfolio_equity_curve(curves)
+        assert len(result) == 3
+        # t=0: 5000*1.0 + 5000*1.0 = 10000
+        assert result[0] == pytest.approx(10_000.0)
+        # t=1: 5000*1.1 + 5000*0.95 = 5500+4750 = 10250
+        assert result[1] == pytest.approx(10_250.0)
+        # t=2: 5000*1.2 + 5000*0.90 = 6000+4500 = 10500
+        assert result[2] == pytest.approx(10_500.0)
+        assert rebalance_days == []
+
+    def test_build_equity_curve_with_rebalance_differs(self):
+        """Monthly rebalance should produce different values than no rebalance
+        when stocks diverge significantly over enough days."""
+        stocks = ["WINNER", "LOSER"]
+        # Build curves: WINNER doubles, LOSER halves over 42+ days
+        n_days = 50
+        winner_curve = [100.0 * (1.02 ** i) for i in range(n_days)]  # +2%/day
+        loser_curve = [100.0 * (0.98 ** i) for i in range(n_days)]   # -2%/day
+
+        sim_none = PortfolioSimulator(
+            _cfg(stocks=stocks, balance=10_000, rebalance_freq="none")
+        )
+        sim_monthly = PortfolioSimulator(
+            _cfg(stocks=stocks, balance=10_000, rebalance_freq="monthly")
+        )
+        curves = {"WINNER": winner_curve, "LOSER": loser_curve}
+
+        result_none, _ = sim_none.build_portfolio_equity_curve(curves)
+        result_monthly, _ = sim_monthly.build_portfolio_equity_curve(curves)
+
+        # Both should have same length
+        assert len(result_none) == len(result_monthly) == n_days
+        # Final values should differ because rebalancing reallocates
+        assert result_none[-1] != pytest.approx(result_monthly[-1], rel=1e-6)
+
+    def test_rebalance_dates_returned(self):
+        """Verify the returned rebalance_days list has correct indices."""
+        sim = PortfolioSimulator(
+            _cfg(stocks=["A", "B"], balance=10_000, rebalance_freq="monthly")
+        )
+        n_days = 50
+        curves = {
+            "A": [100.0 + i for i in range(n_days)],
+            "B": [100.0 - i * 0.5 for i in range(n_days)],
+        }
+        _, rebalance_days = sim.build_portfolio_equity_curve(curves)
+        # Monthly = every 21 days (skipping day 0): days 21, 42
+        assert rebalance_days == [21, 42]

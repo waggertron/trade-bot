@@ -47,15 +47,17 @@ class PortfolioSimulator:
 
     def build_portfolio_equity_curve(
         self, stock_curves: dict[str, list[float]]
-    ) -> list[float]:
+    ) -> tuple[list[float], list[int]]:
         """Combine per-stock equity curves into a single portfolio curve.
 
         Each stock curve is normalised by its starting value and then scaled
-        by its allocated capital.  Stocks with empty curves or a zero starting
-        value are silently skipped.
+        by its allocated capital.  On rebalance days, per-stock allocations
+        are reset to target weights based on current portfolio value.
+
+        Returns a tuple of (equity_curve, rebalance_day_indices).
         """
         if not stock_curves:
-            return []
+            return [], []
 
         # Filter usable curves
         usable: list[tuple[str, list[float]]] = []
@@ -66,26 +68,39 @@ class PortfolioSimulator:
                 usable.append((symbol, curve))
 
         if not usable:
-            return []
+            return [], []
 
         min_len = min(len(curve) for _, curve in usable)
+        initial_balance = self._config.initial_balance
+
+        # Mutable per-stock allocations and base prices
+        allocated = {sym: initial_balance * self._weights[sym] for sym, _ in usable}
+        base = {sym: curve[0] for sym, curve in usable}
+        rebalance_days: list[int] = []
 
         portfolio: list[float] = []
         for i in range(min_len):
-            value = 0.0
-            for symbol, curve in usable:
-                allocated = self._config.initial_balance * self._weights[symbol]
-                value += allocated * (curve[i] / curve[0])
+            value = sum(
+                allocated[sym] * (curve[i] / base[sym])
+                for sym, curve in usable
+            )
             portfolio.append(value)
 
-        return portfolio
+            if self.should_rebalance(i, min_len):
+                rebalance_days.append(i)
+                for sym, curve in usable:
+                    allocated[sym] = value * self._weights[sym]
+                    base[sym] = curve[i]
+
+        return portfolio, rebalance_days
 
     # ------------------------------------------------------------------
     # Metrics
     # ------------------------------------------------------------------
 
     def compute_portfolio_metrics(
-        self, equity_curve: list[float], total_trades: int
+        self, equity_curve: list[float], total_trades: int,
+        *, rebalance_days: list[int] | None = None,
     ) -> PortfolioMetrics:
         """Derive portfolio-level performance metrics from an equity curve."""
         initial = equity_curve[0] if equity_curve else 0.0
@@ -124,7 +139,7 @@ class PortfolioSimulator:
             total_trades=total_trades,
             equity_curve=list(equity_curve),
             daily_returns=daily_returns,
-            rebalance_dates=[],
+            rebalance_dates=rebalance_days or [],
         )
 
     # ------------------------------------------------------------------

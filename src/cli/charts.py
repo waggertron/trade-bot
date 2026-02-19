@@ -1,12 +1,12 @@
 """Shared chart utilities for CLI visualization.
 
-Provides terminal-friendly charting helpers built on asciichartpy, plotext,
-and Rich.  All functions handle edge cases (empty data, single points, etc.)
-gracefully and return plain strings so callers can print or embed them in
-Rich panels/tables.
+Provides terminal-friendly charting helpers built on asciichartpy and plain
+ASCII/Unicode.  All functions handle edge cases (empty data, single points,
+etc.) gracefully and return plain strings so callers can print or embed them
+in Rich panels/tables.
 
-NOTE: plotext uses module-level global state.  These functions are
-not thread-safe and should only be called from the main CLI thread.
+These helpers avoid braille characters and ANSI escape sequences so they
+render cleanly in terminals like Warp, iTerm2, and the default macOS Terminal.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ import math
 from typing import TYPE_CHECKING
 
 import asciichartpy
-import plotext as plt
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -84,16 +83,19 @@ def ascii_line_chart(
 
 
 # ---------------------------------------------------------------------------
-# Plotext bar chart
+# Horizontal bar chart (pure ASCII)
 # ---------------------------------------------------------------------------
+
+_BAR_CHAR = "\u2588"  # Full block — renders in all terminals
 
 
 def plotext_bar_chart(
     labels: Sequence[str],
     values: Sequence[float | int],
     title: str = "",
+    bar_width: int = 40,
 ) -> str:
-    """Render a horizontal/vertical bar chart via plotext.
+    """Render a horizontal bar chart using plain block characters.
 
     Parameters
     ----------
@@ -103,6 +105,8 @@ def plotext_bar_chart(
         Corresponding values.
     title : str
         Chart title.
+    bar_width : int
+        Maximum width of the bar portion in columns.
 
     Returns
     -------
@@ -112,18 +116,28 @@ def plotext_bar_chart(
     if not labels or not values:
         return f"{title}\n(no data)" if title else "(no data)"
 
-    plt.clear_figure()
-    plt.bar(list(labels), [float(v) for v in values])
-    if title:
-        plt.title(title)
-    plt.theme("clear")
-    plt.plot_size(60, 15)
+    fvals = [float(v) for v in values]
+    max_abs = max(abs(v) for v in fvals) if fvals else 1.0
+    if max_abs == 0:
+        max_abs = 1.0
 
-    return plt.build().rstrip("\n")
+    label_width = max(len(str(l)) for l in labels)
+    lines: list[str] = []
+    if title:
+        lines.append(title)
+        lines.append("")
+
+    for label, val in zip(labels, fvals):
+        bar_len = int(abs(val) / max_abs * bar_width)
+        bar = _BAR_CHAR * max(bar_len, 1)
+        sign = "-" if val < 0 else " "
+        lines.append(f"  {str(label):>{label_width}}  {sign}{bar} {val:,.2f}")
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
-# Plotext multi-line chart
+# Multi-line chart (asciichartpy wrapper)
 # ---------------------------------------------------------------------------
 
 
@@ -131,7 +145,7 @@ def plotext_multi_line(
     series_dict: dict[str, Sequence[float | int]],
     title: str = "",
 ) -> str:
-    """Render multiple line series on a single plotext chart.
+    """Render multiple line series on a single ASCII chart via asciichartpy.
 
     Parameters
     ----------
@@ -148,21 +162,35 @@ def plotext_multi_line(
     if not series_dict or not any(series_dict.values()):
         return f"{title}\n(no data)" if title else "(no data)"
 
-    plt.clear_figure()
+    all_series: list[list[float]] = []
+    labels: list[str] = []
     for label, data in series_dict.items():
-        if data:
-            plt.plot([float(v) for v in data], label=label)
+        clean = _sanitize(data)
+        if clean:
+            all_series.append(clean)
+            labels.append(label)
+
+    if not all_series:
+        return f"{title}\n(no data)" if title else "(no data)"
+
+    cfg = {"height": 12}
+    chart = asciichartpy.plot(all_series, cfg)
+
+    # Build legend line
+    legend = "  ".join(labels)
+    parts: list[str] = []
     if title:
-        plt.title(title)
-    plt.theme("clear")
-    plt.plot_size(70, 18)
-
-    return plt.build().rstrip("\n")
+        parts.append(title)
+    parts.append(chart)
+    parts.append(f"  Legend: {legend}")
+    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
-# Plotext heatmap
+# Text-based heatmap (plain ASCII table)
 # ---------------------------------------------------------------------------
+
+_HEAT_CHARS = " ░▒▓█"
 
 
 def plotext_heatmap(
@@ -171,7 +199,7 @@ def plotext_heatmap(
     col_labels: Sequence[str] | None = None,
     title: str = "",
 ) -> str:
-    """Render a heatmap via plotext's matrix_plot.
+    """Render a heatmap as a plain-text table with numeric values.
 
     Parameters
     ----------
@@ -192,20 +220,37 @@ def plotext_heatmap(
     if not matrix or not matrix[0]:
         return f"{title}\n(no data)" if title else "(no data)"
 
-    plt.clear_figure()
-    plt.matrix_plot([[float(v) for v in row] for row in matrix])
+    fmatrix = [[float(v) for v in row] for row in matrix]
+    all_vals = [v for row in fmatrix for v in row]
+    lo = min(all_vals)
+    hi = max(all_vals)
+    span = hi - lo if hi != lo else 1.0
+
+    n_cols = len(fmatrix[0])
+    r_labels = list(row_labels) if row_labels else [str(i) for i in range(len(fmatrix))]
+    c_labels = list(col_labels) if col_labels else [str(i) for i in range(n_cols)]
+
+    row_w = max(len(l) for l in r_labels)
+    col_w = max(max(len(l) for l in c_labels), 6)
+
+    lines: list[str] = []
     if title:
-        plt.title(title)
-    plt.theme("clear")
-    plt.plot_size(60, max(10, len(matrix) + 4))
+        lines.append(title)
+        lines.append("")
 
-    # Apply axis labels if provided
-    if col_labels:
-        plt.xticks(list(range(len(col_labels))), list(col_labels))
-    if row_labels:
-        plt.yticks(list(range(len(row_labels))), list(row_labels))
+    # Header row
+    header = " " * (row_w + 2) + "  ".join(f"{l:>{col_w}}" for l in c_labels)
+    lines.append(header)
 
-    return plt.build().rstrip("\n")
+    for i, row in enumerate(fmatrix):
+        cells: list[str] = []
+        for v in row:
+            idx = int((v - lo) / span * (len(_HEAT_CHARS) - 1))
+            idx = max(0, min(len(_HEAT_CHARS) - 1, idx))
+            cells.append(f"{v:>{col_w}.1f}{_HEAT_CHARS[idx]}")
+        lines.append(f"{r_labels[i]:>{row_w}}  {'  '.join(cells)}")
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
