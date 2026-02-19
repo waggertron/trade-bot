@@ -267,12 +267,21 @@ class SimulationEngine:
                 weights["momentum"] = 0.5
                 weights["quantitative"] = 0.5
 
-        reasoning = (
-            f"'{best_level}' achieved the best risk-adjusted score ({best_score:.2f}): "
-            f"avg return {best_result.total_return_pct:.2f}%, "
-            f"avg Sharpe {best_result.avg_sharpe:.3f}, "
-            f"avg max drawdown {best_result.avg_max_drawdown:.2f}%."
-        )
+        if best_result.portfolio_metrics is not None:
+            pm = best_result.portfolio_metrics
+            reasoning = (
+                f"'{best_level}' achieved the best risk-adjusted score ({best_score:.2f}): "
+                f"portfolio return {pm.total_return_pct:.2f}%, "
+                f"portfolio Sharpe {pm.sharpe_ratio:.3f}, "
+                f"portfolio max drawdown {pm.max_drawdown:.2f}%."
+            )
+        else:
+            reasoning = (
+                f"'{best_level}' achieved the best risk-adjusted score ({best_score:.2f}): "
+                f"avg return {best_result.total_return_pct:.2f}%, "
+                f"avg Sharpe {best_result.avg_sharpe:.3f}, "
+                f"avg max drawdown {best_result.avg_max_drawdown:.2f}%."
+            )
 
         return Recommendation(
             optimal_risk_level=best_level,
