@@ -6,7 +6,6 @@ from pydantic import Field
 
 from src.core.base import StrictBase
 
-
 # -- Trading ------------------------------------------------------------------
 
 class PlaceOrderRequest(StrictBase):

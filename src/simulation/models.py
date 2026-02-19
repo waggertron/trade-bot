@@ -4,8 +4,6 @@ from __future__ import annotations
 from pydantic import ConfigDict, Field, model_validator
 
 from src.core.base import StrictBase
-
-from src.analytics.models import AttributionReport, MonteCarloResult, StrategyStats
 from src.core.config import RiskLevel
 
 
@@ -17,7 +15,7 @@ class AllocationWeights(StrictBase):
     weights: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def _validate_custom_weights(self) -> "AllocationWeights":
+    def _validate_custom_weights(self) -> AllocationWeights:
         if self.mode == "custom":
             if not self.weights:
                 raise ValueError("weights must be non-empty when mode is 'custom'")

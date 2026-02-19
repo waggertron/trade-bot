@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -73,16 +72,20 @@ def _run_simulation(
 
 @app.command()
 def run(
-    stocks: Optional[list[str]] = typer.Option(None, help="Stock symbols (default: all 16)"),
+    stocks: list[str] | None = typer.Option(None, help="Stock symbols (default: all 16)"),
     balance: float = typer.Option(10_000.0, help="Starting balance in USD"),
     train_days: int = typer.Option(60, help="Training window in days"),
     test_days: int = typer.Option(30, help="Test/simulation window in days"),
-    risk_levels: Optional[list[str]] = typer.Option(None, "--risk", help="Risk levels (default: all)"),
+    risk_levels: list[str] | None = typer.Option(None, "--risk", help="Risk levels (default: all)"),
     mc_sims: int = typer.Option(1000, help="Number of Monte Carlo simulations"),
     output_json: bool = typer.Option(False, "--json", help="Output raw JSON"),
     portfolio: bool = typer.Option(False, "--portfolio", help="Enable portfolio simulation mode"),
-    weights: Optional[str] = typer.Option(None, "--weights", help='Custom weights: \'{"AAPL":0.5,"MSFT":0.5}\''),
-    rebalance: str = typer.Option("none", "--rebalance", help="Rebalance: none|daily|weekly|monthly"),
+    weights: str | None = typer.Option(
+        None, "--weights", help='Custom weights JSON',
+    ),
+    rebalance: str = typer.Option(
+        "none", "--rebalance", help="none|daily|weekly|monthly",
+    ),
 ) -> None:
     """Run a full simulation across stocks and risk levels."""
     stock_list = stocks or ALL_STOCKS
@@ -91,7 +94,10 @@ def run(
     allocation_weights = json.loads(weights) if weights else None
 
     console.print(f"\n[bold]Simulation: {len(stock_list)} stocks, {len(levels)} risk levels[/bold]")
-    console.print(f"Balance: ${balance:,.0f} | Train: {train_days}d | Test: {test_days}d | MC paths: {mc_sims}")
+    console.print(
+        f"Balance: ${balance:,.0f} | Train: {train_days}d"
+        f" | Test: {test_days}d | MC paths: {mc_sims}"
+    )
     if portfolio:
         console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
     console.print()
@@ -238,7 +244,10 @@ def _print_report(report: dict) -> None:
         if not result.get("monte_carlo_projections"):
             continue
 
-        mc_table = Table(title=f"\n{level_name.upper()} — Monte Carlo Projections ({report['config']['test_days']}d forward)")
+        test_d = report['config']['test_days']
+        mc_table = Table(
+            title=f"\n{level_name.upper()} — MC Projections ({test_d}d forward)",
+        )
         mc_table.add_column("Symbol", style="bold")
         mc_table.add_column("Median Final", justify="right")
         mc_table.add_column("P5 Final", justify="right")
@@ -355,7 +364,7 @@ def _print_report(report: dict) -> None:
     # Recommendation
     rec = report.get("recommendation")
     if rec:
-        console.print(f"\n[bold yellow]RECOMMENDATION[/bold yellow]")
+        console.print("\n[bold yellow]RECOMMENDATION[/bold yellow]")
         console.print(f"  Optimal Risk Level: [bold]{rec['optimal_risk_level']}[/bold]")
         console.print(f"  Confidence: {rec['confidence']:.0%}")
         console.print(f"  Reasoning: {rec['reasoning']}")
