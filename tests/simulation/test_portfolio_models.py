@@ -87,6 +87,31 @@ class TestAllocationWeights:
         with pytest.raises(ValidationError, match="extra"):
             AllocationWeights(mode="equal_weight", extra_field="bad")
 
+    def test_custom_weights_not_summing_to_one_rejected(self):
+        with pytest.raises(ValidationError, match="sum to ~1.0"):
+            AllocationWeights(
+                mode="custom",
+                weights={"AAPL": 0.5, "MSFT": 0.2},
+            )
+
+    def test_custom_weights_negative_value_rejected(self):
+        with pytest.raises(ValidationError, match=r"must be in \[0, 1\]"):
+            AllocationWeights(
+                mode="custom",
+                weights={"AAPL": -0.5, "MSFT": 1.5},
+            )
+
+    def test_custom_weights_empty_dict_rejected(self):
+        with pytest.raises(ValidationError, match="non-empty"):
+            AllocationWeights(mode="custom", weights={})
+
+    def test_custom_weights_value_above_one_rejected(self):
+        with pytest.raises(ValidationError, match=r"must be in \[0, 1\]"):
+            AllocationWeights(
+                mode="custom",
+                weights={"AAPL": 1.5},
+            )
+
 
 # ---------------------------------------------------------------------------
 # RebalanceConfig
@@ -199,6 +224,45 @@ class TestPortfolioMetrics:
                 bogus_field="nope",
             )
 
+    def test_initial_balance_zero_rejected(self):
+        with pytest.raises(ValidationError, match="greater than"):
+            PortfolioMetrics(
+                initial_balance=0,
+                final_value=10_000.0,
+                total_return_pct=0.0,
+                max_drawdown=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                total_trades=0,
+            )
+
+    def test_initial_balance_negative_rejected(self):
+        with pytest.raises(ValidationError, match="greater than"):
+            PortfolioMetrics(
+                initial_balance=-1000.0,
+                final_value=10_000.0,
+                total_return_pct=0.0,
+                max_drawdown=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                total_trades=0,
+            )
+
+    def test_total_trades_negative_rejected(self):
+        with pytest.raises(ValidationError, match="greater than or equal"):
+            PortfolioMetrics(
+                initial_balance=10_000.0,
+                final_value=10_000.0,
+                total_return_pct=0.0,
+                max_drawdown=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                total_trades=-1,
+            )
+
 
 # ---------------------------------------------------------------------------
 # PortfolioMonteCarloProjection
@@ -243,6 +307,32 @@ class TestPortfolioMonteCarloProjection:
     def test_frozen(self, sample_projection):
         with pytest.raises(ValidationError):
             sample_projection.n_paths = 5000
+
+    def test_n_paths_zero_rejected(self):
+        with pytest.raises(ValidationError, match="greater than"):
+            PortfolioMonteCarloProjection(
+                median_final=10_000.0,
+                p5_final=8_000.0,
+                p95_final=12_000.0,
+                median_return_pct=0.0,
+                p5_return_pct=-20.0,
+                p95_return_pct=20.0,
+                worst_drawdown_p95=30.0,
+                n_paths=0,
+            )
+
+    def test_n_paths_negative_rejected(self):
+        with pytest.raises(ValidationError, match="greater than"):
+            PortfolioMonteCarloProjection(
+                median_final=10_000.0,
+                p5_final=8_000.0,
+                p95_final=12_000.0,
+                median_return_pct=0.0,
+                p5_return_pct=-20.0,
+                p95_return_pct=20.0,
+                worst_drawdown_p95=30.0,
+                n_paths=-5,
+            )
 
 
 # ---------------------------------------------------------------------------

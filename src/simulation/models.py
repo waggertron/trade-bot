@@ -1,7 +1,7 @@
 """Data models for the simulation system."""
 from __future__ import annotations
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
 from src.core.base import StrictBase
 
@@ -15,6 +15,23 @@ class AllocationWeights(StrictBase):
 
     mode: str = Field(default="equal_weight", pattern=r"^(equal_weight|custom)$")
     weights: dict[str, float] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validate_custom_weights(self) -> "AllocationWeights":
+        if self.mode == "custom":
+            if not self.weights:
+                raise ValueError("weights must be non-empty when mode is 'custom'")
+            for symbol, w in self.weights.items():
+                if w < 0 or w > 1:
+                    raise ValueError(
+                        f"weight for {symbol} must be in [0, 1], got {w}"
+                    )
+            total = sum(self.weights.values())
+            if abs(total - 1.0) >= 0.01:
+                raise ValueError(
+                    f"weights must sum to ~1.0 (tolerance 0.01), got {total}"
+                )
+        return self
 
 
 class RebalanceConfig(StrictBase):
@@ -92,14 +109,14 @@ class PortfolioMetrics(StrictBase):
     """Portfolio-level performance metrics."""
     model_config = ConfigDict(frozen=True)
 
-    initial_balance: float
+    initial_balance: float = Field(gt=0)
     final_value: float
     total_return_pct: float
     max_drawdown: float
     sharpe_ratio: float
     sortino_ratio: float
     calmar_ratio: float
-    total_trades: int
+    total_trades: int = Field(ge=0)
     equity_curve: list[float] = Field(default_factory=list)
     daily_returns: list[float] = Field(default_factory=list)
     rebalance_dates: list[int] = Field(default_factory=list)
@@ -116,7 +133,7 @@ class PortfolioMonteCarloProjection(StrictBase):
     p5_return_pct: float
     p95_return_pct: float
     worst_drawdown_p95: float
-    n_paths: int
+    n_paths: int = Field(gt=0)
     correlation_matrix: list[list[float]] = Field(default_factory=list)
 
 
