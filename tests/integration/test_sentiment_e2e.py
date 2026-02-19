@@ -225,15 +225,12 @@ class TestSentimentConfig:
         settings = SentimentSettings()
         assert settings.enabled is True
         assert settings.pipeline_interval_seconds > 0
-        assert len(settings.rss_feed_urls) > 0
         assert settings.analyzer == "ollama"
 
-    def test_custom_feed_urls(self):
+    def test_custom_interval(self):
         settings = SentimentSettings(
-            rss_feed_urls=["https://example.com/feed"],
             pipeline_interval_seconds=120,
         )
-        assert settings.rss_feed_urls == ["https://example.com/feed"]
         assert settings.pipeline_interval_seconds == 120
 
     def test_disabled_sentiment(self):

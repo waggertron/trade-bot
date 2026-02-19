@@ -233,3 +233,223 @@ class Database:
         async with self._engine.connect() as conn:
             result = await conn.execute(query)
             return int(result.scalar() or 0)
+
+    # -- Feed CRUD -------------------------------------------------------------
+
+    async def save_feed(self, feed: FeedRecord) -> str:
+        async with self._engine.begin() as conn:
+            await conn.execute(feeds_table.insert().values(
+                id=feed.id, name=feed.name, url=feed.url,
+                feed_type=feed.feed_type, category=feed.category,
+                auth_type=feed.auth_type, rate_limit_rpm=feed.rate_limit_rpm,
+                enabled=feed.enabled, last_fetched_at=feed.last_fetched_at,
+                created_at=feed.created_at,
+            ))
+        return feed.id
+
+    async def list_feeds(
+        self,
+        enabled_only: bool = False,
+        feed_type: str | None = None,
+    ) -> list[FeedRecord]:
+        query = feeds_table.select().order_by(feeds_table.c.name.asc())
+        if enabled_only:
+            query = query.where(feeds_table.c.enabled == True)  # noqa: E712
+        if feed_type is not None:
+            query = query.where(feeds_table.c.feed_type == feed_type)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+        return [
+            FeedRecord(
+                id=r.id, name=r.name, url=r.url, feed_type=r.feed_type,
+                category=r.category, auth_type=r.auth_type,
+                rate_limit_rpm=r.rate_limit_rpm, enabled=r.enabled,
+                last_fetched_at=r.last_fetched_at, created_at=r.created_at,
+            )
+            for r in rows
+        ]
+
+    async def count_feeds(self) -> int:
+        async with self._engine.connect() as conn:
+            result = await conn.execute(
+                sa.select(sa.func.count()).select_from(feeds_table)
+            )
+            return int(result.scalar() or 0)
+
+    async def seed_feeds(self, records: list[FeedRecord]) -> int:
+        """Bulk insert feeds, ignoring duplicates (by URL)."""
+        inserted = 0
+        async with self._engine.begin() as conn:
+            for rec in records:
+                await conn.execute(
+                    sa.text(
+                        "INSERT OR IGNORE INTO feeds "
+                        "(id, name, url, feed_type, category, auth_type, "
+                        "rate_limit_rpm, enabled, last_fetched_at, created_at) "
+                        "VALUES (:id, :name, :url, :feed_type, :category, :auth_type, "
+                        ":rate_limit_rpm, :enabled, :last_fetched_at, :created_at)"
+                    ),
+                    {
+                        "id": rec.id, "name": rec.name, "url": rec.url,
+                        "feed_type": rec.feed_type, "category": rec.category,
+                        "auth_type": rec.auth_type, "rate_limit_rpm": rec.rate_limit_rpm,
+                        "enabled": rec.enabled, "last_fetched_at": rec.last_fetched_at,
+                        "created_at": rec.created_at,
+                    },
+                )
+                inserted += 1
+        return inserted
+
+    async def update_feed_last_fetched(self, feed_id: str, ts: datetime) -> None:
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                feeds_table.update()
+                .where(feeds_table.c.id == feed_id)
+                .values(last_fetched_at=ts)
+            )
+
+    # -- Article CRUD ----------------------------------------------------------
+
+    async def save_article(self, article: ArticleRecord) -> str | None:
+        """Save an article. Returns article ID on success, None if duplicate."""
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(articles_table.insert().values(
+                    id=article.id, content_hash=article.content_hash,
+                    title=article.title, body=article.body, source=article.source,
+                    url=article.url, published_at=article.published_at,
+                    fetched_at=article.fetched_at, feed_id=article.feed_id,
+                    created_at=article.created_at,
+                ))
+                for symbol in article.symbols:
+                    await conn.execute(article_symbols_table.insert().values(
+                        article_id=article.id, symbol=symbol,
+                    ))
+        except sa.exc.IntegrityError:
+            return None
+        return article.id
+
+    async def get_articles_for_symbol(
+        self, symbol: str, limit: int = 100,
+    ) -> list[ArticleRecord]:
+        query = (
+            sa.select(articles_table)
+            .join(article_symbols_table, articles_table.c.id == article_symbols_table.c.article_id)
+            .where(article_symbols_table.c.symbol == symbol)
+            .order_by(articles_table.c.published_at.desc())
+            .limit(limit)
+        )
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+            results = []
+            for r in rows:
+                syms = await self._get_article_symbols(conn, r.id)
+                results.append(ArticleRecord(
+                    id=r.id, content_hash=r.content_hash, title=r.title,
+                    body=r.body, source=r.source, url=r.url,
+                    published_at=r.published_at, fetched_at=r.fetched_at,
+                    feed_id=r.feed_id, created_at=r.created_at, symbols=syms,
+                ))
+        return results
+
+    async def get_articles_for_symbol_by_id(
+        self, article_id: str,
+    ) -> list[ArticleRecord]:
+        """Get an article by ID with its symbols."""
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(
+                articles_table.select().where(articles_table.c.id == article_id)
+            )).first()
+            if row is None:
+                return []
+            syms = await self._get_article_symbols(conn, row.id)
+            return [ArticleRecord(
+                id=row.id, content_hash=row.content_hash, title=row.title,
+                body=row.body, source=row.source, url=row.url,
+                published_at=row.published_at, fetched_at=row.fetched_at,
+                feed_id=row.feed_id, created_at=row.created_at, symbols=syms,
+            )]
+
+    async def _get_article_symbols(self, conn, article_id: str) -> list[str]:
+        rows = (await conn.execute(
+            article_symbols_table.select().where(
+                article_symbols_table.c.article_id == article_id
+            )
+        )).fetchall()
+        return [r.symbol for r in rows]
+
+    async def get_unscored_articles(
+        self, symbol: str, analyzer: str, limit: int = 100,
+    ) -> list[ArticleRecord]:
+        """Get articles for a symbol that have no score from the given analyzer."""
+        scored_subq = (
+            sa.select(sentiment_scores_table.c.article_id)
+            .where(sentiment_scores_table.c.analyzer == analyzer)
+        )
+        query = (
+            sa.select(articles_table)
+            .join(article_symbols_table, articles_table.c.id == article_symbols_table.c.article_id)
+            .where(article_symbols_table.c.symbol == symbol)
+            .where(articles_table.c.id.not_in(scored_subq))
+            .order_by(articles_table.c.published_at.desc())
+            .limit(limit)
+        )
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+            results = []
+            for r in rows:
+                syms = await self._get_article_symbols(conn, r.id)
+                results.append(ArticleRecord(
+                    id=r.id, content_hash=r.content_hash, title=r.title,
+                    body=r.body, source=r.source, url=r.url,
+                    published_at=r.published_at, fetched_at=r.fetched_at,
+                    feed_id=r.feed_id, created_at=r.created_at, symbols=syms,
+                ))
+        return results
+
+    # -- Sentiment Score CRUD --------------------------------------------------
+
+    async def save_score(self, score: SentimentScoreRecord) -> str | None:
+        """Save a sentiment score. Ignores duplicates (article_id + analyzer)."""
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(sentiment_scores_table.insert().values(
+                    id=score.id, article_id=score.article_id,
+                    score=score.score, magnitude=score.magnitude,
+                    reasoning=score.reasoning, analyzer=score.analyzer,
+                    created_at=score.created_at,
+                ))
+        except sa.exc.IntegrityError:
+            return None
+        return score.id
+
+    async def has_score(self, article_id: str, analyzer: str) -> bool:
+        query = (
+            sa.select(sa.func.count())
+            .select_from(sentiment_scores_table)
+            .where(sentiment_scores_table.c.article_id == article_id)
+            .where(sentiment_scores_table.c.analyzer == analyzer)
+        )
+        async with self._engine.connect() as conn:
+            result = await conn.execute(query)
+            return int(result.scalar() or 0) > 0
+
+    async def load_recent_scores(
+        self, hours: int = 48,
+    ) -> list[SentimentScoreRecord]:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        query = (
+            sentiment_scores_table.select()
+            .where(sentiment_scores_table.c.created_at >= cutoff)
+            .order_by(sentiment_scores_table.c.created_at.desc())
+        )
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+        return [
+            SentimentScoreRecord(
+                id=r.id, article_id=r.article_id, score=r.score,
+                magnitude=r.magnitude, reasoning=r.reasoning,
+                analyzer=r.analyzer, created_at=r.created_at,
+            )
+            for r in rows
+        ]

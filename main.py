@@ -22,9 +22,9 @@ from src.core.event_bus import EventBus
 from src.core.orchestrator import Orchestrator
 from src.db.database import Database
 from src.integrations.kraken import KrakenFeed
-from src.providers.configs import OllamaSentimentConfig, RSSConfig
+from src.feeds.manager import FeedManager
+from src.providers.configs import OllamaSentimentConfig
 from src.providers.ollama_sentiment import OllamaSentimentAnalyzer
-from src.providers.rss import RSSNewsProvider
 from src.sentiment.bridge import SentimentBridge
 from src.sentiment.pipeline import SentimentPipeline
 
@@ -290,16 +290,24 @@ async def main():
 
     # Sentiment pipeline
     sentiment_task = None
+    news_provider_for_registry = None
+    analyzer_for_registry = None
     if settings.sentiment.enabled:
-        rss_provider = RSSNewsProvider(
-            RSSConfig(feed_urls=settings.sentiment.rss_feed_urls)
-        )
+        # Build FeedManager from DB
+        feed_manager = FeedManager(db)
+        if not await feed_manager.has_feeds():
+            from src.db.seed_feeds import seed_feeds_from_reference
+            count = await seed_feeds_from_reference(db)
+            logger.info("Seeded %d feeds from reference doc", count)
+        await feed_manager.load_feeds()
+
         analyzer = OllamaSentimentAnalyzer(
             OllamaSentimentConfig(model=settings.ai.ollama_model)
         )
         sentiment_pipeline = SentimentPipeline(
-            news_providers=[rss_provider],
+            feed_manager=feed_manager,
             analyzer=analyzer,
+            db=db,
         )
         sentiment_bridge = SentimentBridge(
             aggregator=sentiment_pipeline.aggregator
@@ -309,6 +317,9 @@ async def main():
         sentiment_symbols = [
             s.split("/")[0] for s in settings.trading.symbols.crypto
         ]
+
+        # Warm up aggregator with persisted scores
+        await sentiment_pipeline.warm_up(sentiment_symbols, hours=48)
 
         # Run initial sentiment cycle before trading starts
         await run_sentiment_cycle(
@@ -325,11 +336,13 @@ async def main():
                 settings.sentiment.pipeline_interval_seconds,
             )
         )
+        news_provider_for_registry = feed_manager
+        analyzer_for_registry = analyzer
         logger.info(
-            "Sentiment pipeline active: %d RSS feeds, %ds interval, analyzer=%s",
-            len(settings.sentiment.rss_feed_urls),
+            "Sentiment pipeline active: %d feeds from DB, %ds interval, analyzer=%s",
+            len(feed_manager.feeds),
             settings.sentiment.pipeline_interval_seconds,
-            settings.sentiment.analyzer,
+            analyzer.name,
         )
     else:
         logger.info("Sentiment pipeline disabled")
@@ -337,8 +350,8 @@ async def main():
     # Provider registry
     registry = build_registry(
         settings,
-        news_provider=rss_provider if settings.sentiment.enabled else None,
-        sentiment_analyzer=analyzer if settings.sentiment.enabled else None,
+        news_provider=news_provider_for_registry,
+        sentiment_analyzer=analyzer_for_registry,
         onchain_provider=onchain_provider._provider,
         feature_provider=feature_engine._providers[0] if feature_engine._providers else None,
     )

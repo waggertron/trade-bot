@@ -103,11 +103,6 @@ class SentimentSettings(StrictBase):
     enabled: bool = True
     analyzer: str = "ollama"
     pipeline_interval_seconds: int = Field(300, ge=10)
-    rss_feed_urls: list[str] = Field(default=[
-        "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114",
-        "https://feeds.marketwatch.com/marketwatch/topstories/",
-        "https://investing.com/rss/news_301.rss",
-    ])
 
 
 class AISettings(StrictBase):

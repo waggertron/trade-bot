@@ -21,9 +21,9 @@ class TestSentimentStatus:
         assert "Analyzer" in result.stdout
         assert "ollama" in result.stdout
 
-    def test_status_shows_feed_count(self):
+    def test_status_shows_feeds_info(self):
         result = runner.invoke(app, ["sentiment", "status"])
-        assert "RSS Feeds" in result.stdout
+        assert "Feeds" in result.stdout
 
     def test_status_shows_interval(self):
         result = runner.invoke(app, ["sentiment", "status"])

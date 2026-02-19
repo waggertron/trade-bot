@@ -6,11 +6,15 @@ import asyncio
 import calendar
 from datetime import datetime, timezone
 from time import struct_time
+from typing import TYPE_CHECKING
 
 import feedparser
 
 from src.providers.configs import RSSConfig
 from src.sentiment.models import Article
+
+if TYPE_CHECKING:
+    from src.db.models import FeedRecord
 
 
 class RSSNewsProvider:
@@ -23,6 +27,14 @@ class RSSNewsProvider:
 
     def __init__(self, config: RSSConfig) -> None:
         self._config = config
+
+    @classmethod
+    def from_feed_records(cls, feeds: list[FeedRecord]) -> RSSNewsProvider:
+        """Create an RSSNewsProvider from database FeedRecord objects."""
+        urls = [f.url for f in feeds]
+        rate_limit = min((f.rate_limit_rpm for f in feeds), default=50)
+        config = RSSConfig(feed_urls=urls, max_articles_per_fetch=rate_limit)
+        return cls(config)
 
     @property
     def name(self) -> str:

@@ -41,10 +41,6 @@ sentiment:
   enabled: true
   analyzer: ollama
   pipeline_interval_seconds: 300
-  rss_feed_urls:
-    - "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"
-    - "https://feeds.marketwatch.com/marketwatch/topstories/"
-    - "https://investing.com/rss/news_301.rss"
 
 ai:
   claude_model: "claude-sonnet-4-5-20250929"

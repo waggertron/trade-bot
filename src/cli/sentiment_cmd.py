@@ -59,14 +59,8 @@ def status() -> None:
     enabled_str = "[green]Yes[/green]" if cfg.enabled else "[red]No[/red]"
     console.print(f"  Enabled:    {enabled_str}")
     console.print(f"  Analyzer:   {cfg.analyzer}")
-    console.print(f"  RSS Feeds:  {len(cfg.rss_feed_urls)}")
+    console.print(f"  Feeds:      DB-managed (see 'feeds' table)")
     console.print(f"  Interval:   {cfg.pipeline_interval_seconds}s")
-
-    if cfg.rss_feed_urls:
-        console.print()
-        console.print("[bold]  Feed URLs:[/bold]")
-        for url in cfg.rss_feed_urls:
-            console.print(f"    - {url}")
 
     console.print()
     console.print(
