@@ -1,13 +1,15 @@
 """Data models for the simulation system."""
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 from src.analytics.models import AttributionReport, MonteCarloResult, StrategyStats
 from src.core.config import RiskLevel
 
 
-class SimulationConfig(BaseModel):
+class SimulationConfig(StrictBase):
     """Configuration for a simulation run."""
     model_config = ConfigDict(frozen=True)
 
@@ -19,7 +21,7 @@ class SimulationConfig(BaseModel):
     mc_simulations: int = Field(default=1000, gt=0)
 
 
-class StockSimResult(BaseModel):
+class StockSimResult(StrictBase):
     """Walk-forward backtest result for a single stock."""
     model_config = ConfigDict(frozen=True)
 
@@ -37,7 +39,7 @@ class StockSimResult(BaseModel):
     equity_curve: list[float] = Field(default_factory=list)
 
 
-class MonteCarloProjection(BaseModel):
+class MonteCarloProjection(StrictBase):
     """Monte Carlo forward projection for a stock."""
     model_config = ConfigDict(frozen=True)
 
@@ -52,7 +54,7 @@ class MonteCarloProjection(BaseModel):
     n_paths: int
 
 
-class StrategyAssessment(BaseModel):
+class StrategyAssessment(StrictBase):
     """Per-strategy performance assessment across a simulation."""
     model_config = ConfigDict(frozen=True)
 
@@ -67,7 +69,7 @@ class StrategyAssessment(BaseModel):
     max_consecutive_losses: int = 0
 
 
-class RiskLevelResult(BaseModel):
+class RiskLevelResult(StrictBase):
     """Aggregated results for one risk level across all stocks."""
     model_config = ConfigDict(frozen=True)
 
@@ -81,7 +83,7 @@ class RiskLevelResult(BaseModel):
     total_trades: int = 0
 
 
-class Recommendation(BaseModel):
+class Recommendation(StrictBase):
     """System recommendation based on simulation results."""
     model_config = ConfigDict(frozen=True)
 
@@ -91,7 +93,7 @@ class Recommendation(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
-class SimulationReport(BaseModel):
+class SimulationReport(StrictBase):
     """Complete simulation report across all risk levels."""
 
     id: str

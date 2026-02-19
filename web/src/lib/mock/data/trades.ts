@@ -1,6 +1,6 @@
-import { registerRoute } from "../router";
 import { seededRandom } from "../generators";
-import { ALL_SYMBOLS, STRATEGY_NAMES, BASE_PRICES } from "./constants";
+import { registerRoute } from "../router";
+import { ALL_SYMBOLS, BASE_PRICES, STRATEGY_NAMES } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Reasoning strings for signals

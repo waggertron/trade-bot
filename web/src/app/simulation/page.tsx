@@ -1,21 +1,41 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Activity, AlertTriangle, Award, Play, Shield, Target, Zap } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { runSimulation, getSimulationRuns } from "@/lib/api";
 import ChartContainer from "@/components/shared/ChartContainer";
 import DataTable from "@/components/shared/DataTable";
-import { formatCurrency, formatPercent, formatNumber, cn } from "@/lib/formatters";
-import { themeColors, chartAxisTick, chartGridProps, chartTooltipStyle } from "@/lib/chartTheme";
-import { Activity, Play, AlertTriangle, Target, Zap, Shield, Award } from "lucide-react";
+import { getSimulationRuns, runSimulation } from "@/lib/api";
+import { chartAxisTick, chartGridProps, chartTooltipStyle, themeColors } from "@/lib/chartTheme";
+import { cn, formatCurrency, formatNumber, formatPercent } from "@/lib/formatters";
 
 const ALL_STOCKS = [
-  "SPY", "QQQ", "DIA", "IWM",
-  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
-  "XLF", "XLK", "XLE", "XLV", "XLI",
+  "SPY",
+  "QQQ",
+  "DIA",
+  "IWM",
+  "AAPL",
+  "MSFT",
+  "GOOGL",
+  "AMZN",
+  "NVDA",
+  "META",
+  "TSLA",
+  "XLF",
+  "XLK",
+  "XLE",
+  "XLV",
+  "XLI",
 ];
 
 const RISK_LEVELS = ["conservative", "moderate", "aggressive", "very_aggressive"];
@@ -124,8 +144,11 @@ export default function SimulationPage() {
         <ChartContainer title="Configuration" className="col-span-1">
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs text-muted">Initial Balance ($)</label>
+              <label htmlFor="sim-initial-balance" className="mb-1 block text-xs text-muted">
+                Initial Balance ($)
+              </label>
               <input
+                id="sim-initial-balance"
                 type="number"
                 value={config.initial_balance}
                 onChange={(e) => setConfig({ ...config, initial_balance: Number(e.target.value) })}
@@ -133,8 +156,11 @@ export default function SimulationPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted">Training Days</label>
+              <label htmlFor="sim-train-days" className="mb-1 block text-xs text-muted">
+                Training Days
+              </label>
               <input
+                id="sim-train-days"
                 type="number"
                 value={config.train_days}
                 onChange={(e) => setConfig({ ...config, train_days: Number(e.target.value) })}
@@ -142,8 +168,11 @@ export default function SimulationPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted">Test Days</label>
+              <label htmlFor="sim-test-days" className="mb-1 block text-xs text-muted">
+                Test Days
+              </label>
               <input
+                id="sim-test-days"
                 type="number"
                 value={config.test_days}
                 onChange={(e) => setConfig({ ...config, test_days: Number(e.target.value) })}
@@ -151,8 +180,11 @@ export default function SimulationPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted">MC Simulations</label>
+              <label htmlFor="sim-mc-count" className="mb-1 block text-xs text-muted">
+                MC Simulations
+              </label>
               <input
+                id="sim-mc-count"
                 type="number"
                 value={config.mc_simulations}
                 onChange={(e) => setConfig({ ...config, mc_simulations: Number(e.target.value) })}
@@ -160,18 +192,27 @@ export default function SimulationPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted">Stocks (comma-separated)</label>
+              <label htmlFor="sim-stocks" className="mb-1 block text-xs text-muted">
+                Stocks (comma-separated)
+              </label>
               <textarea
+                id="sim-stocks"
                 value={config.stocks.join(", ")}
                 onChange={(e) =>
-                  setConfig({ ...config, stocks: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })
+                  setConfig({
+                    ...config,
+                    stocks: e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
                 }
                 rows={3}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted">Risk Levels</label>
+              <span className="mb-1 block text-xs text-muted">Risk Levels</span>
               <div className="space-y-1">
                 {RISK_LEVELS.map((level) => (
                   <label key={level} className="flex items-center gap-2 text-xs text-foreground">
@@ -192,6 +233,7 @@ export default function SimulationPage() {
               </div>
             </div>
             <button
+              type="button"
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
@@ -217,13 +259,21 @@ export default function SimulationPage() {
                     <Award size={20} className="mt-0.5 text-accent" />
                     <div>
                       <p className="text-sm font-medium text-foreground">
-                        Recommended: <span className="text-accent">{report.recommendation.optimal_risk_level.replace("_", " ")}</span>
-                        <span className="ml-2 text-xs text-muted">({formatPercent(report.recommendation.confidence * 100, 0)} confidence)</span>
+                        Recommended:{" "}
+                        <span className="text-accent">
+                          {report.recommendation.optimal_risk_level.replace("_", " ")}
+                        </span>
+                        <span className="ml-2 text-xs text-muted">
+                          ({formatPercent(report.recommendation.confidence * 100, 0)} confidence)
+                        </span>
                       </p>
                       <p className="mt-1 text-xs text-muted">{report.recommendation.reasoning}</p>
                       {Object.keys(report.recommendation.suggested_weights).length > 0 && (
                         <p className="mt-1 text-xs text-muted">
-                          Strategy weights: {Object.entries(report.recommendation.suggested_weights).map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`).join(", ")}
+                          Strategy weights:{" "}
+                          {Object.entries(report.recommendation.suggested_weights)
+                            .map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`)
+                            .join(", ")}
                         </p>
                       )}
                     </div>
@@ -239,30 +289,46 @@ export default function SimulationPage() {
                   const isRecommended = level === report.recommendation?.optimal_risk_level;
                   return (
                     <button
+                      type="button"
                       key={level}
                       onClick={() => setActiveRisk(level)}
                       className={cn(
                         "rounded-xl border p-4 text-left transition-all",
-                        isActive ? "border-accent bg-accent/10" : "border-border bg-card hover:bg-card-hover",
-                        isRecommended && "ring-1 ring-accent/50"
+                        isActive
+                          ? "border-accent bg-accent/10"
+                          : "border-border bg-card hover:bg-card-hover",
+                        isRecommended && "ring-1 ring-accent/50",
                       )}
                     >
                       <div className="flex items-center justify-between">
                         <Icon size={16} className="text-muted" />
-                        {isRecommended && <span className="text-[10px] font-medium text-accent">BEST</span>}
+                        {isRecommended && (
+                          <span className="text-[10px] font-medium text-accent">BEST</span>
+                        )}
                       </div>
                       <p className="mt-2 text-xs text-muted">{level.replace("_", " ")}</p>
-                      <p className={cn("text-lg font-semibold", r.total_return_pct >= 0 ? "text-profit" : "text-loss")}>
-                        {r.total_return_pct >= 0 ? "+" : ""}{r.total_return_pct.toFixed(2)}%
+                      <p
+                        className={cn(
+                          "text-lg font-semibold",
+                          r.total_return_pct >= 0 ? "text-profit" : "text-loss",
+                        )}
+                      >
+                        {r.total_return_pct >= 0 ? "+" : ""}
+                        {r.total_return_pct.toFixed(2)}%
                       </p>
-                      <p className="text-[10px] text-muted">Sharpe {r.avg_sharpe.toFixed(2)} | DD {r.avg_max_drawdown.toFixed(1)}%</p>
+                      <p className="text-[10px] text-muted">
+                        Sharpe {r.avg_sharpe.toFixed(2)} | DD {r.avg_max_drawdown.toFixed(1)}%
+                      </p>
                     </button>
                   );
                 })}
               </div>
 
               {/* Comparison Chart */}
-              <ChartContainer title="Risk Level Comparison" subtitle="Return % across all risk profiles">
+              <ChartContainer
+                title="Risk Level Comparison"
+                subtitle="Return % across all risk profiles"
+              >
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={comparisonData}>
                     <CartesianGrid {...chartGridProps} />
@@ -270,15 +336,28 @@ export default function SimulationPage() {
                     <YAxis tick={chartAxisTick} tickFormatter={(v) => `${v}%`} />
                     <Tooltip contentStyle={chartTooltipStyle} />
                     <Legend />
-                    <Bar dataKey="return" name="Avg Return %" fill={themeColors.green} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="drawdown" name="Avg Max DD %" fill={themeColors.red} radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="return"
+                      name="Avg Return %"
+                      fill={themeColors.green}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="drawdown"
+                      name="Avg Max DD %"
+                      fill={themeColors.red}
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
 
               {/* Per-Stock Table for Active Risk Level */}
               {activeResult && activeResult.stock_results.length > 0 && (
-                <ChartContainer title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Per-Stock Results`} subtitle={`${activeResult.total_trades} total trades`}>
+                <ChartContainer
+                  title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Per-Stock Results`}
+                  subtitle={`${activeResult.total_trades} total trades`}
+                >
                   <DataTable
                     columns={[
                       { key: "symbol", header: "Symbol" },
@@ -286,20 +365,41 @@ export default function SimulationPage() {
                         key: "return_pct",
                         header: "Return %",
                         render: (r) => (
-                          <span className={cn((r.return_pct as number) >= 0 ? "text-profit" : "text-loss")}>
-                            {(r.return_pct as number) >= 0 ? "+" : ""}{formatPercent(r.return_pct as number)}
+                          <span
+                            className={cn(
+                              (r.return_pct as number) >= 0 ? "text-profit" : "text-loss",
+                            )}
+                          >
+                            {(r.return_pct as number) >= 0 ? "+" : ""}
+                            {formatPercent(r.return_pct as number)}
                           </span>
                         ),
                       },
-                      { key: "sharpe_ratio", header: "Sharpe", render: (r) => formatNumber(r.sharpe_ratio as number) },
-                      { key: "max_drawdown", header: "Max DD %", render: (r) => formatPercent(r.max_drawdown as number) },
-                      { key: "win_rate", header: "Win Rate", render: (r) => formatPercent((r.win_rate as number) * 100, 0) },
+                      {
+                        key: "sharpe_ratio",
+                        header: "Sharpe",
+                        render: (r) => formatNumber(r.sharpe_ratio as number),
+                      },
+                      {
+                        key: "max_drawdown",
+                        header: "Max DD %",
+                        render: (r) => formatPercent(r.max_drawdown as number),
+                      },
+                      {
+                        key: "win_rate",
+                        header: "Win Rate",
+                        render: (r) => formatPercent((r.win_rate as number) * 100, 0),
+                      },
                       { key: "total_trades", header: "Trades" },
                       {
                         key: "total_pnl",
                         header: "P&L",
                         render: (r) => (
-                          <span className={cn((r.total_pnl as number) >= 0 ? "text-profit" : "text-loss")}>
+                          <span
+                            className={cn(
+                              (r.total_pnl as number) >= 0 ? "text-profit" : "text-loss",
+                            )}
+                          >
                             {formatCurrency(r.total_pnl as number)}
                           </span>
                         ),
@@ -313,25 +413,50 @@ export default function SimulationPage() {
 
               {/* Monte Carlo Projections Table */}
               {activeResult && activeResult.monte_carlo_projections.length > 0 && (
-                <ChartContainer title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Monte Carlo Projections`} subtitle={`${activeResult.monte_carlo_projections[0]?.n_paths || 0} simulated paths per stock`}>
+                <ChartContainer
+                  title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Monte Carlo Projections`}
+                  subtitle={`${activeResult.monte_carlo_projections[0]?.n_paths || 0} simulated paths per stock`}
+                >
                   <DataTable
                     columns={[
                       { key: "symbol", header: "Symbol" },
-                      { key: "median_final", header: "Median $", render: (r) => formatCurrency(r.median_final as number) },
-                      { key: "p5_final", header: "P5 $", render: (r) => formatCurrency(r.p5_final as number) },
-                      { key: "p95_final", header: "P95 $", render: (r) => formatCurrency(r.p95_final as number) },
+                      {
+                        key: "median_final",
+                        header: "Median $",
+                        render: (r) => formatCurrency(r.median_final as number),
+                      },
+                      {
+                        key: "p5_final",
+                        header: "P5 $",
+                        render: (r) => formatCurrency(r.p5_final as number),
+                      },
+                      {
+                        key: "p95_final",
+                        header: "P95 $",
+                        render: (r) => formatCurrency(r.p95_final as number),
+                      },
                       {
                         key: "median_return_pct",
                         header: "Median Ret %",
                         render: (r) => (
-                          <span className={cn((r.median_return_pct as number) >= 0 ? "text-profit" : "text-loss")}>
+                          <span
+                            className={cn(
+                              (r.median_return_pct as number) >= 0 ? "text-profit" : "text-loss",
+                            )}
+                          >
                             {formatPercent(r.median_return_pct as number)}
                           </span>
                         ),
                       },
-                      { key: "worst_drawdown_p95", header: "Worst DD (P95)", render: (r) => formatPercent(r.worst_drawdown_p95 as number) },
+                      {
+                        key: "worst_drawdown_p95",
+                        header: "Worst DD (P95)",
+                        render: (r) => formatPercent(r.worst_drawdown_p95 as number),
+                      },
                     ]}
-                    data={activeResult.monte_carlo_projections as unknown as Record<string, unknown>[]}
+                    data={
+                      activeResult.monte_carlo_projections as unknown as Record<string, unknown>[]
+                    }
                     emptyMessage="No projections"
                   />
                 </ChartContainer>
@@ -347,7 +472,8 @@ export default function SimulationPage() {
               <Activity size={40} className="mx-auto mb-4 opacity-50" />
               <p className="text-sm font-medium">Configure and run a simulation</p>
               <p className="mt-1 text-xs">
-                Fetches real stock data, runs walk-forward backtests across risk levels, and generates Monte Carlo projections with strategy recommendations.
+                Fetches real stock data, runs walk-forward backtests across risk levels, and
+                generates Monte Carlo projections with strategy recommendations.
               </p>
             </div>
           )}
@@ -366,7 +492,11 @@ export default function SimulationPage() {
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs",
-                    r.status === "completed" ? "bg-profit/20 text-profit" : r.status === "failed" ? "bg-loss/20 text-loss" : "bg-warning/20 text-warning"
+                    r.status === "completed"
+                      ? "bg-profit/20 text-profit"
+                      : r.status === "failed"
+                        ? "bg-loss/20 text-loss"
+                        : "bg-warning/20 text-warning",
                   )}
                 >
                   {r.status as string}

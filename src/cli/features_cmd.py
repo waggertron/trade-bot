@@ -6,9 +6,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-app = typer.Typer(
-    name="features", help="Feature inspection commands.", no_args_is_help=True
-)
+from src.cli.charts import plotext_bar_chart
+
+app = typer.Typer(name="features", help="Feature inspection commands.", no_args_is_help=True)
 
 console = Console()
 
@@ -62,6 +62,16 @@ def list_features() -> None:
 
     console.print(table)
 
+    # Category breakdown with counts as horizontal bar chart
+    try:
+        console.print()
+        labels = list(_FEATURES.keys())
+        values = [float(len(feats)) for feats in _FEATURES.values()]
+        chart = plotext_bar_chart(labels, values, title="Features per Category")
+        console.print(chart)
+    except Exception:
+        pass  # Don't crash the command if chart rendering fails
+
 
 @app.command()
 def status() -> None:
@@ -74,4 +84,4 @@ def status() -> None:
     console.print()
     console.print(f"  Categories:     {num_categories}")
     console.print(f"  Total Features: {total_features}")
-    console.print(f"  Status:         Ready")
+    console.print("  Status:         Ready")

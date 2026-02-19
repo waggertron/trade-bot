@@ -32,6 +32,9 @@ dependencies = [
     "typer>=0.12.0",
     "rich>=13.0.0",
     "feedparser>=6.0.0",
+    "textual>=0.89.0",
+    "plotext>=5.3.0",
+    "asciichartpy>=1.5.25",
 ]
 
 [project.scripts]
@@ -49,7 +52,9 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.8.0",
-    "mypy>=1.13.0",
+    "pyrefly>=0.18.0",
+    "deptry>=0.21.0",
+    "vulture>=2.14",
 ]
 
 [tool.setuptools.packages.find]
@@ -86,23 +91,9 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
 
-[tool.mypy]
+[tool.pyrefly]
 python_version = "3.12"
-strict = true
-plugins = ["pydantic.mypy"]
-exclude = ["tests/"]
-
-[[tool.mypy.overrides]]
-module = [
-    "krakenex.*",
-    "pykrakenapi.*",
-    "ib_insync.*",
-    "ollama.*",
-    "talib.*",
-    "yfinance.*",
-    "apscheduler.*",
-]
-ignore_missing_imports = true
+search_path = ["."]
 
 [tool.coverage.run]
 source = ["src"]
@@ -116,3 +107,14 @@ exclude_lines = [
     "@overload",
     "\\.\\.\\.",
 ]
+
+[tool.deptry]
+pep621_dev_dependency_groups = ["dev"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["uvicorn", "aiosqlite", "python-dotenv", "jinja2", "websockets", "textual", "krakenex", "pykrakenapi", "ollama", "pandas", "apscheduler", "pydantic-settings", "yfinance", "xgboost", "scikit-learn"]
+
+[tool.vulture]
+min_confidence = 80
+paths = ["src"]
+exclude = ["src/trade_bot.egg-info"]

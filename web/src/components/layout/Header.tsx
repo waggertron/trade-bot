@@ -1,9 +1,9 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Activity, Pause, Play, Power } from "lucide-react";
 import { useSystemStatus } from "@/hooks/useSystem";
-import { pauseTrading, resumeTrading, killSwitch } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { killSwitch, pauseTrading, resumeTrading } from "@/lib/api";
 import { cn } from "@/lib/formatters";
 
 export default function Header() {
@@ -42,7 +42,7 @@ export default function Header() {
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-xs font-medium",
-              isPaused ? "bg-warning/20 text-warning" : "bg-profit/20 text-profit"
+              isPaused ? "bg-warning/20 text-warning" : "bg-profit/20 text-profit",
             )}
           >
             {isPaused ? "PAUSED" : "RUNNING"}
@@ -52,6 +52,7 @@ export default function Header() {
 
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={handlePauseResume}
           className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:bg-card-hover hover:text-foreground"
         >
@@ -59,6 +60,7 @@ export default function Header() {
           {isPaused ? "Resume" : "Pause"}
         </button>
         <button
+          type="button"
           onClick={handleKill}
           className="flex items-center gap-1.5 rounded-lg border border-loss/50 px-3 py-1.5 text-xs text-loss transition-colors hover:bg-loss/10"
         >

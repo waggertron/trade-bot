@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
+from src.cli.charts import (
+    ascii_line_chart,
+    plotext_bar_chart,
+    spark_line,
+)
 from src.core.models import AssetType, OrderSide, Position
 
 app = typer.Typer(
@@ -148,12 +154,25 @@ def show() -> None:
     table.add_column("Current", justify="right")
     table.add_column("Market Value", justify="right")
     table.add_column("Unrealized P&L", justify="right")
+    table.add_column("Trend", justify="center")
     table.add_column("Type", justify="center")
 
     for pos in positions:
         pnl = pos.unrealized_pnl
         pnl_style = "green" if pnl >= 0 else "red"
         pnl_str = f"[{pnl_style}]${pnl:,.2f}[/{pnl_style}]"
+
+        # Synthetic sparkline: simulate a recent price trend from entry to current
+        try:
+            entry = float(pos.avg_entry_price)
+            current = float(pos.current_price)
+            steps = 8
+            trend_vals = [
+                entry + (current - entry) * i / steps for i in range(steps + 1)
+            ]
+            trend_str = spark_line(trend_vals)
+        except Exception:
+            trend_str = ""
 
         table.add_row(
             pos.symbol,
@@ -162,10 +181,39 @@ def show() -> None:
             f"${pos.current_price:,.2f}",
             f"${pos.market_value:,.2f}",
             pnl_str,
+            trend_str,
             pos.asset_type.value,
         )
 
     console.print(table)
+
+    # --- Chart: Allocation horizontal bar chart ---
+    try:
+        alloc_labels = [p.symbol for p in positions]
+        alloc_values = [float(p.market_value) for p in positions]
+        chart = plotext_bar_chart(
+            alloc_labels,
+            alloc_values,
+            title="Portfolio Allocation by Market Value ($)",
+        )
+        console.print()
+        console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
+
+    # --- Chart: P&L bar chart per position ---
+    try:
+        pnl_labels = [p.symbol for p in positions]
+        pnl_values = [float(p.unrealized_pnl) for p in positions]
+        chart = plotext_bar_chart(
+            pnl_labels,
+            pnl_values,
+            title="Unrealized P&L per Position ($)",
+        )
+        console.print()
+        console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
 
 
 @app.command()
@@ -241,3 +289,37 @@ def pnl(
     console.print(f"  Winning Trades:  {winning_trades}")
     console.print(f"  Losing Trades:   {losing_trades}")
     console.print(f"  Win Rate:        {win_rate:.1f}%")
+
+    # --- Chart: Synthetic equity curve from example P&L data ---
+    try:
+        # Build a simple synthetic equity curve from available data
+        base = 100_000.0
+        equity_points = [base]
+        avg_win_amount = float(realized) / winning_trades if winning_trades else 0
+        avg_loss_amount = float(realized) * 0.3 / losing_trades if losing_trades else 0
+        for i in range(total_trades):
+            if i < winning_trades:
+                equity_points.append(equity_points[-1] + avg_win_amount)
+            else:
+                equity_points.append(equity_points[-1] - avg_loss_amount)
+        chart = ascii_line_chart(
+            equity_points,
+            title="Equity Curve (estimated from P&L)",
+            height=10,
+        )
+        console.print()
+        console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
+
+    # --- Chart: Win/Loss distribution bar chart ---
+    try:
+        chart = plotext_bar_chart(
+            ["Winning Trades", "Losing Trades"],
+            [winning_trades, losing_trades],
+            title="Win / Loss Distribution",
+        )
+        console.print()
+        console.print(Panel(chart, expand=False))
+    except Exception:
+        pass

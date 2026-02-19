@@ -1,6 +1,6 @@
-import { registerRoute } from "../router";
 import { generateOHLC, generateSparkline, hashString } from "../generators";
-import { BASE_PRICES, ALL_SYMBOLS, INTERVAL_MS, STRATEGY_NAMES } from "./constants";
+import { registerRoute } from "../router";
+import { ALL_SYMBOLS, BASE_PRICES, INTERVAL_MS } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Order shape
@@ -77,7 +77,7 @@ registerRoute("GET", /^\/api\/trading\/orders$/, () => {
 // POST /api/trading/order  –  place a new order
 // ---------------------------------------------------------------------------
 registerRoute("POST", /^\/api\/trading\/order$/, (_path, options) => {
-  const body = JSON.parse(options?.body as string ?? "{}");
+  const body = JSON.parse((options?.body as string) ?? "{}");
   const symbol: string = body.symbol ?? "AAPL";
   const side: string = body.side ?? "buy";
   const quantity: string = String(body.quantity ?? "1");

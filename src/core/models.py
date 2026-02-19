@@ -7,7 +7,9 @@ from decimal import Decimal
 from enum import Enum
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
+
+from src.core.base import StrictBase
 
 
 # -- Enums ----------------------------------------------------------------
@@ -43,7 +45,7 @@ class RiskAction(str, Enum):
 
 # -- Models ---------------------------------------------------------------
 
-class MarketTick(BaseModel):
+class MarketTick(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     symbol: str
@@ -55,7 +57,7 @@ class MarketTick(BaseModel):
     ask: Decimal | None = None
 
 
-class Signal(BaseModel):
+class Signal(StrictBase):
     id: str = Field(default_factory=lambda: str(uuid4()))
     symbol: str
     direction: SignalDirection
@@ -70,7 +72,7 @@ class Signal(BaseModel):
         return max(0.0, min(1.0, v))
 
 
-class Order(BaseModel):
+class Order(StrictBase):
     id: str = Field(default_factory=lambda: str(uuid4()))
     symbol: str
     side: OrderSide
@@ -82,7 +84,7 @@ class Order(BaseModel):
     signal_id: str | None = None
 
 
-class Fill(BaseModel):
+class Fill(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     id: str = Field(default_factory=lambda: str(uuid4()))
@@ -95,7 +97,7 @@ class Fill(BaseModel):
     commission: Decimal = Field(default=Decimal("0"), ge=0)
 
 
-class Position(BaseModel):
+class Position(StrictBase):
     symbol: str
     quantity: Decimal = Field(gt=0)
     avg_entry_price: Decimal = Field(gt=0)
@@ -112,7 +114,7 @@ class Position(BaseModel):
         return (self.current_price - self.avg_entry_price) * self.quantity
 
 
-class PortfolioSnapshot(BaseModel):
+class PortfolioSnapshot(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     cash: Decimal = Field(ge=0)
@@ -124,7 +126,7 @@ class PortfolioSnapshot(BaseModel):
         return self.cash + sum(p.market_value for p in self.positions)
 
 
-class RiskDecision(BaseModel):
+class RiskDecision(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     action: RiskAction
@@ -137,7 +139,7 @@ class RiskDecision(BaseModel):
         return self.action in (RiskAction.APPROVE, RiskAction.RESIZE)
 
 
-class ResearchReport(BaseModel):
+class ResearchReport(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     symbol: str

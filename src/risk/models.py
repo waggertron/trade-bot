@@ -5,7 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 from src.core.models import PortfolioSnapshot
 
@@ -18,7 +20,7 @@ class VolatilityRegime(str, Enum):
     HIGH = "high"
 
 
-class StrategyPerformance(BaseModel):
+class StrategyPerformance(StrictBase):
     """Performance statistics for a single strategy."""
 
     model_config = ConfigDict(frozen=True)
@@ -32,7 +34,7 @@ class StrategyPerformance(BaseModel):
     recent_win_rate: float = Field(default=0.0, ge=0, le=1)
 
 
-class RiskContext(BaseModel):
+class RiskContext(StrictBase):
     """Snapshot of risk-relevant state used when evaluating a trade."""
 
     model_config = ConfigDict(frozen=True)

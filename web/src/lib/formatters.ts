@@ -1,6 +1,6 @@
 export function formatCurrency(value: string | number, decimals = 2): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "$0.00";
+  if (Number.isNaN(num)) return "$0.00";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -11,7 +11,7 @@ export function formatCurrency(value: string | number, decimals = 2): string {
 
 export function formatNumber(value: string | number, decimals = 2): string {
   const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "0";
+  if (Number.isNaN(num)) return "0";
   return new Intl.NumberFormat("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,

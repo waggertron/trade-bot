@@ -1,24 +1,24 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  CandlestickChart,
-  Wallet,
-  Brain,
-  BarChart3,
-  ShieldAlert,
-  FlaskConical,
   Activity,
-  Newspaper,
-  Cpu,
-  Settings,
+  BarChart3,
+  Brain,
+  CandlestickChart,
   ChevronLeft,
   ChevronRight,
+  Cpu,
+  FlaskConical,
+  LayoutDashboard,
+  Newspaper,
+  Settings,
+  ShieldAlert,
+  Wallet,
 } from "lucide-react";
-import { useUIStore } from "@/stores/uiStore";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/formatters";
+import { useUIStore } from "@/stores/uiStore";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -42,16 +42,15 @@ export default function Sidebar() {
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 h-screen border-r border-border bg-card transition-all duration-200",
-        sidebarCollapsed ? "w-16" : "w-56"
+        sidebarCollapsed ? "w-16" : "w-56",
       )}
     >
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
         {!sidebarCollapsed && (
-          <span className="text-sm font-semibold tracking-wide text-foreground">
-            TradeBot
-          </span>
+          <span className="text-sm font-semibold tracking-wide text-foreground">TradeBot</span>
         )}
         <button
+          type="button"
           onClick={toggleSidebar}
           className="rounded p-1 text-muted hover:bg-card-hover hover:text-foreground"
         >
@@ -70,7 +69,7 @@ export default function Sidebar() {
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                 isActive
                   ? "bg-accent/10 text-accent"
-                  : "text-muted hover:bg-card-hover hover:text-foreground"
+                  : "text-muted hover:bg-card-hover hover:text-foreground",
               )}
             >
               <item.icon size={18} />

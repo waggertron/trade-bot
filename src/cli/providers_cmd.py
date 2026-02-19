@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 from src.providers.protocols import (
@@ -19,10 +20,12 @@ from src.providers.protocols import (
 )
 from src.providers.registry import ProviderRegistry
 
-app = typer.Typer(
-    name="providers", help="Provider management commands.", no_args_is_help=True
-)
+app = typer.Typer(name="providers", help="Provider management commands.", no_args_is_help=True)
 console = Console()
+
+# Status indicator symbols
+_HEALTHY = "[green]\u2705[/green]"  # green checkmark
+_UNHEALTHY = "[red]\u274c[/red]"  # red X mark
 
 # Known implementations catalog
 # Maps protocol_name -> list of (name, type, description)
@@ -98,9 +101,7 @@ def list_providers(
 
 @app.command()
 def health(
-    mock: Annotated[
-        bool, typer.Option("--mock/--no-mock", help="Use mock providers.")
-    ] = True,
+    mock: Annotated[bool, typer.Option("--mock/--no-mock", help="Use mock providers.")] = True,
 ) -> None:
     """Check health of registered providers."""
     if not mock:
@@ -131,13 +132,32 @@ def health(
 
     results = asyncio.run(_check_all())
 
+    healthy_count = 0
+    total_count = len(results)
     all_healthy = True
+
     for proto_name, provider_name, healthy in results:
-        status = "[green]healthy[/green]" if healthy else "[red]unhealthy[/red]"
-        if not healthy:
+        if healthy:
+            indicator = _HEALTHY
+            status = f"{indicator} [green]healthy[/green]"
+            healthy_count += 1
+        else:
+            indicator = _UNHEALTHY
+            status = f"{indicator} [red]unhealthy[/red]"
             all_healthy = False
         table.add_row(proto_name, provider_name, status)
 
     console.print(table)
+
+    # Health summary bar
+    if total_count > 0:
+        color = "green" if all_healthy else ("yellow" if healthy_count > 0 else "red")
+        bar_filled = int((healthy_count / total_count) * 20)
+        bar_empty = 20 - bar_filled
+        bar = f"[{color}]{'█' * bar_filled}[/{color}][dim]{'░' * bar_empty}[/dim]"
+        summary = f"  {bar}  [{color}]{healthy_count}/{total_count} healthy[/{color}]"
+        console.print()
+        console.print(Panel(summary, title="Health Summary", border_style=color))
+
     if not all_healthy:
         raise typer.Exit(code=1)

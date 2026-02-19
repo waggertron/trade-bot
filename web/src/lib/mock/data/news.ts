@@ -1,5 +1,5 @@
-import { registerRoute } from "../router";
 import { seededRandom } from "../generators";
+import { registerRoute } from "../router";
 import { ALL_SYMBOLS, NEWS_SOURCES } from "./constants";
 
 // ---------------------------------------------------------------------------
@@ -222,9 +222,7 @@ registerRoute("GET", /^\/api\/sentiment\/trend$/, (path) => {
   const symbol = params.get("symbol") ?? "AAPL";
   const period = params.get("period") ?? "7d";
 
-  const trendRng = seededRandom(
-    symbol.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0),
-  );
+  const trendRng = seededRandom(symbol.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0));
 
   const days = period === "30d" ? 30 : period === "14d" ? 14 : 7;
   const step = days / 7;

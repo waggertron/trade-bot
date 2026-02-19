@@ -1,32 +1,34 @@
 "use client";
 
+import { Banknote, Briefcase, DollarSign, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import {
-  AreaChart,
   Area,
-  LineChart,
+  AreaChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
-import { DollarSign, TrendingUp, Briefcase, Banknote } from "lucide-react";
-
-import { usePortfolio, usePositions, usePnL, useEquityCurve } from "@/hooks/usePortfolio";
-import { useSignals } from "@/hooks/useTrades";
-import { useDrawdownStatus } from "@/hooks/useRisk";
-import { useSparklines } from "@/hooks/useMarket";
-
-import StatCard from "@/components/shared/StatCard";
 import ChartContainer from "@/components/shared/ChartContainer";
 import DataTable from "@/components/shared/DataTable";
-import { StatCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/shared/LoadingSkeleton";
-import { formatCurrency, formatPnL, formatPercent, formatTimeAgo, cn } from "@/lib/formatters";
+import {
+  ChartSkeleton,
+  StatCardSkeleton,
+  TableSkeleton,
+} from "@/components/shared/LoadingSkeleton";
+import StatCard from "@/components/shared/StatCard";
+import { useSparklines } from "@/hooks/useMarket";
+import { useEquityCurve, usePnL, usePortfolio, usePositions } from "@/hooks/usePortfolio";
+import { useDrawdownStatus } from "@/hooks/useRisk";
+import { useSignals } from "@/hooks/useTrades";
 import { rechartsColors } from "@/lib/chartTheme";
+import { cn, formatCurrency, formatPercent, formatPnL, formatTimeAgo } from "@/lib/formatters";
 
-import type { Position, Signal, DrawdownStatus, EquityPoint, SparklineData } from "@/types";
+import type { DrawdownStatus, EquityPoint, Position, Signal, SparklineData } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Stat Cards Section
@@ -191,23 +193,35 @@ function ActivePositions() {
   const positions = (data ?? []) as unknown as Position[];
 
   const columns = [
-    { key: "symbol", header: "Symbol", render: (row: Position) => (
-      <span className="font-medium text-foreground">{row.symbol}</span>
-    )},
-    { key: "quantity", header: "Qty", render: (row: Position) => (
-      <span className="font-mono text-sm">{row.quantity}</span>
-    )},
-    { key: "current_price", header: "Price", render: (row: Position) => (
-      <span className="font-mono text-sm">{formatCurrency(row.current_price)}</span>
-    )},
-    { key: "unrealized_pnl", header: "P&L", render: (row: Position) => {
-      const pnl = parseFloat(row.unrealized_pnl);
-      return (
-        <span className={cn("font-mono text-sm", pnl >= 0 ? "text-profit" : "text-loss")}>
-          {formatPnL(row.unrealized_pnl)}
-        </span>
-      );
-    }},
+    {
+      key: "symbol",
+      header: "Symbol",
+      render: (row: Position) => <span className="font-medium text-foreground">{row.symbol}</span>,
+    },
+    {
+      key: "quantity",
+      header: "Qty",
+      render: (row: Position) => <span className="font-mono text-sm">{row.quantity}</span>,
+    },
+    {
+      key: "current_price",
+      header: "Price",
+      render: (row: Position) => (
+        <span className="font-mono text-sm">{formatCurrency(row.current_price)}</span>
+      ),
+    },
+    {
+      key: "unrealized_pnl",
+      header: "P&L",
+      render: (row: Position) => {
+        const pnl = parseFloat(row.unrealized_pnl);
+        return (
+          <span className={cn("font-mono text-sm", pnl >= 0 ? "text-profit" : "text-loss")}>
+            {formatPnL(row.unrealized_pnl)}
+          </span>
+        );
+      },
+    },
   ];
 
   return (
@@ -220,12 +234,7 @@ function ActivePositions() {
         </Link>
       }
     >
-      <DataTable
-        columns={columns}
-        data={positions}
-        maxRows={8}
-        emptyMessage="No open positions"
-      />
+      <DataTable columns={columns} data={positions} maxRows={8} emptyMessage="No open positions" />
     </ChartContainer>
   );
 }
@@ -235,7 +244,7 @@ function ActivePositions() {
 // ---------------------------------------------------------------------------
 
 const directionBadge: Record<string, { label: string; className: string }> = {
-  buy:  { label: "BUY",  className: "bg-profit/15 text-profit" },
+  buy: { label: "BUY", className: "bg-profit/15 text-profit" },
   sell: { label: "SELL", className: "bg-loss/15 text-loss" },
   hold: { label: "HOLD", className: "bg-muted/15 text-muted" },
 };
@@ -333,15 +342,15 @@ function RiskProgressBar({
   unit?: string;
 }) {
   const pct = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
-  const color =
-    pct >= 80 ? "bg-loss" : pct >= 50 ? "bg-warning" : "bg-profit";
+  const color = pct >= 80 ? "bg-loss" : pct >= 50 ? "bg-warning" : "bg-profit";
 
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className="text-muted">{label}</span>
         <span className="font-mono text-foreground">
-          {unit === "%" ? `${current.toFixed(1)}%` : current} / {unit === "%" ? `${limit.toFixed(1)}%` : limit}
+          {unit === "%" ? `${current.toFixed(1)}%` : current} /{" "}
+          {unit === "%" ? `${limit.toFixed(1)}%` : limit}
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-border">
@@ -386,16 +395,8 @@ function RiskStatus() {
   return (
     <ChartContainer title="Risk Status" subtitle="Drawdown & exposure limits">
       <div className="space-y-4">
-        <RiskProgressBar
-          label="Daily Drawdown"
-          current={dd.daily_pct}
-          limit={dd.daily_limit}
-        />
-        <RiskProgressBar
-          label="Weekly Drawdown"
-          current={dd.weekly_pct}
-          limit={dd.weekly_limit}
-        />
+        <RiskProgressBar label="Daily Drawdown" current={dd.daily_pct} limit={dd.daily_limit} />
+        <RiskProgressBar label="Weekly Drawdown" current={dd.weekly_pct} limit={dd.weekly_limit} />
         <RiskProgressBar
           label="Position Count"
           current={dd.positions_used}
@@ -465,7 +466,8 @@ function MarketOverview() {
     <ChartContainer title="Market Overview" subtitle="Watchlist">
       <div className="space-y-1.5">
         {symbols.map((symbol) => {
-          const item = sparklines![symbol];
+          const item = sparklines?.[symbol];
+          if (!item) return null;
           const positive = item.change_pct >= 0;
           return (
             <div

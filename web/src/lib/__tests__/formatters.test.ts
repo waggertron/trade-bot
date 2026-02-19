@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  cn,
   formatCurrency,
   formatNumber,
   formatPercent,
   formatPnL,
-  formatTimestamp,
   formatTimeAgo,
-  cn,
+  formatTimestamp,
 } from "../formatters";
 
 // -- formatCurrency ----------------------------------------------------------

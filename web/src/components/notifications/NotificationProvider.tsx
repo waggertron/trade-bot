@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
 import { X } from "lucide-react";
-import { useNotificationStore } from "@/stores/notificationStore";
+import { useEffect } from "react";
 import { cn } from "@/lib/formatters";
+import { useNotificationStore } from "@/stores/notificationStore";
 
 const typeStyles = {
   info: "border-accent/50 bg-accent/10",
@@ -33,14 +33,18 @@ export default function NotificationProvider() {
           key={n.id}
           className={cn(
             "flex items-start gap-3 rounded-lg border p-3 shadow-lg backdrop-blur",
-            typeStyles[n.type]
+            typeStyles[n.type],
           )}
         >
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground">{n.title}</p>
             {n.message && <p className="mt-0.5 text-xs text-muted">{n.message}</p>}
           </div>
-          <button onClick={() => dismiss(n.id)} className="text-muted hover:text-foreground">
+          <button
+            type="button"
+            onClick={() => dismiss(n.id)}
+            className="text-muted hover:text-foreground"
+          >
             <X size={14} />
           </button>
         </div>

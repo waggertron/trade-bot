@@ -15,7 +15,7 @@ let mockRiskSettings = {
   max_correlation: 0.7,
 };
 
-let mockCircuitBreaker = {
+const mockCircuitBreaker = {
   tripped: false,
   tripped_at: null as string | null,
   reason: null as string | null,
@@ -50,7 +50,6 @@ function getLimitsForRegime(regime: string) {
         trailing_stop_pct: 5,
         max_correlation: 0.85,
       };
-    case "medium":
     default:
       return {
         max_position_pct: mockRiskSettings.max_position_pct,

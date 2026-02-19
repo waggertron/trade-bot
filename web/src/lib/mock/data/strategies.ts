@@ -1,11 +1,6 @@
+import { hashString, seededRandom } from "../generators";
 import { registerRoute } from "../router";
-import { seededRandom, hashString } from "../generators";
-import {
-  STRATEGY_NAMES,
-  STRATEGY_TYPES,
-  STRATEGY_DESCRIPTIONS,
-  ALL_SYMBOLS,
-} from "./constants";
+import { ALL_SYMBOLS, STRATEGY_DESCRIPTIONS, STRATEGY_NAMES, STRATEGY_TYPES } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Mutable state
@@ -15,7 +10,7 @@ const mockStrategies = STRATEGY_NAMES.map((name, i) => ({
   name,
   type: STRATEGY_TYPES[name],
   enabled: i < 4, // first 4 enabled
-  weight: [0.25, 0.20, 0.15, 0.20, 0.10, 0.10][i],
+  weight: [0.25, 0.2, 0.15, 0.2, 0.1, 0.1][i],
   description: STRATEGY_DESCRIPTIONS[name],
   total_trades: [145, 98, 67, 203, 54, 178][i],
   win_rate: [58.2, 52.1, 64.8, 55.3, 61.5, 49.7][i],
@@ -129,7 +124,7 @@ registerRoute("PUT", /^\/api\/strategies\/[^/]+\/enabled$/, (path, options) => {
 // GET /api/strategies/:name/signals - signals for a strategy
 // ---------------------------------------------------------------------------
 registerRoute("GET", /^\/api\/strategies\/[^/]+\/signals$/, (path) => {
-  const name = path.split("?")[0].split("/").filter(Boolean).at(-2)!;
+  const name = path.split("?")[0].split("/").filter(Boolean).at(-2) ?? "";
   const seed = hashString(name);
   const rng = seededRandom(seed);
 
@@ -177,10 +172,10 @@ registerRoute("GET", /^\/api\/strategies\/[^/]+\/signals$/, (path) => {
 // GET /api/strategies/:name/performance - performance stats for a strategy
 // ---------------------------------------------------------------------------
 registerRoute("GET", /^\/api\/strategies\/[^/]+\/performance$/, (path) => {
-  const name = path.split("?")[0].split("/").filter(Boolean).at(-2)!;
+  const name = path.split("?")[0].split("/").filter(Boolean).at(-2) ?? "";
   const strategy = mockStrategies.find((s) => s.name === name);
 
-  const seed = hashString(name + "_perf");
+  const seed = hashString(`${name}_perf`);
   const rng = seededRandom(seed);
 
   const totalTrades = strategy?.total_trades ?? 100;
@@ -210,7 +205,7 @@ registerRoute("GET", /^\/api\/strategies\/[^/]+\/performance$/, (path) => {
 // GET /api/strategies/:name - single strategy (catch-all, registered LAST)
 // ---------------------------------------------------------------------------
 registerRoute("GET", /^\/api\/strategies\/[^/]+$/, (path) => {
-  const name = path.split("?")[0].split("/").filter(Boolean).at(-1)!;
+  const name = path.split("?")[0].split("/").filter(Boolean).at(-1) ?? "";
   const strategy = mockStrategies.find((s) => s.name === name);
   return strategy ?? {};
 });

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.core.base import StrictBase
 
 
 # -- Trading ------------------------------------------------------------------
 
-class PlaceOrderRequest(BaseModel):
+class PlaceOrderRequest(StrictBase):
     symbol: str
     side: str = Field(pattern=r"^(buy|sell)$")
     order_type: str = Field(default="market", pattern=r"^(market|limit)$")
@@ -15,7 +17,7 @@ class PlaceOrderRequest(BaseModel):
     limit_price: float | None = None
 
 
-class OrderResponse(BaseModel):
+class OrderResponse(StrictBase):
     id: str
     symbol: str
     side: str
@@ -27,7 +29,7 @@ class OrderResponse(BaseModel):
 
 # -- Risk ---------------------------------------------------------------------
 
-class RiskSettingsUpdate(BaseModel):
+class RiskSettingsUpdate(StrictBase):
     max_position_pct: float | None = None
     max_sector_exposure_pct: float | None = None
     daily_loss_limit_pct: float | None = None
@@ -39,34 +41,34 @@ class RiskSettingsUpdate(BaseModel):
     max_correlation: float | None = None
 
 
-class RiskPresetRequest(BaseModel):
+class RiskPresetRequest(StrictBase):
     level: str = Field(pattern=r"^(conservative|moderate|aggressive|very_aggressive)$")
 
 
 # -- Strategies ---------------------------------------------------------------
 
-class UpdateWeightRequest(BaseModel):
+class UpdateWeightRequest(StrictBase):
     weight: float = Field(ge=0, le=1.0)
 
 
-class UpdateEnabledRequest(BaseModel):
+class UpdateEnabledRequest(StrictBase):
     enabled: bool
 
 
 # -- Config -------------------------------------------------------------------
 
-class UpdateModeRequest(BaseModel):
+class UpdateModeRequest(StrictBase):
     mode: str = Field(pattern=r"^(paper|live)$")
 
 
-class UpdateSymbolsRequest(BaseModel):
+class UpdateSymbolsRequest(StrictBase):
     stocks: list[str] = Field(default_factory=list)
     crypto: list[str] = Field(default_factory=list)
 
 
 # -- Backtest -----------------------------------------------------------------
 
-class BacktestRequest(BaseModel):
+class BacktestRequest(StrictBase):
     start_date: str
     end_date: str
     strategies: list[str] = Field(default_factory=list)
@@ -76,7 +78,7 @@ class BacktestRequest(BaseModel):
 
 # -- Simulation ---------------------------------------------------------------
 
-class SimulationRequest(BaseModel):
+class SimulationRequest(StrictBase):
     stocks: list[str] = Field(default_factory=lambda: [
         "SPY", "QQQ", "DIA", "IWM",
         "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",

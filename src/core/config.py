@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 
 class RiskLevel(str, Enum):
@@ -58,7 +60,7 @@ RISK_LEVEL_PRESETS: dict[RiskLevel, dict[str, Any]] = {
 }
 
 
-class RiskSettings(BaseModel):
+class RiskSettings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     max_position_pct: float = Field(2.0, gt=0, le=100)
@@ -81,35 +83,35 @@ class RiskSettings(BaseModel):
         return cls.model_validate(preset)
 
 
-class SymbolsConfig(BaseModel):
+class SymbolsConfig(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     stocks: list[str] = Field(default_factory=list)
     crypto: list[str] = Field(default_factory=list)
 
 
-class TradingSettings(BaseModel):
+class TradingSettings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     symbols: SymbolsConfig = Field(default_factory=SymbolsConfig)
     market_hours: dict[str, str] = Field(default_factory=dict)
 
 
-class AISettings(BaseModel):
+class AISettings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     claude_model: str = "claude-sonnet-4-5-20250929"
     ollama_model: str = "llama3.2"
 
 
-class DashboardSettings(BaseModel):
+class DashboardSettings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     host: str = "0.0.0.0"
     port: int = Field(8080, gt=0, le=65535)
 
 
-class Settings(BaseModel):
+class Settings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     mode: str = Field("paper", pattern=r"^(paper|live)$")

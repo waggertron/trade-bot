@@ -10,7 +10,13 @@ interface ChartContainerProps {
   actions?: React.ReactNode;
 }
 
-export default function ChartContainer({ title, subtitle, children, className, actions }: ChartContainerProps) {
+export default function ChartContainer({
+  title,
+  subtitle,
+  children,
+  className,
+  actions,
+}: ChartContainerProps) {
   return (
     <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
       <div className="mb-5 flex items-center justify-between">

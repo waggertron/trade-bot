@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
 
 import typer
+from rich.console import Console
+from rich.panel import Panel
 
 from src.analytics.attribution import StrategyAttribution
 from src.analytics.models import AttributedFill
 from src.analytics.monte_carlo import MonteCarloSimulator
 from src.analytics.reporter import AnalyticsReporter
+from src.cli.charts import ascii_line_chart, plotext_bar_chart
 from src.core.models import Fill, OrderSide
 
 app = typer.Typer(
     name="backtest", help="Backtesting commands.", no_args_is_help=True
 )
+
+console = Console()
 
 
 @app.command()
@@ -150,3 +156,106 @@ def example() -> None:
 
     report = reporter.generate_report(fills, initial_cash)
     typer.echo(report)
+
+    # --- Charts (best-effort, don't crash the command) ---
+    _print_backtest_charts(fills, initial_cash, attribution)
+
+
+def _pair_fills_into_trades(
+    fills: list[AttributedFill],
+) -> list[dict[str, object]]:
+    """FIFO pairing of fills into trade dicts with pnl and strategy."""
+    buys: dict[str, list[AttributedFill]] = defaultdict(list)
+    sells: dict[str, list[AttributedFill]] = defaultdict(list)
+
+    for af in fills:
+        if af.fill.side == OrderSide.BUY:
+            buys[af.fill.symbol].append(af)
+        else:
+            sells[af.fill.symbol].append(af)
+
+    trades: list[dict[str, object]] = []
+    for symbol in buys:
+        buy_q = list(buys[symbol])
+        sell_q = list(sells.get(symbol, []))
+        bi, si = 0, 0
+        while bi < len(buy_q) and si < len(sell_q):
+            bf = buy_q[bi]
+            sf = sell_q[si]
+            entry = float(bf.fill.fill_price)
+            exit_ = float(sf.fill.fill_price)
+            qty = float(min(bf.fill.quantity, sf.fill.quantity))
+            pnl = (exit_ - entry) * qty
+            trades.append(
+                {
+                    "symbol": symbol,
+                    "pnl": pnl,
+                    "strategy": bf.strategy,
+                }
+            )
+            bi += 1
+            si += 1
+    return trades
+
+
+def _print_backtest_charts(
+    fills: list[AttributedFill],
+    initial_cash: float,
+    attribution: StrategyAttribution,
+) -> None:
+    """Render charts for the example backtest (best-effort)."""
+    trades = _pair_fills_into_trades(fills)
+    if not trades:
+        return
+
+    # --- Chart: Equity curve ---
+    try:
+        equity = [initial_cash]
+        running = initial_cash
+        for t in trades:
+            running += float(t["pnl"])
+            equity.append(running)
+        chart = ascii_line_chart(equity, title="Equity Curve", height=10)
+        console.print()
+        console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
+
+    # --- Chart: Strategy attribution bar chart ---
+    try:
+        strat_pnl: dict[str, float] = defaultdict(float)
+        for t in trades:
+            strat_pnl[str(t["strategy"])] += float(t["pnl"])
+        if strat_pnl:
+            chart = plotext_bar_chart(
+                list(strat_pnl.keys()),
+                list(strat_pnl.values()),
+                title="Strategy Attribution (P&L $)",
+            )
+            console.print()
+            console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
+
+    # --- Chart: Drawdown chart (inverted) ---
+    try:
+        equity = [initial_cash]
+        running = initial_cash
+        for t in trades:
+            running += float(t["pnl"])
+            equity.append(running)
+
+        # Compute drawdown series as negative values
+        peak = equity[0]
+        drawdowns: list[float] = []
+        for val in equity:
+            if val > peak:
+                peak = val
+            dd = ((peak - val) / peak * 100.0) if peak > 0 else 0.0
+            drawdowns.append(-dd)  # negative so chart goes downward
+
+        chart = ascii_line_chart(drawdowns, title="Drawdown % (inverted)", height=8)
+        console.print()
+        console.print(Panel(chart, expand=False))
+    except Exception:
+        pass

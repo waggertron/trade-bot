@@ -1,41 +1,36 @@
 "use client";
 
-import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import {
-  Brain,
-  ToggleLeft,
-  ToggleRight,
   Activity,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   AlertCircle,
   BarChart3,
+  Brain,
+  Minus,
   Target,
+  ToggleLeft,
+  ToggleRight,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
-
-import { useStrategies, useConsensus } from "@/hooks/useStrategies";
-import { useSignals } from "@/hooks/useTrades";
+import { useCallback, useState } from "react";
 import {
-  updateStrategyWeight,
-  updateStrategyEnabled,
-  getStrategySignals,
-} from "@/lib/api";
-import DataTable from "@/components/shared/DataTable";
+  Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+} from "recharts";
 import ChartContainer from "@/components/shared/ChartContainer";
+import DataTable from "@/components/shared/DataTable";
 import { ChartSkeleton, TableSkeleton } from "@/components/shared/LoadingSkeleton";
-import { formatPercent, formatTimeAgo, cn } from "@/lib/formatters";
-import { themeColors, chartAxisTick, seriesColors } from "@/lib/chartTheme";
+import { useConsensus, useStrategies } from "@/hooks/useStrategies";
+import { useSignals } from "@/hooks/useTrades";
+import { getStrategySignals, updateStrategyEnabled, updateStrategyWeight } from "@/lib/api";
+import { chartAxisTick, seriesColors, themeColors } from "@/lib/chartTheme";
+import { cn, formatPercent, formatTimeAgo } from "@/lib/formatters";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,7 +90,7 @@ function DirectionBadge({ direction }: { direction: string }) {
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-        DIRECTION_STYLES[direction] ?? "bg-border text-muted"
+        DIRECTION_STYLES[direction] ?? "bg-border text-muted",
       )}
     >
       {direction === "buy" && <TrendingUp size={12} />}
@@ -114,7 +109,7 @@ function ConfidenceBar({ value }: { value: number }) {
         <div
           className={cn(
             "h-full rounded-full",
-            pct >= 70 ? "bg-profit" : pct >= 40 ? "bg-warning" : "bg-loss"
+            pct >= 70 ? "bg-profit" : pct >= 40 ? "bg-warning" : "bg-loss",
           )}
           style={{ width: `${pct}%` }}
         />
@@ -154,13 +149,10 @@ function StrategyCard({
   const [localWeight, setLocalWeight] = useState(strategy.weight);
   const [isToggling, setIsToggling] = useState(false);
 
-  const handleWeightChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const w = parseFloat(e.target.value);
-      setLocalWeight(w);
-    },
-    []
-  );
+  const handleWeightChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const w = parseFloat(e.target.value);
+    setLocalWeight(w);
+  }, []);
 
   const handleWeightCommit = useCallback(() => {
     if (localWeight !== strategy.weight) {
@@ -178,7 +170,7 @@ function StrategyCard({
         setIsToggling(false);
       }
     },
-    [onToggle]
+    [onToggle],
   );
 
   return (
@@ -187,16 +179,13 @@ function StrategyCard({
       onClick={onSelect}
       className={cn(
         "w-full rounded-xl border bg-card p-4 text-left transition-all hover:border-accent/40",
-        isSelected ? "border-accent ring-1 ring-accent/30" : "border-border"
+        isSelected ? "border-accent ring-1 ring-accent/30" : "border-border",
       )}
     >
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <Brain
-            size={16}
-            className={strategy.enabled ? "text-accent" : "text-muted"}
-          />
+          <Brain size={16} className={strategy.enabled ? "text-accent" : "text-muted"} />
           <h3 className="text-sm font-medium text-foreground">{strategy.name}</h3>
         </div>
         <TypeBadge type={strategy.type} />
@@ -204,39 +193,25 @@ function StrategyCard({
 
       {/* Toggle */}
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs text-muted">
-          {strategy.enabled ? "Enabled" : "Disabled"}
-        </span>
-        <span
-          role="button"
-          tabIndex={0}
+        <span className="text-xs text-muted">{strategy.enabled ? "Enabled" : "Disabled"}</span>
+        <button
+          type="button"
           onClick={handleToggle}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              handleToggle(e as unknown as React.MouseEvent);
-            }
-          }}
           className={cn(
             "transition-colors",
             isToggling && "opacity-50",
-            strategy.enabled ? "text-profit" : "text-muted"
+            strategy.enabled ? "text-profit" : "text-muted",
           )}
         >
-          {strategy.enabled ? (
-            <ToggleRight size={28} />
-          ) : (
-            <ToggleLeft size={28} />
-          )}
-        </span>
+          {strategy.enabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+        </button>
       </div>
 
       {/* Weight slider */}
       <div className="mb-3">
         <div className="mb-1 flex items-center justify-between">
           <span className="text-xs text-muted">Weight</span>
-          <span className="text-xs tabular-nums text-foreground">
-            {localWeight.toFixed(2)}
-          </span>
+          <span className="text-xs tabular-nums text-foreground">{localWeight.toFixed(2)}</span>
         </div>
         <input
           type="range"
@@ -267,9 +242,7 @@ function StrategyCard({
         <div className="flex items-center gap-1">
           <BarChart3 size={12} className="text-muted" />
           <span className="text-xs text-muted">Trades:</span>
-          <span className="text-xs tabular-nums text-foreground">
-            {strategy.total_trades ?? 0}
-          </span>
+          <span className="text-xs tabular-nums text-foreground">{strategy.total_trades ?? 0}</span>
         </div>
         <div className="flex items-center gap-1">
           <Target size={12} className="text-muted" />
@@ -277,7 +250,7 @@ function StrategyCard({
           <span
             className={cn(
               "text-xs tabular-nums",
-              (strategy.win_rate ?? 0) >= 50 ? "text-profit" : "text-loss"
+              (strategy.win_rate ?? 0) >= 50 ? "text-profit" : "text-loss",
             )}
           >
             {formatPercent(strategy.win_rate ?? 0, 1)}
@@ -326,9 +299,7 @@ function ConsensusRadar({
   const radarData = strategyNames.map((name) => {
     const entry: Record<string, string | number> = { strategy: name };
     for (const sym of symbols) {
-      const vote = votes.find(
-        (v) => v.strategy === name && v.symbol === sym
-      );
+      const vote = votes.find((v) => v.strategy === name && v.symbol === sym);
       entry[sym] = vote ? Math.round(vote.confidence * 100) : 0;
     }
     return entry;
@@ -340,10 +311,7 @@ function ConsensusRadar({
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
             <PolarGrid stroke={themeColors.border} />
-            <PolarAngleAxis
-              dataKey="strategy"
-              tick={chartAxisTick}
-            />
+            <PolarAngleAxis dataKey="strategy" tick={chartAxisTick} />
             <PolarRadiusAxis
               angle={90}
               domain={[0, 100]}
@@ -361,9 +329,7 @@ function ConsensusRadar({
                 strokeWidth={2}
               />
             ))}
-            <Legend
-              wrapperStyle={{ fontSize: 12, color: themeColors.muted }}
-            />
+            <Legend wrapperStyle={{ fontSize: 12, color: themeColors.muted }} />
           </RadarChart>
         </ResponsiveContainer>
       </div>
@@ -394,41 +360,31 @@ function StrategyDetail({
       key: "timestamp",
       header: "Time",
       render: (row: SignalData) => (
-        <span className="text-xs text-muted">
-          {formatTimeAgo(row.timestamp)}
-        </span>
+        <span className="text-xs text-muted">{formatTimeAgo(row.timestamp)}</span>
       ),
     },
     {
       key: "symbol",
       header: "Symbol",
       render: (row: SignalData) => (
-        <span className="text-xs font-medium text-foreground">
-          {row.symbol}
-        </span>
+        <span className="text-xs font-medium text-foreground">{row.symbol}</span>
       ),
     },
     {
       key: "direction",
       header: "Direction",
-      render: (row: SignalData) => (
-        <DirectionBadge direction={row.direction} />
-      ),
+      render: (row: SignalData) => <DirectionBadge direction={row.direction} />,
     },
     {
       key: "confidence",
       header: "Confidence",
-      render: (row: SignalData) => (
-        <ConfidenceBar value={row.confidence} />
-      ),
+      render: (row: SignalData) => <ConfidenceBar value={row.confidence} />,
     },
     {
       key: "reasoning",
       header: "Reasoning",
       render: (row: SignalData) => (
-        <span className="line-clamp-2 max-w-xs text-xs text-muted">
-          {row.reasoning}
-        </span>
+        <span className="line-clamp-2 max-w-xs text-xs text-muted">{row.reasoning}</span>
       ),
     },
   ];
@@ -440,12 +396,8 @@ function StrategyDetail({
         <div className="flex items-center gap-3">
           <Brain size={18} className="text-accent" />
           <div>
-            <h3 className="text-sm font-medium text-foreground">
-              {strategy.name}
-            </h3>
-            {strategy.description && (
-              <p className="text-xs text-muted">{strategy.description}</p>
-            )}
+            <h3 className="text-sm font-medium text-foreground">{strategy.name}</h3>
+            {strategy.description && <p className="text-xs text-muted">{strategy.description}</p>}
           </div>
         </div>
         <TypeBadge type={strategy.type} />
@@ -455,21 +407,15 @@ function StrategyDetail({
       <div className="grid grid-cols-3 gap-4 border-b border-border p-4">
         <div>
           <p className="text-xs text-muted">Total Trades</p>
-          <p className="text-lg font-semibold tabular-nums text-foreground">
-            {totalTrades}
-          </p>
+          <p className="text-lg font-semibold tabular-nums text-foreground">{totalTrades}</p>
         </div>
         <div>
           <p className="text-xs text-muted">Buy Signals</p>
-          <p className="text-lg font-semibold tabular-nums text-profit">
-            {buys}
-          </p>
+          <p className="text-lg font-semibold tabular-nums text-profit">{buys}</p>
         </div>
         <div>
           <p className="text-xs text-muted">Sell Signals</p>
-          <p className="text-lg font-semibold tabular-nums text-loss">
-            {sells}
-          </p>
+          <p className="text-lg font-semibold tabular-nums text-loss">{sells}</p>
         </div>
       </div>
 
@@ -502,21 +448,13 @@ export default function StrategiesPage() {
     isLoading: isLoadingStrategies,
     error: strategiesError,
   } = useStrategies();
-  const {
-    data: rawConsensus,
-    isLoading: isLoadingConsensus,
-  } = useConsensus();
-  const {
-    data: rawSignals,
-    isLoading: isLoadingSignals,
-  } = useSignals({ limit: 100 });
+  const { data: rawConsensus, isLoading: isLoadingConsensus } = useConsensus();
+  const { data: rawSignals } = useSignals({ limit: 100 });
 
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
   const [detailSignals, setDetailSignals] = useState<SignalData[]>([]);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [mutatingStrategies, setMutatingStrategies] = useState<Set<string>>(
-    new Set()
-  );
+  const [_mutatingStrategies, setMutatingStrategies] = useState<Set<string>>(new Set());
 
   // Cast raw data
   const strategies = (rawStrategies ?? []) as unknown as StrategyData[];
@@ -528,8 +466,7 @@ export default function StrategiesPage() {
   for (const sig of signals) {
     if (
       !latestSignalByStrategy[sig.strategy] ||
-      new Date(sig.timestamp) >
-        new Date(latestSignalByStrategy[sig.strategy].timestamp)
+      new Date(sig.timestamp) > new Date(latestSignalByStrategy[sig.strategy].timestamp)
     ) {
       latestSignalByStrategy[sig.strategy] = sig;
     }
@@ -549,7 +486,7 @@ export default function StrategiesPage() {
         setIsLoadingDetail(false);
       }
     },
-    [selectedStrategy]
+    [selectedStrategy],
   );
 
   const handleToggle = useCallback(
@@ -566,7 +503,7 @@ export default function StrategiesPage() {
         });
       }
     },
-    [queryClient]
+    [queryClient],
   );
 
   const handleWeightChange = useCallback(
@@ -583,13 +520,11 @@ export default function StrategiesPage() {
         });
       }
     },
-    [queryClient]
+    [queryClient],
   );
 
   // Selected strategy object
-  const selectedStrategyData = strategies.find(
-    (s) => s.name === selectedStrategy
-  );
+  const selectedStrategyData = strategies.find((s) => s.name === selectedStrategy);
 
   // ----- Loading state -----
   if (isLoadingStrategies) {
@@ -603,10 +538,7 @@ export default function StrategiesPage() {
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-56 animate-pulse rounded-xl border border-border bg-card"
-            />
+            <div key={i} className="h-56 animate-pulse rounded-xl border border-border bg-card" />
           ))}
         </div>
         <ChartSkeleton height="h-80" />
@@ -626,12 +558,8 @@ export default function StrategiesPage() {
         </div>
         <div className="flex flex-col items-center justify-center rounded-xl border border-loss/30 bg-loss/5 py-16">
           <AlertCircle size={32} className="mb-3 text-loss" />
-          <p className="text-sm font-medium text-loss">
-            Failed to load strategies
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {strategiesError.message}
-          </p>
+          <p className="text-sm font-medium text-loss">Failed to load strategies</p>
+          <p className="mt-1 text-xs text-muted">{strategiesError.message}</p>
         </div>
       </div>
     );
@@ -677,9 +605,7 @@ export default function StrategiesPage() {
             isSelected={selectedStrategy === s.name}
             latestSignal={
               latestSignalByStrategy[s.name] ??
-              (s.recent_signals && s.recent_signals.length > 0
-                ? s.recent_signals[0]
-                : undefined)
+              (s.recent_signals && s.recent_signals.length > 0 ? s.recent_signals[0] : undefined)
             }
             onSelect={() => handleSelectStrategy(s.name)}
             onToggle={() => handleToggle(s.name, s.enabled)}

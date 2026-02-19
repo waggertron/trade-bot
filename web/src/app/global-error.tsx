@@ -14,6 +14,7 @@ export default function GlobalError({
           <h2 className="mb-2 text-lg font-semibold">Something went wrong</h2>
           <p className="mb-4 text-sm text-muted">{error.message}</p>
           <button
+            type="button"
             onClick={reset}
             className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card-hover"
           >

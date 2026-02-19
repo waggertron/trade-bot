@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ReconnectingWebSocket } from "@/lib/websocket";
+import { useEffect, useRef } from "react";
 import { MOCK_ENABLED, MockWebSocket } from "@/lib/mock";
+import { ReconnectingWebSocket } from "@/lib/websocket";
 import { useNotificationStore } from "@/stores/notificationStore";
 
 /**
@@ -80,9 +80,7 @@ export function useWebSocket() {
       addNotification({
         type: tripped ? "error" : "info",
         title: tripped ? "Circuit Breaker Tripped" : "Circuit Breaker Reset",
-        message: tripped
-          ? "Trading halted — drawdown exceeded threshold"
-          : "Trading resumed",
+        message: tripped ? "Trading halted — drawdown exceeded threshold" : "Trading resumed",
       });
       queryClient.invalidateQueries({ queryKey: ["circuit-breaker"] });
       queryClient.invalidateQueries({ queryKey: ["risk-status"] });

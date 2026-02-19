@@ -11,10 +11,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 
-class Article(BaseModel):
+class Article(StrictBase):
     """A news article fetched from any news provider.
 
     * ``id`` is auto-generated (uuid4 hex).
@@ -40,7 +42,7 @@ class Article(BaseModel):
         object.__setattr__(self, "content_hash", h)
 
 
-class SentimentResult(BaseModel):
+class SentimentResult(StrictBase):
     """Scored sentiment output for a piece of text.
 
     * ``score`` ranges from -1 (very bearish) to +1 (very bullish).

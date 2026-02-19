@@ -11,19 +11,12 @@ interface Route {
 const routes: Route[] = [];
 
 /** Register a mock route handler */
-export function registerRoute(
-  method: string,
-  pattern: RegExp,
-  handler: MockHandler,
-) {
+export function registerRoute(method: string, pattern: RegExp, handler: MockHandler) {
   routes.push({ pattern, method: method.toUpperCase(), handler });
 }
 
 /** Dispatch a request path+method to a registered mock handler */
-export async function getMockResponse<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
+export async function getMockResponse<T>(path: string, options?: RequestInit): Promise<T> {
   await mockDelay();
 
   const method = (options?.method ?? "GET").toUpperCase();

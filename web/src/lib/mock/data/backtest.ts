@@ -1,5 +1,5 @@
-import { registerRoute } from "../router";
 import { generateEquityCurve } from "../generators";
+import { registerRoute } from "../router";
 
 // ---------------------------------------------------------------------------
 // Mutable state
@@ -10,7 +10,7 @@ const mockRuns: Record<string, unknown>[] = [];
 // POST /api/backtest/run  –  launch a new backtest
 // ---------------------------------------------------------------------------
 registerRoute("POST", /^\/api\/backtest\/run$/, (_path, options) => {
-  const config = JSON.parse(options?.body as string ?? "{}");
+  const config = JSON.parse((options?.body as string) ?? "{}");
 
   const id = `bt-${Date.now()}`;
   const equityCurve = generateEquityCurve(

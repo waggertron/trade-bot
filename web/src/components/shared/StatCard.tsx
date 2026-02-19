@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/formatters";
 import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/formatters";
 
 interface StatCardProps {
   title: string;
@@ -12,7 +12,14 @@ interface StatCardProps {
   className?: string;
 }
 
-export default function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
+export default function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  className,
+}: StatCardProps) {
   return (
     <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
       <div className="flex items-start justify-between">
@@ -24,7 +31,7 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, cl
           "mt-3 text-2xl font-semibold tracking-tight",
           trend === "up" && "text-profit",
           trend === "down" && "text-loss",
-          !trend && "text-foreground"
+          !trend && "text-foreground",
         )}
       >
         {value}
@@ -35,7 +42,7 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, cl
             "mt-1 text-xs",
             trend === "up" && "text-profit",
             trend === "down" && "text-loss",
-            !trend && "text-muted"
+            !trend && "text-muted",
           )}
         >
           {subtitle}

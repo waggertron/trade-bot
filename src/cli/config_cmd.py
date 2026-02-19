@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
+from rich.tree import Tree
 
 from src.core.config import (
     AISettings,
@@ -34,6 +34,34 @@ from src.providers.configs import (
 
 app = typer.Typer(name="config", help="Configuration management commands.", no_args_is_help=True)
 console = Console()
+
+# Visual indicators for enabled/disabled boolean settings
+_ENABLED = "[green]\u2705 enabled[/green]"
+_DISABLED = "[red]\u274c disabled[/red]"
+
+
+def _build_config_tree(data: Any, parent: Tree, key: str = "") -> None:
+    """Recursively build a Rich Tree from a nested config dict.
+
+    Booleans get visual enabled/disabled indicators. Lists are displayed
+    inline. Nested dicts become subtrees.
+    """
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if isinstance(v, dict):
+                branch = parent.add(f"[bold cyan]{k}[/bold cyan]")
+                _build_config_tree(v, branch, k)
+            elif isinstance(v, list):
+                items = ", ".join(str(i) for i in v)
+                parent.add(f"[cyan]{k}:[/cyan] [yellow][{items}][/yellow]")
+            elif isinstance(v, bool):
+                indicator = _ENABLED if v else _DISABLED
+                parent.add(f"[cyan]{k}:[/cyan] {indicator}")
+            else:
+                parent.add(f"[cyan]{k}:[/cyan] {v}")
+    else:
+        parent.add(f"{key}: {data}")
+
 
 CONFIG_MODELS: dict[str, type] = {
     "RiskSettings": RiskSettings,
@@ -70,7 +98,7 @@ def validate(
         console.print(f"[green]Config is valid:[/green] {path}")
     except (ValidationError, Exception) as exc:
         console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -79,7 +107,7 @@ def show(
         str, typer.Option("--config", help="Path to settings YAML file.")
     ] = "config/settings.yaml",
     fmt: Annotated[
-        str, typer.Option("--format", help="Output format: yaml or json.")
+        str, typer.Option("--format", help="Output format: yaml, json, or tree.")
     ] = "yaml",
 ) -> None:
     """Load and display the current configuration."""
@@ -91,11 +119,25 @@ def show(
         settings = Settings.from_yaml(path)
     except (ValidationError, Exception) as exc:
         console.print(f"[red]Validation error:[/red] {exc}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     data = settings.model_dump(mode="json")
     if fmt == "json":
         console.print(json.dumps(data, indent=2))
+    elif fmt == "tree":
+        try:
+            tree = Tree(
+                f"[bold white]Settings[/bold white] [dim]({path})[/dim]",
+                guide_style="dim",
+            )
+            _build_config_tree(data, tree)
+            console.print()
+            console.print(tree)
+            console.print()
+        except Exception as exc:
+            # Fall back to YAML if tree rendering fails
+            console.print(f"[yellow]Tree rendering failed ({exc}), falling back to YAML.[/yellow]")
+            console.print(yaml.dump(data, default_flow_style=False))
     else:
         console.print(yaml.dump(data, default_flow_style=False))
 

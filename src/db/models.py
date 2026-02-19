@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 
-class TradeRecord(BaseModel):
+class TradeRecord(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     symbol: str
@@ -22,7 +24,7 @@ class TradeRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
 
 
-class SignalRecord(BaseModel):
+class SignalRecord(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     symbol: str
@@ -34,7 +36,7 @@ class SignalRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
 
 
-class OHLCRecord(BaseModel):
+class OHLCRecord(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     symbol: str

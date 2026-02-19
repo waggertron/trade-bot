@@ -4,7 +4,9 @@ SERVICES = backend frontend bot
 .PHONY: help build up down restart stop start logs test \
         build-% up-% down-% restart-% stop-% start-% logs-% test-% \
         rebuild rebuild-% ps clean \
-        dev-backend dev-frontend dev-bot
+        dev-backend dev-frontend dev-bot \
+        lint lint-fix typecheck typecheck-frontend lint-frontend lint-frontend-fix \
+        format format-frontend check-deps dead-code check-all
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_%-]+:.*##' $(MAKEFILE_LIST) | sort | \
@@ -105,3 +107,45 @@ dev-frontend: ## Run frontend locally (no container)
 
 dev-bot: ## Run trading bot locally (no container)
 	uv run python main.py
+
+# ---------------------------------------------------------------------------
+# Code quality
+# ---------------------------------------------------------------------------
+
+lint: ## Python lint (ruff)
+	uv run ruff check src/ tests/
+
+lint-fix: ## Auto-fix Python lint
+	uv run ruff check --fix src/ tests/
+
+typecheck: ## Python type check (pyrefly)
+	uv run pyrefly check src/
+
+typecheck-frontend: ## Frontend type check (tsc)
+	cd web && npx tsc --noEmit
+
+lint-frontend: ## Frontend lint (biome)
+	cd web && npx biome check ./src
+
+lint-frontend-fix: ## Auto-fix frontend lint + format
+	cd web && npx biome check --fix ./src
+
+format: ## Format Python (ruff)
+	uv run ruff format src/ tests/
+
+format-frontend: ## Format frontend (biome)
+	cd web && npx biome format --write ./src
+
+check-deps: ## Check dependency hygiene (deptry)
+	uv run deptry .
+
+dead-code: ## Find dead Python code (vulture)
+	uv run vulture src/ vulture_whitelist.py --min-confidence 80
+
+check-all: ## Run ALL quality checks
+	uv run ruff check src/ tests/
+	uv run pyrefly check src/
+	uv run deptry .
+	uv run vulture src/ vulture_whitelist.py --min-confidence 80
+	cd web && npx tsc --noEmit
+	cd web && npx biome check ./src

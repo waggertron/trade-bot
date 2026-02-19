@@ -1,4 +1,52 @@
-import { MOCK_ENABLED, getMockResponse } from "./mock";
+import { z } from "zod";
+import { getMockResponse, MOCK_ENABLED } from "./mock";
+import {
+  AllocationSchema,
+  AttributionSchema,
+  BacktestRunSchema,
+  CancelAllResultSchema,
+  CancelResultSchema,
+  CircuitBreakerSchema,
+  ConfigSchema,
+  ConsensusVotesSchema,
+  CorrelationSchema,
+  DrawdownSeriesSchema,
+  DrawdownStatusSchema,
+  EquityCurveSchema,
+  FeatureCatalogSchema,
+  FeatureImportanceSchema,
+  FeatureStatusSchema,
+  HealthStatusSchema,
+  MarketPricesSchema,
+  MLModelSchema,
+  MonteCarloSchema,
+  NewsArticleSchema,
+  NewsStatusSchema,
+  OHLCBarSchema,
+  OrderSchema,
+  PlaceOrderResponseSchema,
+  PnLSummarySchema,
+  PortfolioSchema,
+  PositionSchema,
+  PredictionsSchema,
+  RiskDecisionSchema,
+  RiskPresetsSchema,
+  RiskSettingsSchema,
+  RiskStatusSchema,
+  SentimentAggregateSchema,
+  SentimentTrendSchema,
+  SignalSchema,
+  SimulationRunSchema,
+  SparklineMapSchema,
+  StrategyInfoSchema,
+  StrategyStatsSchema,
+  StrategyStatusSchema,
+  SymbolsConfigSchema,
+  SystemStatusSchema,
+  TradeModeSchema,
+  TradeSchema,
+  TradingPricesSchema,
+} from "./schemas";
 
 const API_BASE = "";
 
@@ -18,126 +66,236 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+async function fetchAndParse<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  options?: RequestInit,
+): Promise<T> {
+  const data = await fetchAPI<unknown>(path, options);
+  return schema.parse(data);
+}
+
+// ---------------------------------------------------------------------------
+// Inline schemas for endpoints that don't fit a named domain schema exactly
+// ---------------------------------------------------------------------------
+const RegimeSchema = z.object({ regime: z.string(), description: z.string() }).passthrough();
+const MessageSchema = z.object({ message: z.string() }).passthrough();
+const StatusResponseSchema = z.object({ status: z.string() }).passthrough();
+const AllRiskLimitsSchema = z.record(z.string(), RiskSettingsSchema);
+
+// ---------------------------------------------------------------------------
 // Portfolio
-export const getPortfolio = () => fetchAPI<Record<string, unknown>>("/api/portfolio/");
-export const getPositions = () => fetchAPI<Record<string, unknown>[]>("/api/portfolio/positions");
-export const getPnL = (period = "30d") => fetchAPI<Record<string, unknown>>(`/api/portfolio/pnl?period=${period}`);
-export const getEquityCurve = (range = "1M") => fetchAPI<{ points: { timestamp: string; value: number }[] }>(`/api/portfolio/equity-curve?range=${range}`);
-export const getAllocation = () => fetchAPI<Record<string, unknown>>("/api/portfolio/allocation");
+// ---------------------------------------------------------------------------
+export const getPortfolio = () => fetchAndParse("/api/portfolio/", PortfolioSchema);
+export const getPositions = () =>
+  fetchAndParse("/api/portfolio/positions", z.array(PositionSchema));
+export const getPnL = (period = "30d") =>
+  fetchAndParse(`/api/portfolio/pnl?period=${period}`, PnLSummarySchema);
+export const getEquityCurve = (range = "1M") =>
+  fetchAndParse(`/api/portfolio/equity-curve?range=${range}`, EquityCurveSchema);
+export const getAllocation = () => fetchAndParse("/api/portfolio/allocation", AllocationSchema);
 
+// ---------------------------------------------------------------------------
 // Trading
-export const placeOrder = (order: { symbol: string; side: string; order_type: string; quantity: number; limit_price?: number }) =>
-  fetchAPI<{ fill: Record<string, unknown> }>("/api/trading/order", { method: "POST", body: JSON.stringify(order) });
-export const getOrders = () => fetchAPI<Record<string, unknown>[]>("/api/trading/orders");
-export const cancelOrder = (id: string) => fetchAPI<{ cancelled: boolean }>(`/api/trading/orders/${id}`, { method: "DELETE" });
-export const cancelAllOrders = () => fetchAPI<{ cancelled_count: number }>("/api/trading/cancel-all", { method: "POST" });
-export const getTradingPrices = () => fetchAPI<Record<string, string>>("/api/trading/prices");
+// ---------------------------------------------------------------------------
+export const placeOrder = (order: {
+  symbol: string;
+  side: string;
+  order_type: string;
+  quantity: number;
+  limit_price?: number;
+}) =>
+  fetchAndParse("/api/trading/order", PlaceOrderResponseSchema, {
+    method: "POST",
+    body: JSON.stringify(order),
+  });
+export const getOrders = () => fetchAndParse("/api/trading/orders", z.array(OrderSchema));
+export const cancelOrder = (id: string) =>
+  fetchAndParse(`/api/trading/orders/${id}`, CancelResultSchema, { method: "DELETE" });
+export const cancelAllOrders = () =>
+  fetchAndParse("/api/trading/cancel-all", CancelAllResultSchema, { method: "POST" });
+export const getTradingPrices = () => fetchAndParse("/api/trading/prices", TradingPricesSchema);
 
+// ---------------------------------------------------------------------------
 // Trades
-export const getTrades = (params?: { strategy?: string; symbol?: string; limit?: number; offset?: number }) => {
+// ---------------------------------------------------------------------------
+export const getTrades = (params?: {
+  strategy?: string;
+  symbol?: string;
+  limit?: number;
+  offset?: number;
+}) => {
   const sp = new URLSearchParams();
   if (params?.strategy) sp.set("strategy", params.strategy);
   if (params?.symbol) sp.set("symbol", params.symbol);
   if (params?.limit) sp.set("limit", String(params.limit));
   if (params?.offset) sp.set("offset", String(params.offset));
-  return fetchAPI<Record<string, unknown>[]>(`/api/trades/?${sp}`);
+  return fetchAndParse(`/api/trades/?${sp}`, z.array(TradeSchema));
 };
-export const getTrade = (id: string) => fetchAPI<Record<string, unknown>>(`/api/trades/${id}`);
+export const getTrade = (id: string) => fetchAndParse(`/api/trades/${id}`, TradeSchema);
 
+// ---------------------------------------------------------------------------
 // Signals
+// ---------------------------------------------------------------------------
 export const getSignals = (params?: { limit?: number; strategy?: string; symbol?: string }) => {
   const sp = new URLSearchParams();
   if (params?.limit) sp.set("limit", String(params.limit));
   if (params?.strategy) sp.set("strategy", params.strategy);
   if (params?.symbol) sp.set("symbol", params.symbol);
-  return fetchAPI<Record<string, unknown>[]>(`/api/signals/?${sp}`);
+  return fetchAndParse(`/api/signals/?${sp}`, z.array(SignalSchema));
 };
-export const getLatestSignals = () => fetchAPI<Record<string, unknown>[]>("/api/signals/latest");
+export const getLatestSignals = () => fetchAndParse("/api/signals/latest", z.array(SignalSchema));
 
+// ---------------------------------------------------------------------------
 // Strategies
-export const getStrategies = () => fetchAPI<Record<string, unknown>[]>("/api/strategies/");
-export const getStrategyStatus = () => fetchAPI<Record<string, unknown>>("/api/strategies/status");
-export const getStrategy = (name: string) => fetchAPI<Record<string, unknown>>(`/api/strategies/${name}`);
+// ---------------------------------------------------------------------------
+export const getStrategies = () => fetchAndParse("/api/strategies/", z.array(StrategyInfoSchema));
+export const getStrategyStatus = () =>
+  fetchAndParse("/api/strategies/status", StrategyStatusSchema);
+export const getStrategy = (name: string) =>
+  fetchAndParse(`/api/strategies/${name}`, StrategyInfoSchema);
 export const updateStrategyWeight = (name: string, weight: number) =>
-  fetchAPI<Record<string, unknown>>(`/api/strategies/${name}/weight`, { method: "PUT", body: JSON.stringify({ weight }) });
+  fetchAndParse(`/api/strategies/${name}/weight`, StrategyInfoSchema, {
+    method: "PUT",
+    body: JSON.stringify({ weight }),
+  });
 export const updateStrategyEnabled = (name: string, enabled: boolean) =>
-  fetchAPI<Record<string, unknown>>(`/api/strategies/${name}/enabled`, { method: "PUT", body: JSON.stringify({ enabled }) });
-export const getConsensus = () => fetchAPI<Record<string, unknown>>("/api/strategies/consensus");
-export const getStrategySignals = (name: string) => fetchAPI<Record<string, unknown>[]>(`/api/strategies/${name}/signals`);
-export const getStrategyPerformance = (name: string) => fetchAPI<Record<string, unknown>>(`/api/strategies/${name}/performance`);
+  fetchAndParse(`/api/strategies/${name}/enabled`, StrategyInfoSchema, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
+export const getConsensus = () => fetchAndParse("/api/strategies/consensus", ConsensusVotesSchema);
+export const getStrategySignals = (name: string) =>
+  fetchAndParse(`/api/strategies/${name}/signals`, z.array(SignalSchema));
+export const getStrategyPerformance = (name: string) =>
+  fetchAndParse(`/api/strategies/${name}/performance`, StrategyStatsSchema);
 
+// ---------------------------------------------------------------------------
 // Analytics
-export const getAttribution = () => fetchAPI<Record<string, unknown>>("/api/analytics/attribution");
-export const getMonteCarlo = () => fetchAPI<Record<string, unknown>>("/api/analytics/monte-carlo");
-export const getDrawdown = () => fetchAPI<{ points: Record<string, unknown>[] }>("/api/analytics/drawdown");
-export const getCorrelation = () => fetchAPI<{ symbols: string[]; matrix: number[][] }>("/api/analytics/correlation");
+// ---------------------------------------------------------------------------
+export const getAttribution = () => fetchAndParse("/api/analytics/attribution", AttributionSchema);
+export const getMonteCarlo = () => fetchAndParse("/api/analytics/monte-carlo", MonteCarloSchema);
+export const getDrawdown = () => fetchAndParse("/api/analytics/drawdown", DrawdownSeriesSchema);
+export const getCorrelation = () => fetchAndParse("/api/analytics/correlation", CorrelationSchema);
 
+// ---------------------------------------------------------------------------
 // Risk
-export const getRiskStatus = () => fetchAPI<Record<string, unknown>>("/api/risk/status");
-export const getRiskLimits = (regime?: string) => fetchAPI<Record<string, unknown>>(`/api/risk/limits?regime=${regime || "medium"}`);
-export const getAllRiskLimits = () => fetchAPI<Record<string, unknown>>("/api/risk/limits/all");
+// ---------------------------------------------------------------------------
+export const getRiskStatus = () => fetchAndParse("/api/risk/status", RiskStatusSchema);
+export const getRiskLimits = (regime?: string) =>
+  fetchAndParse(`/api/risk/limits?regime=${regime || "medium"}`, RiskSettingsSchema);
+export const getAllRiskLimits = () => fetchAndParse("/api/risk/limits/all", AllRiskLimitsSchema);
 export const updateRiskSettings = (settings: Record<string, unknown>) =>
-  fetchAPI<Record<string, unknown>>("/api/risk/settings", { method: "PUT", body: JSON.stringify(settings) });
+  fetchAndParse("/api/risk/settings", RiskSettingsSchema, {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
 export const applyRiskPreset = (level: string) =>
-  fetchAPI<Record<string, unknown>>("/api/risk/preset", { method: "PUT", body: JSON.stringify({ level }) });
-export const getRiskPresets = () => fetchAPI<Record<string, Record<string, unknown>>>("/api/risk/presets");
-export const getCurrentRegime = () => fetchAPI<{ regime: string; description: string }>("/api/risk/regime");
-export const getDrawdownStatus = () => fetchAPI<Record<string, unknown>>("/api/risk/drawdown");
-export const getCircuitBreaker = () => fetchAPI<Record<string, unknown>>("/api/risk/circuit-breaker");
-export const resetCircuitBreaker = () => fetchAPI<{ message: string }>("/api/risk/circuit-breaker/reset", { method: "POST" });
-export const getRiskDecisions = () => fetchAPI<Record<string, unknown>[]>("/api/risk/decisions");
+  fetchAndParse("/api/risk/preset", RiskSettingsSchema, {
+    method: "PUT",
+    body: JSON.stringify({ level }),
+  });
+export const getRiskPresets = () => fetchAndParse("/api/risk/presets", RiskPresetsSchema);
+export const getCurrentRegime = () => fetchAndParse("/api/risk/regime", RegimeSchema);
+export const getDrawdownStatus = () => fetchAndParse("/api/risk/drawdown", DrawdownStatusSchema);
+export const getCircuitBreaker = () =>
+  fetchAndParse("/api/risk/circuit-breaker", CircuitBreakerSchema);
+export const resetCircuitBreaker = () =>
+  fetchAndParse("/api/risk/circuit-breaker/reset", MessageSchema, { method: "POST" });
+export const getRiskDecisions = () =>
+  fetchAndParse("/api/risk/decisions", z.array(RiskDecisionSchema));
 
+// ---------------------------------------------------------------------------
 // Backtest
-export const runBacktest = (config: { start_date: string; end_date: string; strategies: string[]; symbols: string[]; initial_capital: number }) =>
-  fetchAPI<Record<string, unknown>>("/api/backtest/run", { method: "POST", body: JSON.stringify(config) });
-export const getBacktestRuns = () => fetchAPI<Record<string, unknown>[]>("/api/backtest/runs");
-export const getBacktestRun = (id: string) => fetchAPI<Record<string, unknown>>(`/api/backtest/runs/${id}`);
+// ---------------------------------------------------------------------------
+export const runBacktest = (config: {
+  start_date: string;
+  end_date: string;
+  strategies: string[];
+  symbols: string[];
+  initial_capital: number;
+}) =>
+  fetchAndParse("/api/backtest/run", BacktestRunSchema, {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+export const getBacktestRuns = () =>
+  fetchAndParse("/api/backtest/runs", z.array(BacktestRunSchema));
+export const getBacktestRun = (id: string) =>
+  fetchAndParse(`/api/backtest/runs/${id}`, BacktestRunSchema);
 
+// ---------------------------------------------------------------------------
 // News & Sentiment
-export const getNewsStatus = () => fetchAPI<Record<string, unknown>>("/api/news/status");
-export const getNewsFeeds = () => fetchAPI<Record<string, unknown>>("/api/news/feeds");
+// ---------------------------------------------------------------------------
+export const getNewsStatus = () => fetchAndParse("/api/news/status", NewsStatusSchema);
+export const getNewsFeeds = () => fetchAndParse("/api/news/feeds", NewsStatusSchema);
 export const getNewsArticles = (params?: { symbol?: string; source?: string; limit?: number }) => {
   const sp = new URLSearchParams();
   if (params?.symbol) sp.set("symbol", params.symbol);
   if (params?.source) sp.set("source", params.source);
   if (params?.limit) sp.set("limit", String(params.limit));
-  return fetchAPI<Record<string, unknown>[]>(`/api/news/articles?${sp}`);
+  return fetchAndParse(`/api/news/articles?${sp}`, z.array(NewsArticleSchema));
 };
-export const getSentimentAggregate = () => fetchAPI<Record<string, unknown>>("/api/sentiment/aggregate");
+export const getSentimentAggregate = () =>
+  fetchAndParse("/api/sentiment/aggregate", SentimentAggregateSchema);
 export const getSentimentTrend = (symbol: string, period = "7d") =>
-  fetchAPI<Record<string, unknown>>(`/api/sentiment/trend?symbol=${symbol}&period=${period}`);
+  fetchAndParse(`/api/sentiment/trend?symbol=${symbol}&period=${period}`, SentimentTrendSchema);
 
+// ---------------------------------------------------------------------------
 // ML & Features
-export const getFeatureCatalog = () => fetchAPI<Record<string, string[]>>("/api/features/catalog");
-export const getFeatureStatus = () => fetchAPI<Record<string, unknown>>("/api/features/status");
-export const getMLModels = () => fetchAPI<Record<string, unknown>[]>("/api/ml/models");
-export const getModelImportance = (name: string) => fetchAPI<Record<string, unknown>>(`/api/ml/models/${name}/importance`);
-export const triggerTraining = () => fetchAPI<{ status: string }>("/api/ml/train", { method: "POST" });
-export const getPredictions = () => fetchAPI<Record<string, unknown>>("/api/ml/predictions");
+// ---------------------------------------------------------------------------
+export const getFeatureCatalog = () => fetchAndParse("/api/features/catalog", FeatureCatalogSchema);
+export const getFeatureStatus = () => fetchAndParse("/api/features/status", FeatureStatusSchema);
+export const getMLModels = () => fetchAndParse("/api/ml/models", z.array(MLModelSchema));
+export const getModelImportance = (name: string) =>
+  fetchAndParse(`/api/ml/models/${name}/importance`, FeatureImportanceSchema);
+export const triggerTraining = () =>
+  fetchAndParse("/api/ml/train", StatusResponseSchema, { method: "POST" });
+export const getPredictions = () => fetchAndParse("/api/ml/predictions", PredictionsSchema);
 
+// ---------------------------------------------------------------------------
 // Config
-export const getConfig = () => fetchAPI<Record<string, unknown>>("/api/config/");
-export const getMode = () => fetchAPI<{ mode: string }>("/api/config/mode");
+// ---------------------------------------------------------------------------
+export const getConfig = () => fetchAndParse("/api/config/", ConfigSchema);
+export const getMode = () => fetchAndParse("/api/config/mode", TradeModeSchema);
 export const setMode = (mode: string) =>
-  fetchAPI<{ mode: string }>("/api/config/mode", { method: "PUT", body: JSON.stringify({ mode }) });
-export const getSymbols = () => fetchAPI<{ stocks: string[]; crypto: string[] }>("/api/config/symbols");
+  fetchAndParse("/api/config/mode", TradeModeSchema, {
+    method: "PUT",
+    body: JSON.stringify({ mode }),
+  });
+export const getSymbols = () => fetchAndParse("/api/config/symbols", SymbolsConfigSchema);
 export const updateSymbols = (symbols: { stocks: string[]; crypto: string[] }) =>
-  fetchAPI<Record<string, unknown>>("/api/config/symbols", { method: "PUT", body: JSON.stringify(symbols) });
+  fetchAndParse("/api/config/symbols", SymbolsConfigSchema, {
+    method: "PUT",
+    body: JSON.stringify(symbols),
+  });
 
+// ---------------------------------------------------------------------------
 // Market
+// ---------------------------------------------------------------------------
 export const getOHLC = (symbol: string, interval = "1h", limit = 500) =>
-  fetchAPI<Record<string, unknown>[]>(`/api/market/ohlc/${encodeURIComponent(symbol)}?interval=${interval}&limit=${limit}`);
-export const getMarketPrices = () => fetchAPI<Record<string, string>>("/api/market/prices");
-export const getSparklines = () => fetchAPI<Record<string, { prices: number[]; current: number; change_pct: number }>>("/api/market/sparklines");
+  fetchAndParse(
+    `/api/market/ohlc/${encodeURIComponent(symbol)}?interval=${interval}&limit=${limit}`,
+    z.array(OHLCBarSchema),
+  );
+export const getMarketPrices = () => fetchAndParse("/api/market/prices", MarketPricesSchema);
+export const getSparklines = () => fetchAndParse("/api/market/sparklines", SparklineMapSchema);
 
+// ---------------------------------------------------------------------------
 // System
-export const getHealth = () => fetchAPI<{ status: string }>("/api/health");
-export const getSystemStatus = () => fetchAPI<Record<string, unknown>>("/api/system/status");
-export const killSwitch = () => fetchAPI<Record<string, unknown>>("/api/kill", { method: "POST" });
-export const pauseTrading = () => fetchAPI<{ status: string }>("/api/pause", { method: "POST" });
-export const resumeTrading = () => fetchAPI<{ status: string }>("/api/resume", { method: "POST" });
+// ---------------------------------------------------------------------------
+export const getHealth = () => fetchAndParse("/api/health", HealthStatusSchema);
+export const getSystemStatus = () => fetchAndParse("/api/system/status", SystemStatusSchema);
+export const killSwitch = () =>
+  fetchAndParse("/api/kill", StatusResponseSchema, { method: "POST" });
+export const pauseTrading = () =>
+  fetchAndParse("/api/pause", StatusResponseSchema, { method: "POST" });
+export const resumeTrading = () =>
+  fetchAndParse("/api/resume", StatusResponseSchema, { method: "POST" });
 
+// ---------------------------------------------------------------------------
 // Simulation
+// ---------------------------------------------------------------------------
 export const runSimulation = (config: {
   stocks: string[];
   initial_balance: number;
@@ -146,11 +304,11 @@ export const runSimulation = (config: {
   risk_levels: string[];
   mc_simulations: number;
 }) =>
-  fetchAPI<Record<string, unknown>>("/api/simulation/run", {
+  fetchAndParse("/api/simulation/run", SimulationRunSchema, {
     method: "POST",
     body: JSON.stringify(config),
   });
 export const getSimulationRuns = () =>
-  fetchAPI<Record<string, unknown>[]>("/api/simulation/runs");
+  fetchAndParse("/api/simulation/runs", z.array(SimulationRunSchema));
 export const getSimulationRun = (id: string) =>
-  fetchAPI<Record<string, unknown>>(`/api/simulation/runs/${id}`);
+  fetchAndParse(`/api/simulation/runs/${id}`, SimulationRunSchema);

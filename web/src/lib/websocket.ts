@@ -27,12 +27,16 @@ export class ReconnectingWebSocket {
           const type = msg.type as string;
           const handlers = this.handlers.get(type);
           if (handlers) {
-            handlers.forEach((h) => h(msg.data));
+            handlers.forEach((h) => {
+              h(msg.data);
+            });
           }
           // Also fire wildcard handlers
           const wildcardHandlers = this.handlers.get("*");
           if (wildcardHandlers) {
-            wildcardHandlers.forEach((h) => h(msg));
+            wildcardHandlers.forEach((h) => {
+              h(msg);
+            });
           }
         } catch {
           // ignore parse errors
@@ -57,7 +61,7 @@ export class ReconnectingWebSocket {
     if (!this.handlers.has(type)) {
       this.handlers.set(type, new Set());
     }
-    this.handlers.get(type)!.add(handler);
+    this.handlers.get(type)?.add(handler);
     return () => {
       this.handlers.get(type)?.delete(handler);
     };

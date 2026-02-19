@@ -1,19 +1,25 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createChart, CandlestickSeries, HistogramSeries, ColorType } from "lightweight-charts";
-import type { IChartApi, ISeriesApi, CandlestickData, HistogramData, Time } from "lightweight-charts";
-import { useOHLC, useMarketPrices } from "@/hooks/useMarket";
-import { useTrades } from "@/hooks/useTrades";
-import { placeOrder, cancelOrder, getOrders } from "@/lib/api";
-import { useUIStore } from "@/stores/uiStore";
-import { useNotificationStore } from "@/stores/notificationStore";
-import { formatCurrency, formatNumber, cn } from "@/lib/formatters";
-import { darkChartOptions, candleColors, themeColors } from "@/lib/chartTheme";
-import DataTable from "@/components/shared/DataTable";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  CandlestickData,
+  HistogramData,
+  IChartApi,
+  ISeriesApi,
+  Time,
+} from "lightweight-charts";
+import { CandlestickSeries, ColorType, createChart, HistogramSeries } from "lightweight-charts";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ChartContainer from "@/components/shared/ChartContainer";
-import { TableSkeleton, ChartSkeleton } from "@/components/shared/LoadingSkeleton";
+import DataTable from "@/components/shared/DataTable";
+import { ChartSkeleton, TableSkeleton } from "@/components/shared/LoadingSkeleton";
+import { useMarketPrices, useOHLC } from "@/hooks/useMarket";
+import { useTrades } from "@/hooks/useTrades";
+import { cancelOrder, getOrders, placeOrder } from "@/lib/api";
+import { candleColors, darkChartOptions, themeColors } from "@/lib/chartTheme";
+import { cn, formatCurrency, formatNumber } from "@/lib/formatters";
+import { useNotificationStore } from "@/stores/notificationStore";
+import { useUIStore } from "@/stores/uiStore";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -54,10 +60,7 @@ export default function TradingPage() {
     <div className="flex gap-4 h-[calc(100vh-5rem)]">
       {/* Left Panel - 60% */}
       <div className="flex w-[60%] flex-col gap-4 min-w-0">
-        <SymbolBar
-          selectedSymbol={selectedSymbol}
-          onSymbolChange={setSelectedSymbol}
-        />
+        <SymbolBar selectedSymbol={selectedSymbol} onSymbolChange={setSelectedSymbol} />
         <CandlestickChartPanel
           symbol={selectedSymbol}
           timeframe={timeframe}
@@ -154,7 +157,7 @@ function CandlestickChartPanel({
     });
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: themeColors.accent + "80",
+      color: `${themeColors.accent}80`,
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
     });
@@ -195,9 +198,11 @@ function CandlestickChartPanel({
     const volumes: HistogramData<Time>[] = [];
 
     for (const bar of ohlcData) {
-      const time = (typeof bar.timestamp === "number"
-        ? bar.timestamp
-        : Math.floor(new Date(bar.timestamp as string).getTime() / 1000)) as Time;
+      const time = (
+        typeof bar.timestamp === "number"
+          ? bar.timestamp
+          : Math.floor(new Date(bar.timestamp as string).getTime() / 1000)
+      ) as Time;
 
       const open = parseFloat(String(bar.open));
       const high = parseFloat(String(bar.high));
@@ -209,7 +214,7 @@ function CandlestickChartPanel({
       volumes.push({
         time,
         value: volume,
-        color: close >= open ? themeColors.green + "40" : themeColors.red + "40",
+        color: close >= open ? `${themeColors.green}40` : `${themeColors.red}40`,
       });
     }
 
@@ -225,13 +230,14 @@ function CandlestickChartPanel({
     <div className="flex gap-1">
       {TIMEFRAMES.map((tf) => (
         <button
+          type="button"
           key={tf.value}
           onClick={() => onTimeframeChange(tf.value)}
           className={cn(
             "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
             timeframe === tf.value
               ? "bg-accent text-white"
-              : "text-muted hover:bg-card-hover hover:text-foreground"
+              : "text-muted hover:bg-card-hover hover:text-foreground",
           )}
         >
           {tf.label}
@@ -310,13 +316,13 @@ function OrderForm({ symbol }: { symbol: string }) {
     (e: React.FormEvent) => {
       e.preventDefault();
       const qty = parseFloat(quantity);
-      if (isNaN(qty) || qty <= 0) {
+      if (Number.isNaN(qty) || qty <= 0) {
         addNotification({ type: "error", title: "Invalid quantity" });
         return;
       }
       if (tab === "limit") {
         const lp = parseFloat(limitPrice);
-        if (isNaN(lp) || lp <= 0) {
+        if (Number.isNaN(lp) || lp <= 0) {
           addNotification({ type: "error", title: "Invalid limit price" });
           return;
         }
@@ -330,7 +336,7 @@ function OrderForm({ symbol }: { symbol: string }) {
         ...(tab === "limit" ? { limit_price: parseFloat(limitPrice) } : {}),
       });
     },
-    [symbol, side, tab, quantity, limitPrice, mutation, addNotification]
+    [symbol, side, tab, quantity, limitPrice, mutation, addNotification],
   );
 
   return (
@@ -341,13 +347,12 @@ function OrderForm({ symbol }: { symbol: string }) {
       <div className="mb-3 flex rounded-lg border border-border overflow-hidden">
         {(["market", "limit"] as const).map((t) => (
           <button
+            type="button"
             key={t}
             onClick={() => setTab(t)}
             className={cn(
               "flex-1 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors",
-              tab === t
-                ? "bg-accent text-white"
-                : "bg-background text-muted hover:text-foreground"
+              tab === t ? "bg-accent text-white" : "bg-background text-muted hover:text-foreground",
             )}
           >
             {t}
@@ -358,23 +363,25 @@ function OrderForm({ symbol }: { symbol: string }) {
       {/* Buy / Sell toggle */}
       <div className="mb-4 flex gap-2">
         <button
+          type="button"
           onClick={() => setSide("buy")}
           className={cn(
             "flex-1 rounded-lg py-2 text-sm font-semibold transition-colors",
             side === "buy"
               ? "bg-profit text-white"
-              : "border border-border bg-background text-muted hover:text-foreground"
+              : "border border-border bg-background text-muted hover:text-foreground",
           )}
         >
           BUY
         </button>
         <button
+          type="button"
           onClick={() => setSide("sell")}
           className={cn(
             "flex-1 rounded-lg py-2 text-sm font-semibold transition-colors",
             side === "sell"
               ? "bg-loss text-white"
-              : "border border-border bg-background text-muted hover:text-foreground"
+              : "border border-border bg-background text-muted hover:text-foreground",
           )}
         >
           SELL
@@ -384,8 +391,11 @@ function OrderForm({ symbol }: { symbol: string }) {
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Quantity */}
         <div>
-          <label className="mb-1 block text-xs text-muted">Quantity</label>
+          <label htmlFor="order-quantity" className="mb-1 block text-xs text-muted">
+            Quantity
+          </label>
           <input
+            id="order-quantity"
             type="number"
             min="0"
             step="any"
@@ -399,8 +409,11 @@ function OrderForm({ symbol }: { symbol: string }) {
         {/* Limit price (conditional) */}
         {tab === "limit" && (
           <div>
-            <label className="mb-1 block text-xs text-muted">Limit Price</label>
+            <label htmlFor="order-limit-price" className="mb-1 block text-xs text-muted">
+              Limit Price
+            </label>
             <input
+              id="order-limit-price"
               type="number"
               min="0"
               step="any"
@@ -418,14 +431,10 @@ function OrderForm({ symbol }: { symbol: string }) {
           disabled={mutation.isPending}
           className={cn(
             "w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50",
-            side === "buy"
-              ? "bg-profit hover:bg-profit/90"
-              : "bg-loss hover:bg-loss/90"
+            side === "buy" ? "bg-profit hover:bg-profit/90" : "bg-loss hover:bg-loss/90",
           )}
         >
-          {mutation.isPending
-            ? "Placing..."
-            : `${side === "buy" ? "Buy" : "Sell"} ${symbol}`}
+          {mutation.isPending ? "Placing..." : `${side === "buy" ? "Buy" : "Sell"} ${symbol}`}
         </button>
       </form>
     </div>
@@ -461,7 +470,7 @@ function ActiveOrders() {
   });
 
   const activeOrders = (orders ?? []).filter(
-    (o) => o.status === "open" || o.status === "pending" || o.status === "new"
+    (o) => o.status === "open" || o.status === "pending" || o.status === "new",
   );
 
   const columns = [
@@ -479,7 +488,7 @@ function ActiveOrders() {
         <span
           className={cn(
             "text-xs font-semibold uppercase",
-            String(row.side) === "buy" ? "text-profit" : "text-loss"
+            String(row.side) === "buy" ? "text-profit" : "text-loss",
           )}
         >
           {String(row.side)}
@@ -515,6 +524,7 @@ function ActiveOrders() {
       header: "",
       render: (row: Record<string, unknown>) => (
         <button
+          type="button"
           onClick={() => cancelMutation.mutate(String(row.id))}
           disabled={cancelMutation.isPending}
           className="rounded px-2 py-0.5 text-xs font-medium text-loss hover:bg-loss/10 transition-colors disabled:opacity-50"
@@ -559,7 +569,7 @@ function RecentFills({ symbol }: { symbol: string }) {
         <span
           className={cn(
             "text-xs font-semibold uppercase",
-            String(row.side) === "buy" ? "text-profit" : "text-loss"
+            String(row.side) === "buy" ? "text-profit" : "text-loss",
           )}
         >
           {String(row.side)}
@@ -596,7 +606,11 @@ function RecentFills({ symbol }: { symbol: string }) {
         const d = new Date(ts);
         return (
           <span className="text-xs tabular-nums text-muted">
-            {d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            {d.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
           </span>
         );
       },

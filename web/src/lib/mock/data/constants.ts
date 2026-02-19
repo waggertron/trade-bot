@@ -43,16 +43,16 @@ export const SECTORS: Record<string, string> = {
 };
 
 export const BASE_PRICES: Record<string, number> = {
-  AAPL: 198.50,
+  AAPL: 198.5,
   MSFT: 420.75,
-  GOOGL: 175.30,
-  AMZN: 195.60,
-  TSLA: 248.90,
-  NVDA: 875.40,
-  META: 525.10,
-  "BTC/USD": 97450.00,
-  "ETH/USD": 3285.00,
-  "SOL/USD": 192.50,
+  GOOGL: 175.3,
+  AMZN: 195.6,
+  TSLA: 248.9,
+  NVDA: 875.4,
+  META: 525.1,
+  "BTC/USD": 97450.0,
+  "ETH/USD": 3285.0,
+  "SOL/USD": 192.5,
 };
 
 /** Interval string to milliseconds */

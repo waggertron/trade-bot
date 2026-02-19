@@ -1,31 +1,54 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { BarChart3, Target, TrendingDown, TrendingUp } from "lucide-react";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, Cell,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { getAttribution, getMonteCarlo, getDrawdown, getCorrelation } from "@/lib/api";
 import ChartContainer from "@/components/shared/ChartContainer";
 import DataTable from "@/components/shared/DataTable";
-import { StatCardSkeleton, ChartSkeleton } from "@/components/shared/LoadingSkeleton";
+import { ChartSkeleton, StatCardSkeleton } from "@/components/shared/LoadingSkeleton";
 import StatCard from "@/components/shared/StatCard";
-import { formatCurrency, formatPercent, formatNumber, cn } from "@/lib/formatters";
-import { themeColors, themeRgba, chartAxisTick, chartGridProps, chartTooltipStyle } from "@/lib/chartTheme";
-import { TrendingUp, TrendingDown, BarChart3, Target } from "lucide-react";
+import { getAttribution, getCorrelation, getDrawdown, getMonteCarlo } from "@/lib/api";
+import {
+  chartAxisTick,
+  chartGridProps,
+  chartTooltipStyle,
+  themeColors,
+  themeRgba,
+} from "@/lib/chartTheme";
+import { cn, formatCurrency, formatNumber, formatPercent } from "@/lib/formatters";
 
 export default function AnalyticsPage() {
   const { data: attribution, isLoading: attrLoading } = useQuery({
-    queryKey: ["attribution"], queryFn: getAttribution, refetchInterval: 30000,
+    queryKey: ["attribution"],
+    queryFn: getAttribution,
+    refetchInterval: 30000,
   });
   const { data: monteCarlo, isLoading: mcLoading } = useQuery({
-    queryKey: ["monte-carlo"], queryFn: getMonteCarlo, refetchInterval: 60000,
+    queryKey: ["monte-carlo"],
+    queryFn: getMonteCarlo,
+    refetchInterval: 60000,
   });
   const { data: drawdown, isLoading: ddLoading } = useQuery({
-    queryKey: ["drawdown"], queryFn: getDrawdown, refetchInterval: 30000,
+    queryKey: ["drawdown"],
+    queryFn: getDrawdown,
+    refetchInterval: 30000,
   });
   const { data: correlation } = useQuery({
-    queryKey: ["correlation"], queryFn: getCorrelation, refetchInterval: 60000,
+    queryKey: ["correlation"],
+    queryFn: getCorrelation,
+    refetchInterval: 60000,
   });
 
   const attr = attribution as Record<string, unknown> | undefined;
@@ -43,7 +66,11 @@ export default function AnalyticsPage() {
     max_consecutive_losses: s.max_consecutive_losses as number,
   }));
 
-  const ddPoints = (drawdown?.points || []) as { index: number; drawdown_pct: number; value: number }[];
+  const ddPoints = (drawdown?.points || []) as {
+    index: number;
+    drawdown_pct: number;
+    value: number;
+  }[];
 
   // Profit factor chart data
   const pfData = strategyRows.map((s) => ({
@@ -63,9 +90,9 @@ export default function AnalyticsPage() {
           <>
             <StatCard
               title="Total P&L"
-              value={formatCurrency(attr?.total_pnl as number || 0)}
+              value={formatCurrency((attr?.total_pnl as number) || 0)}
               icon={TrendingUp}
-              trend={(attr?.total_pnl as number || 0) >= 0 ? "up" : "down"}
+              trend={((attr?.total_pnl as number) || 0) >= 0 ? "up" : "down"}
             />
             <StatCard
               title="Best Strategy"
@@ -80,7 +107,9 @@ export default function AnalyticsPage() {
             <StatCard
               title="MC Percentile"
               value={mc ? `${formatNumber(mc.percentile as number)}th` : "N/A"}
-              subtitle={mc ? `Actual: ${formatCurrency(mc.actual_final_value as number)}` : undefined}
+              subtitle={
+                mc ? `Actual: ${formatCurrency(mc.actual_final_value as number)}` : undefined
+              }
               icon={BarChart3}
             />
           </>
@@ -94,7 +123,9 @@ export default function AnalyticsPage() {
             { key: "name", header: "Strategy" },
             { key: "total_trades", header: "Trades", className: "text-right" },
             {
-              key: "win_rate", header: "Win Rate", className: "text-right",
+              key: "win_rate",
+              header: "Win Rate",
+              className: "text-right",
               render: (r) => (
                 <span className={cn((r.win_rate as number) >= 0.5 ? "text-profit" : "text-loss")}>
                   {formatPercent((r.win_rate as number) * 100, 0)}
@@ -102,19 +133,35 @@ export default function AnalyticsPage() {
               ),
             },
             {
-              key: "total_pnl", header: "P&L", className: "text-right",
+              key: "total_pnl",
+              header: "P&L",
+              className: "text-right",
               render: (r) => (
                 <span className={cn((r.total_pnl as number) >= 0 ? "text-profit" : "text-loss")}>
                   {formatCurrency(r.total_pnl as number)}
                 </span>
               ),
             },
-            { key: "avg_win", header: "Avg Win", className: "text-right", render: (r) => formatCurrency(r.avg_win as number) },
-            { key: "avg_loss", header: "Avg Loss", className: "text-right", render: (r) => formatCurrency(r.avg_loss as number) },
             {
-              key: "profit_factor", header: "Profit Factor", className: "text-right",
+              key: "avg_win",
+              header: "Avg Win",
+              className: "text-right",
+              render: (r) => formatCurrency(r.avg_win as number),
+            },
+            {
+              key: "avg_loss",
+              header: "Avg Loss",
+              className: "text-right",
+              render: (r) => formatCurrency(r.avg_loss as number),
+            },
+            {
+              key: "profit_factor",
+              header: "Profit Factor",
+              className: "text-right",
               render: (r) => (
-                <span className={cn((r.profit_factor as number) >= 1 ? "text-profit" : "text-loss")}>
+                <span
+                  className={cn((r.profit_factor as number) >= 1 ? "text-profit" : "text-loss")}
+                >
                   {formatNumber(r.profit_factor as number)}
                 </span>
               ),
@@ -128,30 +175,45 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-2 gap-6">
         {/* Monte Carlo */}
-        <ChartContainer title="Monte Carlo Simulation" subtitle={mc ? `${mc.n_simulations} simulations` : ""}>
-          {mcLoading ? <ChartSkeleton /> : (
+        <ChartContainer
+          title="Monte Carlo Simulation"
+          subtitle={mc ? `${mc.n_simulations} simulations` : ""}
+        >
+          {mcLoading ? (
+            <ChartSkeleton />
+          ) : (
             <div className="space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg bg-background p-3">
                   <p className="text-xs text-muted">5th Percentile</p>
-                  <p className="text-lg font-medium text-loss">{formatCurrency(mc?.p5_simulated as number || 0)}</p>
+                  <p className="text-lg font-medium text-loss">
+                    {formatCurrency((mc?.p5_simulated as number) || 0)}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-background p-3">
                   <p className="text-xs text-muted">95th Percentile</p>
-                  <p className="text-lg font-medium text-profit">{formatCurrency(mc?.p95_simulated as number || 0)}</p>
+                  <p className="text-lg font-medium text-profit">
+                    {formatCurrency((mc?.p95_simulated as number) || 0)}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-background p-3">
                   <p className="text-xs text-muted">Median</p>
-                  <p className="text-lg font-medium">{formatCurrency(mc?.median_simulated as number || 0)}</p>
+                  <p className="text-lg font-medium">
+                    {formatCurrency((mc?.median_simulated as number) || 0)}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-background p-3">
                   <p className="text-xs text-muted">Actual</p>
-                  <p className="text-lg font-medium text-accent">{formatCurrency(mc?.actual_final_value as number || 0)}</p>
+                  <p className="text-lg font-medium text-accent">
+                    {formatCurrency((mc?.actual_final_value as number) || 0)}
+                  </p>
                 </div>
               </div>
               <div className="rounded-lg bg-background p-3">
                 <p className="text-xs text-muted">Worst Drawdown (95th pct)</p>
-                <p className="text-lg font-medium text-warning">{formatPercent((mc?.worst_drawdown_p95 as number || 0) * 100)}</p>
+                <p className="text-lg font-medium text-warning">
+                  {formatPercent(((mc?.worst_drawdown_p95 as number) || 0) * 100)}
+                </p>
               </div>
             </div>
           )}
@@ -159,7 +221,9 @@ export default function AnalyticsPage() {
 
         {/* Drawdown chart */}
         <ChartContainer title="Drawdown" subtitle="Peak-to-trough percentage">
-          {ddLoading ? <ChartSkeleton /> : (
+          {ddLoading ? (
+            <ChartSkeleton />
+          ) : (
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={ddPoints}>
                 <CartesianGrid {...chartGridProps} />
@@ -175,7 +239,12 @@ export default function AnalyticsPage() {
                     <stop offset="100%" stopColor={themeColors.yellow} stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="drawdown_pct" stroke={themeColors.red} fill="url(#ddGrad)" />
+                <Area
+                  type="monotone"
+                  dataKey="drawdown_pct"
+                  stroke={themeColors.red}
+                  fill="url(#ddGrad)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -190,13 +259,14 @@ export default function AnalyticsPage() {
               <CartesianGrid {...chartGridProps} />
               <XAxis type="number" tick={chartAxisTick} />
               <YAxis dataKey="name" type="category" tick={chartAxisTick} width={100} />
-              <Tooltip
-                contentStyle={chartTooltipStyle}
-              />
+              <Tooltip contentStyle={chartTooltipStyle} />
               <ReferenceLine x={1} stroke={themeColors.yellow} strokeDasharray="3 3" />
               <Bar dataKey="profit_factor" radius={[0, 4, 4, 0]}>
                 {pfData.map((entry, i) => (
-                  <Cell key={i} fill={entry.profit_factor >= 1 ? themeColors.green : themeColors.red} />
+                  <Cell
+                    key={i}
+                    fill={entry.profit_factor >= 1 ? themeColors.green : themeColors.red}
+                  />
                 ))}
               </Bar>
             </BarChart>
@@ -212,7 +282,9 @@ export default function AnalyticsPage() {
                   <tr>
                     <th className="p-2" />
                     {((correlation as Record<string, unknown>).symbols as string[]).map((s) => (
-                      <th key={s} className="p-2 text-muted">{s}</th>
+                      <th key={s} className="p-2 text-muted">
+                        {s}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -220,21 +292,24 @@ export default function AnalyticsPage() {
                   {((correlation as Record<string, unknown>).symbols as string[]).map((s, i) => (
                     <tr key={s}>
                       <td className="p-2 text-muted">{s}</td>
-                      {((correlation as Record<string, unknown>).matrix as number[][])[i].map((val, j) => {
-                        const intensity = Math.abs(val);
-                        const color = val > 0
-                          ? themeRgba("--accent-rgb", intensity * 0.8)
-                          : themeRgba("--red-rgb", intensity * 0.8);
-                        return (
-                          <td
-                            key={j}
-                            className="p-2 text-center"
-                            style={{ backgroundColor: i === j ? "transparent" : color }}
-                          >
-                            {val.toFixed(2)}
-                          </td>
-                        );
-                      })}
+                      {((correlation as Record<string, unknown>).matrix as number[][])[i].map(
+                        (val, j) => {
+                          const intensity = Math.abs(val);
+                          const color =
+                            val > 0
+                              ? themeRgba("--accent-rgb", intensity * 0.8)
+                              : themeRgba("--red-rgb", intensity * 0.8);
+                          return (
+                            <td
+                              key={j}
+                              className="p-2 text-center"
+                              style={{ backgroundColor: i === j ? "transparent" : color }}
+                            >
+                              {val.toFixed(2)}
+                            </td>
+                          );
+                        },
+                      )}
                     </tr>
                   ))}
                 </tbody>

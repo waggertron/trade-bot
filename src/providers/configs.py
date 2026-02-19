@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
+
+from src.core.base import StrictBase
 
 
 # -- Shared -------------------------------------------------------------------
 
 
-class RateLimit(BaseModel):
+class RateLimit(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     requests_per_minute: int = Field(gt=0)
@@ -17,7 +19,7 @@ class RateLimit(BaseModel):
 # -- Market Data --------------------------------------------------------------
 
 
-class MarketDataConfig(BaseModel):
+class MarketDataConfig(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     timeout: float = Field(10.0, gt=0)
@@ -46,7 +48,7 @@ class MockMarketConfig(MarketDataConfig):
 # -- News ---------------------------------------------------------------------
 
 
-class NewsProviderConfig(BaseModel):
+class NewsProviderConfig(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     fetch_interval_seconds: int = Field(300, ge=1)
@@ -79,7 +81,7 @@ class MockNewsConfig(NewsProviderConfig):
 # -- Sentiment ----------------------------------------------------------------
 
 
-class SentimentConfig(BaseModel):
+class SentimentConfig(StrictBase):
     model_config = ConfigDict(frozen=True)
 
 
@@ -108,7 +110,7 @@ class MockSentimentConfig(SentimentConfig):
 # -- On-Chain -----------------------------------------------------------------
 
 
-class OnChainConfig(BaseModel):
+class OnChainConfig(StrictBase):
     model_config = ConfigDict(frozen=True)
 
 
@@ -126,7 +128,7 @@ class MockOnChainConfig(OnChainConfig):
 # -- Features -----------------------------------------------------------------
 
 
-class FeatureConfig(BaseModel):
+class FeatureConfig(StrictBase):
     model_config = ConfigDict(frozen=True)
 
 

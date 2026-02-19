@@ -53,7 +53,9 @@ export default function DataTable<T extends object>({
               <tr key={i} className="border-b border-border/50 hover:bg-card-hover/50">
                 {columns.map((col) => (
                   <td key={col.key} className={cn("px-4 py-3", col.className)}>
-                    {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
+                    {col.render
+                      ? col.render(row)
+                      : String((row as Record<string, unknown>)[col.key] ?? "")}
                   </td>
                 ))}
               </tr>

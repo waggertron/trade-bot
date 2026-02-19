@@ -1,45 +1,34 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { BarChart3, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import {
-  AreaChart,
   Area,
-  XAxis,
-  YAxis,
+  AreaChart,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
   Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import {
-  TrendingUp,
-  TrendingDown,
-  Target,
-  BarChart3,
-} from "lucide-react";
-import { useEquityCurve, useAllocation, usePnL, usePositions } from "@/hooks/usePortfolio";
-import { getTrades } from "@/lib/api";
-import StatCard from "@/components/shared/StatCard";
 import ChartContainer from "@/components/shared/ChartContainer";
 import DataTable from "@/components/shared/DataTable";
 import {
-  StatCardSkeleton,
   ChartSkeleton,
+  StatCardSkeleton,
   TableSkeleton,
 } from "@/components/shared/LoadingSkeleton";
-import {
-  formatCurrency,
-  formatPnL,
-  formatPercent,
-  formatTimestamp,
-  cn,
-} from "@/lib/formatters";
-import { themeColors, seriesColors } from "@/lib/chartTheme";
-import type { Position, Trade, PnLSummary } from "@/types";
+import StatCard from "@/components/shared/StatCard";
+import { useAllocation, useEquityCurve, usePnL, usePositions } from "@/hooks/usePortfolio";
+import { getTrades } from "@/lib/api";
+import { seriesColors, themeColors } from "@/lib/chartTheme";
+import { cn, formatCurrency, formatPercent, formatPnL, formatTimestamp } from "@/lib/formatters";
+import type { PnLSummary, Position, Trade } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -80,9 +69,7 @@ function EquityTooltip({
           year: "numeric",
         })}
       </p>
-      <p className="text-sm font-semibold text-foreground">
-        {formatCurrency(point.value)}
-      </p>
+      <p className="text-sm font-semibold text-foreground">{formatCurrency(point.value)}</p>
     </div>
   );
 }
@@ -149,7 +136,7 @@ export default function PortfolioPage() {
     const raw = allocationData as Record<string, unknown>;
     const byType = (raw.by_type ?? raw.byType ?? {}) as Record<string, number>;
     const bySector = (raw.by_sector ?? raw.bySector ?? {}) as Record<string, number>;
-    const cash = ((raw.cash_pct ?? raw.cashPct ?? 0) as number);
+    const cash = (raw.cash_pct ?? raw.cashPct ?? 0) as number;
 
     const source = allocationView === "type" ? byType : bySector;
     const slices = Object.entries(source).map(([name, value]) => ({ name, value }));
@@ -161,11 +148,7 @@ export default function PortfolioPage() {
   const pnl = pnlRaw as PnLSummary | undefined;
 
   // -- Positions --------------------------------------------------------------
-  const {
-    data: positionsRaw,
-    isLoading: positionsLoading,
-    error: positionsError,
-  } = usePositions();
+  const { data: positionsRaw, isLoading: positionsLoading, error: positionsError } = usePositions();
   const positions = (positionsRaw ?? []) as unknown as Position[];
 
   const [posSortKey, setPosSortKey] = useState<keyof Position>("symbol");
@@ -178,7 +161,7 @@ export default function PortfolioPage() {
       const aNum = parseFloat(String(aVal));
       const bNum = parseFloat(String(bVal));
 
-      if (!isNaN(aNum) && !isNaN(bNum)) {
+      if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
         return posSortDir === "asc" ? aNum - bNum : bNum - aNum;
       }
       const cmp = String(aVal).localeCompare(String(bVal));
@@ -290,9 +273,7 @@ export default function PortfolioPage() {
       {
         key: "symbol" as const,
         header: "Symbol",
-        render: (row: Trade) => (
-          <span className="font-medium text-foreground">{row.symbol}</span>
-        ),
+        render: (row: Trade) => <span className="font-medium text-foreground">{row.symbol}</span>,
       },
       {
         key: "side" as const,
@@ -301,9 +282,7 @@ export default function PortfolioPage() {
           <span
             className={cn(
               "inline-block rounded px-2 py-0.5 text-xs font-medium uppercase",
-              row.side === "buy"
-                ? "bg-profit/15 text-profit"
-                : "bg-loss/15 text-loss",
+              row.side === "buy" ? "bg-profit/15 text-profit" : "bg-loss/15 text-loss",
             )}
           >
             {row.side}
@@ -323,9 +302,7 @@ export default function PortfolioPage() {
       {
         key: "strategy" as const,
         header: "Strategy",
-        render: (row: Trade) => (
-          <span className="text-muted">{row.strategy}</span>
-        ),
+        render: (row: Trade) => <span className="text-muted">{row.strategy}</span>,
       },
     ],
     [],
@@ -342,12 +319,8 @@ export default function PortfolioPage() {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Portfolio
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Equity, allocation, positions, and trade history
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Portfolio</h1>
+        <p className="mt-1 text-sm text-muted">Equity, allocation, positions, and trade history</p>
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -383,11 +356,7 @@ export default function PortfolioPage() {
               icon={Target}
               trend={pnl.win_rate >= 50 ? "up" : pnl.win_rate > 0 ? "down" : "neutral"}
             />
-            <StatCard
-              title="Total Trades"
-              value={String(pnl.total_trades)}
-              icon={BarChart3}
-            />
+            <StatCard title="Total Trades" value={String(pnl.total_trades)} icon={BarChart3} />
           </div>
         ) : (
           <EmptyBanner message="No P&L data available" />
@@ -407,6 +376,7 @@ export default function PortfolioPage() {
               <div className="flex rounded-lg border border-border">
                 {EQUITY_RANGES.map((range) => (
                   <button
+                    type="button"
                     key={range}
                     onClick={() => setEquityRange(range)}
                     className={cn(
@@ -483,6 +453,7 @@ export default function PortfolioPage() {
             actions={
               <div className="flex rounded-lg border border-border">
                 <button
+                  type="button"
                   onClick={() => setAllocationView("type")}
                   className={cn(
                     "rounded-l-lg px-2.5 py-1 text-xs font-medium transition-colors",
@@ -494,6 +465,7 @@ export default function PortfolioPage() {
                   By Type
                 </button>
                 <button
+                  type="button"
                   onClick={() => setAllocationView("sector")}
                   className={cn(
                     "rounded-r-lg px-2.5 py-1 text-xs font-medium transition-colors",
@@ -528,10 +500,7 @@ export default function PortfolioPage() {
                     stroke="none"
                   >
                     {allocationSlices.map((_, idx) => (
-                      <Cell
-                        key={idx}
-                        fill={PIE_COLORS[idx % PIE_COLORS.length]}
-                      />
+                      <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
                     ))}
                   </Pie>
                   <Legend content={<PieLegend />} />
@@ -557,9 +526,7 @@ export default function PortfolioPage() {
       {/* ------------------------------------------------------------------ */}
       <section>
         <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="mb-4 text-sm font-medium text-foreground">
-            Open Positions
-          </h3>
+          <h3 className="mb-4 text-sm font-medium text-foreground">Open Positions</h3>
           {positionsLoading ? (
             <TableSkeleton rows={6} />
           ) : positionsError ? (
@@ -617,11 +584,10 @@ export default function PortfolioPage() {
       <section>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-foreground">
-              Trade History
-            </h3>
+            <h3 className="text-sm font-medium text-foreground">Trade History</h3>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => setTradesPage((p) => Math.max(0, p - 1))}
                 disabled={tradesPage === 0}
                 className={cn(
@@ -633,10 +599,9 @@ export default function PortfolioPage() {
               >
                 Prev
               </button>
-              <span className="text-xs text-muted">
-                Page {tradesPage + 1}
-              </span>
+              <span className="text-xs text-muted">Page {tradesPage + 1}</span>
               <button
+                type="button"
                 onClick={() => setTradesPage((p) => p + 1)}
                 disabled={trades.length < TRADES_PER_PAGE}
                 className={cn(
@@ -656,11 +621,7 @@ export default function PortfolioPage() {
           ) : tradesError ? (
             <ErrorBanner message="Failed to load trade history" />
           ) : (
-            <DataTable
-              columns={tradeColumns}
-              data={trades}
-              emptyMessage="No trades recorded yet"
-            />
+            <DataTable columns={tradeColumns} data={trades} emptyMessage="No trades recorded yet" />
           )}
         </div>
       </section>

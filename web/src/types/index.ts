@@ -1,5 +1,68 @@
-// TypeScript types mirroring Python models
+// Re-export types from Zod schemas (single source of truth)
 
+export type { Attribution, Correlation, DrawdownSeries, MonteCarlo } from "@/lib/schemas/analytics";
+export type { BacktestResult, BacktestRun } from "@/lib/schemas/backtest";
+export type {
+  Config,
+  HealthStatus,
+  SymbolsConfig,
+  SystemStatus,
+  TradeMode,
+} from "@/lib/schemas/config";
+export type {
+  ApplyPreset,
+  PlaceOrderInput,
+  UpdateRiskSettings,
+  UpdateSymbols,
+} from "@/lib/schemas/inputs";
+export type { MarketPrices, OHLCBar, SparklineData, SparklineMap } from "@/lib/schemas/market";
+export type {
+  FeatureCatalog,
+  FeatureImportance,
+  FeatureStatus,
+  MLModel,
+  Predictions,
+} from "@/lib/schemas/ml";
+export type {
+  NewsArticle,
+  NewsStatus,
+  SentimentAggregate,
+  SentimentScore,
+  SentimentTrend,
+} from "@/lib/schemas/news";
+export type {
+  Allocation,
+  EquityCurve,
+  PnLSummary,
+  Portfolio,
+  Position,
+} from "@/lib/schemas/portfolio";
+export type {
+  CircuitBreaker,
+  DrawdownStatus,
+  RiskDecision,
+  RiskPresets,
+  RiskSettings,
+  RiskStatus,
+} from "@/lib/schemas/risk";
+export type { Recommendation, SimulationConfig, SimulationRun } from "@/lib/schemas/simulation";
+export type {
+  ConsensusVotes,
+  StrategyInfo,
+  StrategyStats,
+  StrategyStatus,
+} from "@/lib/schemas/strategies";
+export type { Signal, Trade } from "@/lib/schemas/trades";
+export type {
+  CancelAllResult,
+  CancelResult,
+  Order,
+  OrderFill,
+  PlaceOrderResponse,
+  TradingPrices,
+} from "@/lib/schemas/trading";
+
+// Legacy type aliases for backward compatibility
 export type AssetType = "stock" | "crypto";
 export type SignalDirection = "buy" | "sell" | "hold";
 export type OrderSide = "buy" | "sell";
@@ -8,169 +71,12 @@ export type RiskAction = "approve" | "veto" | "resize";
 export type RiskLevel = "conservative" | "moderate" | "aggressive" | "very_aggressive";
 export type VolatilityRegime = "low" | "medium" | "high";
 
-export interface Position {
-  symbol: string;
-  quantity: string;
-  avg_entry_price: string;
-  current_price: string;
-  market_value: string;
-  unrealized_pnl: string;
-  asset_type: AssetType;
-  sector?: string;
-}
+// Legacy interface aliases
+export type { Position as PortfolioSnapshot } from "@/lib/schemas/portfolio";
+export type { Order as OrderResponse, OrderFill as FillResponse } from "@/lib/schemas/trading";
 
-export interface PortfolioSnapshot {
-  cash: string;
-  total_value: string;
-  positions: Position[];
-}
-
-export interface Trade {
-  id: string;
-  symbol: string;
-  side: string;
-  quantity: string;
-  price: string;
-  commission?: string;
-  strategy: string;
-  paper: boolean;
-  timestamp: string;
-}
-
-export interface Signal {
-  id: string;
-  symbol: string;
-  direction: SignalDirection;
-  confidence: number;
-  strategy: string;
-  reasoning: string;
-  timestamp: string;
-}
-
+/** EquityPoint - used by page components for equity curve data */
 export interface EquityPoint {
   timestamp: string;
   value: number;
-}
-
-export interface OHLCBar {
-  timestamp: number;
-  open: string;
-  high: string;
-  low: string;
-  close: string;
-  volume: string;
-}
-
-export interface StrategyInfo {
-  name: string;
-  type: string;
-  enabled: boolean;
-  weight: number;
-  description?: string;
-  recent_signals?: Signal[];
-}
-
-export interface StrategyStats {
-  name: string;
-  total_trades: number;
-  win_rate: number;
-  total_pnl: number;
-  avg_win: number;
-  avg_loss: number;
-  profit_factor: number;
-  max_consecutive_losses: number;
-}
-
-export interface AttributionReport {
-  strategies: Record<string, StrategyStats>;
-  total_pnl: number;
-  best_strategy: string;
-  worst_strategy: string;
-}
-
-export interface MonteCarloResult {
-  actual_final_value: number;
-  percentile: number;
-  median_simulated: number;
-  p5_simulated: number;
-  p95_simulated: number;
-  worst_drawdown_p95: number;
-  n_simulations: number;
-}
-
-export interface RiskSettings {
-  max_position_pct: number;
-  max_sector_exposure_pct: number;
-  daily_loss_limit_pct: number;
-  weekly_drawdown_limit_pct: number;
-  max_open_positions: number;
-  stop_loss_pct: number;
-  trailing_stop_enabled: boolean;
-  trailing_stop_pct: number;
-  max_correlation: number;
-}
-
-export interface DrawdownStatus {
-  daily_pct: number;
-  daily_limit: number;
-  weekly_pct: number;
-  weekly_limit: number;
-  positions_used: number;
-  positions_limit: number;
-}
-
-export interface SystemStatus {
-  mode: string;
-  is_paused: boolean;
-  uptime_seconds: number;
-  strategies_count: number;
-}
-
-export interface SparklineData {
-  prices: number[];
-  current: number;
-  change_pct: number;
-}
-
-export interface PnLSummary {
-  realized_pnl: string;
-  unrealized_pnl: string;
-  total_pnl: string;
-  win_rate: number;
-  total_trades: number;
-  winning_trades: number;
-}
-
-export interface BacktestRun {
-  id: string;
-  status: string;
-  config: {
-    start_date: string;
-    end_date: string;
-    strategies: string[];
-    symbols: string[];
-    initial_capital: number;
-  };
-  started_at: string;
-  result: Record<string, unknown> | null;
-}
-
-export interface OrderResponse {
-  id: string;
-  symbol: string;
-  side: string;
-  order_type: string;
-  quantity: string;
-  limit_price?: string;
-  status: string;
-}
-
-export interface FillResponse {
-  id: string;
-  order_id: string;
-  symbol: string;
-  side: string;
-  quantity: string;
-  fill_price: string;
-  timestamp: string;
 }

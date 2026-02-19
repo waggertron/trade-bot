@@ -67,7 +67,7 @@ class TestTagFills:
 
         assert len(result) == 1
         assert result[0].regime == "low_vol"
-        assert result[0].fill is fill
+        assert result[0].fill == fill
 
     def test_tag_fills_with_strategy_map(self) -> None:
         ts = datetime(2024, 1, 1, tzinfo=timezone.utc)

@@ -1,5 +1,5 @@
 import { registerRoute } from "../router";
-import { STOCK_SYMBOLS, CRYPTO_SYMBOLS } from "./constants";
+import { CRYPTO_SYMBOLS, STOCK_SYMBOLS } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Module-level mutable state
@@ -21,7 +21,7 @@ registerRoute("GET", /^\/api\/config\/mode$/, () => {
 // PUT /api/config/mode  –  update trading mode
 // ---------------------------------------------------------------------------
 registerRoute("PUT", /^\/api\/config\/mode$/, (_path, options) => {
-  const body = JSON.parse(options?.body as string ?? "{}");
+  const body = JSON.parse((options?.body as string) ?? "{}");
   mockMode = body.mode ?? mockMode;
   return { mode: mockMode };
 });
@@ -37,7 +37,7 @@ registerRoute("GET", /^\/api\/config\/symbols$/, () => {
 // PUT /api/config/symbols  –  update configured symbols
 // ---------------------------------------------------------------------------
 registerRoute("PUT", /^\/api\/config\/symbols$/, (_path, options) => {
-  const body = JSON.parse(options?.body as string ?? "{}");
+  const body = JSON.parse((options?.body as string) ?? "{}");
   mockSymbols = body;
   return mockSymbols;
 });

@@ -111,7 +111,7 @@ class TestAttributedFill:
 
     def test_creation(self, sample_fill: Fill) -> None:
         af = AttributedFill(fill=sample_fill, strategy="momentum", regime="high")
-        assert af.fill is sample_fill
+        assert af.fill == sample_fill
         assert af.strategy == "momentum"
         assert af.regime == "high"
 

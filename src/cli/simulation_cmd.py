@@ -7,8 +7,15 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
+from src.cli.charts import (
+    ascii_line_chart,
+    plotext_bar_chart,
+    plotext_heatmap,
+    plotext_multi_line,
+)
 from src.core.config import RiskLevel
 
 app = typer.Typer(help="Simulation system: run walk-forward backtests and Monte Carlo projections.")
@@ -152,6 +159,100 @@ def _print_report(report: dict) -> None:
             )
 
         console.print(mc_table)
+
+    # --- Charts: Equity curve per stock (first risk level with stock results) ---
+    try:
+        for level_name, result in report.get("risk_level_results", {}).items():
+            for sr in result.get("stock_results") or []:
+                curve = sr.get("equity_curve", [])
+                if len(curve) >= 2:
+                    chart = ascii_line_chart(
+                        curve,
+                        title=f"{level_name.upper()} | {sr['symbol']} Equity Curve",
+                        height=10,
+                    )
+                    console.print(Panel(chart, expand=False))
+    except Exception:
+        pass  # chart rendering is best-effort
+
+    # --- Chart: Return comparison bar chart across risk levels ---
+    try:
+        rl_results = report.get("risk_level_results", {})
+        if rl_results:
+            rl_labels = list(rl_results.keys())
+            rl_returns = [rl_results[k]["total_return_pct"] for k in rl_labels]
+            chart = plotext_bar_chart(
+                rl_labels,
+                rl_returns,
+                title="Return % by Risk Level",
+            )
+            console.print()
+            console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
+
+    # --- Chart: Monte Carlo projection cone (P5 / Median / P95) per risk level ---
+    try:
+        for level_name, result in report.get("risk_level_results", {}).items():
+            mc_list = result.get("monte_carlo_projections") or []
+            if mc_list:
+                series: dict[str, list[float]] = {
+                    "P5": [],
+                    "Median": [],
+                    "P95": [],
+                }
+                symbols: list[str] = []
+                for mc in mc_list:
+                    symbols.append(mc["symbol"])
+                    series["P5"].append(mc["p5_final"])
+                    series["Median"].append(mc["median_final"])
+                    series["P95"].append(mc["p95_final"])
+                chart = plotext_multi_line(
+                    series,
+                    title=f"{level_name.upper()} | Monte Carlo Projection Cone",
+                )
+                console.print()
+                console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
+
+    # --- Chart: Win rate heatmap (stocks x risk levels) ---
+    try:
+        rl_results = report.get("risk_level_results", {})
+        if rl_results:
+            risk_labels = list(rl_results.keys())
+            # Collect all unique stock symbols across risk levels
+            all_symbols: list[str] = []
+            for rl in rl_results.values():
+                for sr in rl.get("stock_results") or []:
+                    if sr["symbol"] not in all_symbols:
+                        all_symbols.append(sr["symbol"])
+
+            if all_symbols:
+                # Build matrix: rows = stocks, cols = risk levels
+                matrix: list[list[float]] = []
+                for sym in all_symbols:
+                    row: list[float] = []
+                    for rl_name in risk_labels:
+                        rl = rl_results[rl_name]
+                        wr = 0.0
+                        for sr in rl.get("stock_results") or []:
+                            if sr["symbol"] == sym:
+                                wr = sr.get("win_rate", 0.0) * 100.0
+                                break
+                        row.append(wr)
+                    matrix.append(row)
+
+                chart = plotext_heatmap(
+                    matrix,
+                    row_labels=all_symbols,
+                    col_labels=risk_labels,
+                    title="Win Rate % (Stocks x Risk Levels)",
+                )
+                console.print()
+                console.print(Panel(chart, expand=False))
+    except Exception:
+        pass
 
     # Recommendation
     rec = report.get("recommendation")

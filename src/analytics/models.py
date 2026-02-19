@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 from src.core.models import Fill
 
 
-class AttributedFill(BaseModel):
+class AttributedFill(StrictBase):
     """A fill attributed to a specific strategy and volatility regime."""
 
     model_config = ConfigDict(frozen=True)
@@ -17,7 +19,7 @@ class AttributedFill(BaseModel):
     regime: str = "unknown"
 
 
-class Trade(BaseModel):
+class Trade(StrictBase):
     """A paired buy/sell trade with computed PnL."""
 
     model_config = ConfigDict(frozen=True)
@@ -31,7 +33,7 @@ class Trade(BaseModel):
     regime: str = "unknown"
 
 
-class StrategyStats(BaseModel):
+class StrategyStats(StrictBase):
     """Aggregate statistics for a single strategy."""
 
     model_config = ConfigDict(frozen=True)
@@ -46,7 +48,7 @@ class StrategyStats(BaseModel):
     max_consecutive_losses: int = Field(default=0, ge=0)
 
 
-class AttributionReport(BaseModel):
+class AttributionReport(StrictBase):
     """Full attribution report across all strategies."""
 
     model_config = ConfigDict(frozen=True)
@@ -57,7 +59,7 @@ class AttributionReport(BaseModel):
     worst_strategy: str = ""
 
 
-class EquityPoint(BaseModel):
+class EquityPoint(StrictBase):
     """A single point on the equity curve."""
 
     model_config = ConfigDict(frozen=True)
@@ -66,7 +68,7 @@ class EquityPoint(BaseModel):
     value: float
 
 
-class MonteCarloResult(BaseModel):
+class MonteCarloResult(StrictBase):
     """Results from a Monte Carlo simulation of trade returns."""
 
     model_config = ConfigDict(frozen=True)

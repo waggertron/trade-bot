@@ -1,20 +1,29 @@
 "use client";
 
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Cpu, Database, Layers, Play, Target } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { getFeatureCatalog, getFeatureStatus, getMLModels, getPredictions, triggerTraining } from "@/lib/api";
 import ChartContainer from "@/components/shared/ChartContainer";
 import DataTable from "@/components/shared/DataTable";
-import { Cpu, Play, Database, Layers, Target } from "lucide-react";
+import {
+  getFeatureCatalog,
+  getFeatureStatus,
+  getMLModels,
+  getPredictions,
+  triggerTraining,
+} from "@/lib/api";
 import { cn } from "@/lib/formatters";
 
 const tabs = ["Feature Catalog", "Models", "Predictions"] as const;
-type Tab = typeof tabs[number];
+type Tab = (typeof tabs)[number];
 
 export default function MLPage() {
   const [activeTab, setActiveTab] = useState<Tab>("Feature Catalog");
   const { data: catalog } = useQuery({ queryKey: ["feature-catalog"], queryFn: getFeatureCatalog });
-  const { data: featureStatus } = useQuery({ queryKey: ["feature-status"], queryFn: getFeatureStatus });
+  const { data: featureStatus } = useQuery({
+    queryKey: ["feature-status"],
+    queryFn: getFeatureStatus,
+  });
   const { data: models } = useQuery({ queryKey: ["ml-models"], queryFn: getMLModels });
   const { data: predictions } = useQuery({ queryKey: ["ml-predictions"], queryFn: getPredictions });
 
@@ -53,6 +62,7 @@ export default function MLPage() {
           </div>
         </div>
         <button
+          type="button"
           onClick={() => trainMutation.mutate()}
           disabled={trainMutation.isPending}
           className="flex items-center justify-center gap-2 rounded-xl border border-accent bg-accent/10 p-4 text-sm font-medium text-accent hover:bg-accent/20 disabled:opacity-50"
@@ -70,11 +80,12 @@ export default function MLPage() {
       <div className="flex gap-1 rounded-lg bg-card p-1">
         {tabs.map((tab) => (
           <button
+            type="button"
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
               "rounded-md px-4 py-2 text-sm transition-colors",
-              activeTab === tab ? "bg-accent text-white" : "text-muted hover:text-foreground"
+              activeTab === tab ? "bg-accent text-white" : "text-muted hover:text-foreground",
             )}
           >
             {tab}
@@ -86,7 +97,11 @@ export default function MLPage() {
       {activeTab === "Feature Catalog" && (
         <div className="grid grid-cols-2 gap-4">
           {Object.entries(catalogData).map(([category, features]) => (
-            <ChartContainer key={category} title={category} subtitle={`${features.length} features`}>
+            <ChartContainer
+              key={category}
+              title={category}
+              subtitle={`${features.length} features`}
+            >
               <div className="flex flex-wrap gap-2">
                 {features.map((f) => (
                   <span key={f} className="rounded-lg bg-background px-2.5 py-1 text-xs text-muted">

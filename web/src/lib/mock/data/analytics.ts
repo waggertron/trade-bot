@@ -1,6 +1,6 @@
-import { registerRoute } from "../router";
-import { STRATEGY_NAMES, ALL_SYMBOLS } from "./constants";
 import { seededRandom } from "../generators";
+import { registerRoute } from "../router";
+import { ALL_SYMBOLS } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Strategy attribution data
@@ -80,10 +80,7 @@ const strategyData: Record<string, StrategyAttribution> = {
   },
 };
 
-const totalPnl = Object.values(strategyData).reduce(
-  (sum, s) => sum + s.total_pnl,
-  0,
-);
+const totalPnl = Object.values(strategyData).reduce((sum, s) => sum + s.total_pnl, 0);
 
 // ---------------------------------------------------------------------------
 // Correlation matrix
@@ -101,7 +98,7 @@ const upperTriangle: Record<string, number> = {
   "0-4": 0.42, // AAPL-TSLA
   "0-5": 0.75, // AAPL-NVDA
   "0-6": 0.72, // AAPL-META
-  "1-2": 0.80, // MSFT-GOOGL
+  "1-2": 0.8, // MSFT-GOOGL
   "1-3": 0.65, // MSFT-AMZN
   "1-4": 0.38, // MSFT-TSLA
   "1-5": 0.79, // MSFT-NVDA
@@ -120,9 +117,7 @@ const upperTriangle: Record<string, number> = {
 
 function buildCorrelationMatrix(): number[][] {
   const n = correlationSymbols.length;
-  const matrix: number[][] = Array.from({ length: n }, () =>
-    Array(n).fill(0),
-  );
+  const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
 
   for (let i = 0; i < n; i++) {
     matrix[i][i] = 1.0;

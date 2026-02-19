@@ -28,7 +28,14 @@ export function generateOHLC(
   seed: number,
 ): { timestamp: number; open: string; high: string; low: string; close: string; volume: string }[] {
   const rng = seededRandom(seed);
-  const result: { timestamp: number; open: string; high: string; low: string; close: string; volume: string }[] = [];
+  const result: {
+    timestamp: number;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    volume: string;
+  }[] = [];
   let price = startPrice;
   const now = Date.now();
   const startTime = now - bars * intervalMs;

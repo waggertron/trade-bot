@@ -1,0 +1,302 @@
+"""Shared chart utilities for CLI visualization.
+
+Provides terminal-friendly charting helpers built on asciichartpy, plotext,
+and Rich.  All functions handle edge cases (empty data, single points, etc.)
+gracefully and return plain strings so callers can print or embed them in
+Rich panels/tables.
+
+NOTE: plotext uses module-level global state.  These functions are
+not thread-safe and should only be called from the main CLI thread.
+"""
+
+from __future__ import annotations
+
+import math
+from typing import TYPE_CHECKING
+
+import asciichartpy
+import plotext as plt
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+# ---------------------------------------------------------------------------
+# Sparkline block characters (ascending height)
+# ---------------------------------------------------------------------------
+_SPARK_CHARS = " \u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
+
+
+def _sanitize(values: Sequence[float | int]) -> list[float]:
+    """Convert to floats, filtering out NaN and infinity."""
+    return [float(v) for v in values if math.isfinite(float(v))]
+
+
+# ---------------------------------------------------------------------------
+# Simple line chart (asciichartpy wrapper)
+# ---------------------------------------------------------------------------
+
+
+def ascii_line_chart(
+    series: Sequence[float | int],
+    title: str = "",
+    width: int = 60,
+    height: int = 12,
+) -> str:
+    """Render a simple ASCII line chart.
+
+    Parameters
+    ----------
+    series : sequence of numbers
+        Data points to plot.
+    title : str
+        Optional title displayed above the chart.
+    width : int
+        Maximum chart width in columns (the library may truncate to fit).
+    height : int
+        Chart height in rows.
+
+    Returns
+    -------
+    str
+        Multiline string ready for printing.
+    """
+    if not series:
+        return f"{title}\n(no data)" if title else "(no data)"
+
+    data = _sanitize(series)
+    if not data:
+        return f"{title}\n(no data)" if title else "(no data)"
+
+    # asciichartpy uses "height" for vertical resolution
+    cfg = {
+        "height": max(3, height),
+    }
+
+    # Truncate to requested width if the series is longer
+    if len(data) > width:
+        data = data[-width:]
+
+    chart = asciichartpy.plot(data, cfg)
+
+    if title:
+        return f"{title}\n{chart}"
+    return chart
+
+
+# ---------------------------------------------------------------------------
+# Plotext bar chart
+# ---------------------------------------------------------------------------
+
+
+def plotext_bar_chart(
+    labels: Sequence[str],
+    values: Sequence[float | int],
+    title: str = "",
+) -> str:
+    """Render a horizontal/vertical bar chart via plotext.
+
+    Parameters
+    ----------
+    labels : sequence of str
+        Category labels.
+    values : sequence of numbers
+        Corresponding values.
+    title : str
+        Chart title.
+
+    Returns
+    -------
+    str
+        Rendered chart as a string.
+    """
+    if not labels or not values:
+        return f"{title}\n(no data)" if title else "(no data)"
+
+    plt.clear_figure()
+    plt.bar(list(labels), [float(v) for v in values])
+    if title:
+        plt.title(title)
+    plt.theme("clear")
+    plt.plot_size(60, 15)
+
+    return plt.build().rstrip("\n")
+
+
+# ---------------------------------------------------------------------------
+# Plotext multi-line chart
+# ---------------------------------------------------------------------------
+
+
+def plotext_multi_line(
+    series_dict: dict[str, Sequence[float | int]],
+    title: str = "",
+) -> str:
+    """Render multiple line series on a single plotext chart.
+
+    Parameters
+    ----------
+    series_dict : dict mapping label -> sequence of numbers
+        Each entry is one line to plot.
+    title : str
+        Chart title.
+
+    Returns
+    -------
+    str
+        Rendered chart as a string.
+    """
+    if not series_dict or not any(series_dict.values()):
+        return f"{title}\n(no data)" if title else "(no data)"
+
+    plt.clear_figure()
+    for label, data in series_dict.items():
+        if data:
+            plt.plot([float(v) for v in data], label=label)
+    if title:
+        plt.title(title)
+    plt.theme("clear")
+    plt.plot_size(70, 18)
+
+    return plt.build().rstrip("\n")
+
+
+# ---------------------------------------------------------------------------
+# Plotext heatmap
+# ---------------------------------------------------------------------------
+
+
+def plotext_heatmap(
+    matrix: Sequence[Sequence[float | int]],
+    row_labels: Sequence[str] | None = None,
+    col_labels: Sequence[str] | None = None,
+    title: str = "",
+) -> str:
+    """Render a heatmap via plotext's matrix_plot.
+
+    Parameters
+    ----------
+    matrix : 2-D sequence of numbers
+        Row-major data.
+    row_labels : optional sequence of str
+        Labels for each row.
+    col_labels : optional sequence of str
+        Labels for each column.
+    title : str
+        Chart title.
+
+    Returns
+    -------
+    str
+        Rendered chart as a string.
+    """
+    if not matrix or not matrix[0]:
+        return f"{title}\n(no data)" if title else "(no data)"
+
+    plt.clear_figure()
+    plt.matrix_plot([[float(v) for v in row] for row in matrix])
+    if title:
+        plt.title(title)
+    plt.theme("clear")
+    plt.plot_size(60, max(10, len(matrix) + 4))
+
+    # Apply axis labels if provided
+    if col_labels:
+        plt.xticks(list(range(len(col_labels))), list(col_labels))
+    if row_labels:
+        plt.yticks(list(range(len(row_labels))), list(row_labels))
+
+    return plt.build().rstrip("\n")
+
+
+# ---------------------------------------------------------------------------
+# Formatting helpers
+# ---------------------------------------------------------------------------
+
+
+def format_pct(value: float | int | None) -> str:
+    """Return a Rich-markup-friendly colored percentage string.
+
+    Positive values are green, negative values are red, zero/None is dim.
+
+    Parameters
+    ----------
+    value : float, int, or None
+        The percentage value (e.g. 12.5 means 12.5%).
+
+    Returns
+    -------
+    str
+        A Rich-compatible markup string like ``[green]+12.50%[/green]``.
+    """
+    if value is None:
+        return "[dim]N/A[/dim]"
+    v = float(value)
+    if v > 0:
+        return f"[green]+{v:.2f}%[/green]"
+    if v < 0:
+        return f"[red]{v:.2f}%[/red]"
+    return f"[dim]{v:.2f}%[/dim]"
+
+
+def format_currency(value: float | int | None) -> str:
+    """Return a formatted dollar amount string.
+
+    Parameters
+    ----------
+    value : float, int, or None
+        Dollar amount.
+
+    Returns
+    -------
+    str
+        e.g. ``$1,234.56`` or ``-$500.00``.
+    """
+    if value is None:
+        return "N/A"
+    v = float(value)
+    if v < 0:
+        return f"-${abs(v):,.2f}"
+    return f"${v:,.2f}"
+
+
+def spark_line(values: Sequence[float | int]) -> str:
+    """Return an inline Unicode sparkline string.
+
+    Uses block characters (U+2581..U+2588) to represent relative magnitudes.
+
+    Parameters
+    ----------
+    values : sequence of numbers
+        Data points.
+
+    Returns
+    -------
+    str
+        A compact sparkline like ``"▁▂▄▇█▅▃▁"``.
+    """
+    if not values:
+        return ""
+
+    nums = _sanitize(values)
+    if not nums:
+        return ""
+
+    lo = min(nums)
+    hi = max(nums)
+
+    # If all values are identical, return a flat mid-height line
+    if hi == lo:
+        mid = _SPARK_CHARS[len(_SPARK_CHARS) // 2]
+        return mid * len(nums)
+
+    span = hi - lo
+    max_idx = len(_SPARK_CHARS) - 1
+    chars: list[str] = []
+    for v in nums:
+        # Normalize to 0..1, then map to character index
+        idx = round((v - lo) / span * max_idx)
+        # Clamp just in case of floating-point edge cases
+        idx = max(0, min(max_idx, idx))
+        chars.append(_SPARK_CHARS[idx])
+
+    return "".join(chars)

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getConfig, getMode, setMode, getSymbols, updateSymbols } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Plus, X } from "lucide-react";
+import { useState } from "react";
 import ChartContainer from "@/components/shared/ChartContainer";
 import { ChartSkeleton } from "@/components/shared/LoadingSkeleton";
-import { Settings, AlertTriangle, X, Plus } from "lucide-react";
+import { getConfig, getMode, getSymbols, setMode, updateSymbols } from "@/lib/api";
 import { cn } from "@/lib/formatters";
 
 export default function SettingsPage() {
@@ -59,8 +59,10 @@ export default function SettingsPage() {
     }
   };
 
-  const removeStock = (s: string) => symbolsMutation.mutate({ stocks: stocks.filter((x) => x !== s), crypto });
-  const removeCrypto = (s: string) => symbolsMutation.mutate({ stocks, crypto: crypto.filter((x) => x !== s) });
+  const removeStock = (s: string) =>
+    symbolsMutation.mutate({ stocks: stocks.filter((x) => x !== s), crypto });
+  const removeCrypto = (s: string) =>
+    symbolsMutation.mutate({ stocks, crypto: crypto.filter((x) => x !== s) });
 
   return (
     <div className="space-y-6">
@@ -70,16 +72,19 @@ export default function SettingsPage() {
       <ChartContainer title="Trading Mode">
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={handleModeToggle}
             className={cn(
               "relative h-8 w-16 rounded-full transition-colors",
-              currentMode === "live" ? "bg-loss" : "bg-profit"
+              currentMode === "live" ? "bg-loss" : "bg-profit",
             )}
           >
-            <div className={cn(
-              "absolute top-1 h-6 w-6 rounded-full bg-white transition-transform",
-              currentMode === "live" ? "translate-x-9" : "translate-x-1"
-            )} />
+            <div
+              className={cn(
+                "absolute top-1 h-6 w-6 rounded-full bg-white transition-transform",
+                currentMode === "live" ? "translate-x-9" : "translate-x-1",
+              )}
+            />
           </button>
           <div>
             <p className="text-sm font-medium">
@@ -103,17 +108,19 @@ export default function SettingsPage() {
               <h3 className="text-lg font-semibold">Switch to Live Trading?</h3>
             </div>
             <p className="mt-3 text-sm text-muted">
-              Live mode will execute real trades with real money. Make sure your exchange connections
-              and risk limits are properly configured.
+              Live mode will execute real trades with real money. Make sure your exchange
+              connections and risk limits are properly configured.
             </p>
             <div className="mt-6 flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowModeWarning(false)}
                 className="flex-1 rounded-lg border border-border py-2 text-sm text-muted hover:bg-card-hover"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={confirmLiveMode}
                 className="flex-1 rounded-lg bg-loss py-2 text-sm font-medium text-white hover:bg-loss/80"
               >
@@ -130,9 +137,16 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {stocks.map((s) => (
-                <span key={s} className="flex items-center gap-1 rounded-lg bg-background px-2.5 py-1 text-sm">
+                <span
+                  key={s}
+                  className="flex items-center gap-1 rounded-lg bg-background px-2.5 py-1 text-sm"
+                >
                   {s}
-                  <button onClick={() => removeStock(s)} className="text-muted hover:text-loss">
+                  <button
+                    type="button"
+                    onClick={() => removeStock(s)}
+                    className="text-muted hover:text-loss"
+                  >
                     <X size={12} />
                   </button>
                 </span>
@@ -147,7 +161,11 @@ export default function SettingsPage() {
                 placeholder="Add symbol..."
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted/50"
               />
-              <button onClick={addStock} className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover">
+              <button
+                type="button"
+                onClick={addStock}
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover"
+              >
                 <Plus size={14} />
               </button>
             </div>
@@ -159,9 +177,16 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {crypto.map((s) => (
-                <span key={s} className="flex items-center gap-1 rounded-lg bg-background px-2.5 py-1 text-sm">
+                <span
+                  key={s}
+                  className="flex items-center gap-1 rounded-lg bg-background px-2.5 py-1 text-sm"
+                >
                   {s}
-                  <button onClick={() => removeCrypto(s)} className="text-muted hover:text-loss">
+                  <button
+                    type="button"
+                    onClick={() => removeCrypto(s)}
+                    className="text-muted hover:text-loss"
+                  >
                     <X size={12} />
                   </button>
                 </span>
@@ -176,7 +201,11 @@ export default function SettingsPage() {
                 placeholder="Add pair (e.g. BTC/USD)..."
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted/50"
               />
-              <button onClick={addCrypto} className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover">
+              <button
+                type="button"
+                onClick={addCrypto}
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover"
+              >
                 <Plus size={14} />
               </button>
             </div>

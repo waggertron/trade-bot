@@ -12,11 +12,6 @@ export class MockWebSocket {
   private intervals: ReturnType<typeof setInterval>[] = [];
   private rng = seededRandom(Date.now());
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  constructor(_url: string) {
-    // URL is ignored in mock mode
-  }
-
   connect() {
     // Price updates every 3s
     this.intervals.push(
@@ -95,7 +90,7 @@ export class MockWebSocket {
     if (!this.handlers.has(type)) {
       this.handlers.set(type, new Set());
     }
-    this.handlers.get(type)!.add(handler);
+    this.handlers.get(type)?.add(handler);
     return () => {
       this.handlers.get(type)?.delete(handler);
     };
@@ -111,11 +106,15 @@ export class MockWebSocket {
   private emit(type: string, data: Record<string, unknown>) {
     const handlers = this.handlers.get(type);
     if (handlers) {
-      handlers.forEach((h) => h(data));
+      handlers.forEach((h) => {
+        h(data);
+      });
     }
     const wildcardHandlers = this.handlers.get("*");
     if (wildcardHandlers) {
-      wildcardHandlers.forEach((h) => h({ type, data }));
+      wildcardHandlers.forEach((h) => {
+        h({ type, data });
+      });
     }
   }
 }

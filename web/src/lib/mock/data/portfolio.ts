@@ -1,6 +1,6 @@
-import { registerRoute } from "../router";
 import { generateEquityCurve } from "../generators";
-import { BASE_PRICES, SECTORS, STOCK_SYMBOLS, CRYPTO_SYMBOLS } from "./constants";
+import { registerRoute } from "../router";
+import { BASE_PRICES, CRYPTO_SYMBOLS, SECTORS, STOCK_SYMBOLS } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Position data
@@ -58,17 +58,11 @@ const positions = buildPositions();
 // Derived totals
 // ---------------------------------------------------------------------------
 
-const totalPositionValue = positions.reduce(
-  (sum, p) => sum + parseFloat(p.market_value),
-  0,
-);
+const totalPositionValue = positions.reduce((sum, p) => sum + parseFloat(p.market_value), 0);
 const cash = 245320.5;
 const totalValue = cash + totalPositionValue;
 
-const totalUnrealizedPnl = positions.reduce(
-  (sum, p) => sum + parseFloat(p.unrealized_pnl),
-  0,
-);
+const totalUnrealizedPnl = positions.reduce((sum, p) => sum + parseFloat(p.unrealized_pnl), 0);
 
 // ---------------------------------------------------------------------------
 // Range mapping for equity curve
@@ -149,7 +143,7 @@ registerRoute("GET", /^\/api\/portfolio\/allocation$/, () => {
   for (const [sector, val] of Object.entries(sectorTotals)) {
     bySector[sector] = Math.round((val / totalValue) * 1000) / 10;
   }
-  bySector["Cash"] = cashPct;
+  bySector.Cash = cashPct;
 
   return {
     by_type: { stock: stockPct, crypto: cryptoPct },

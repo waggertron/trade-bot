@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.core.base import StrictBase
 
 
-class FeatureVector(BaseModel):
+class FeatureVector(StrictBase):
     """An immutable vector of named features for a symbol at a point in time."""
 
     model_config = ConfigDict(frozen=True)
@@ -27,7 +29,7 @@ class FeatureVector(BaseModel):
         )
 
 
-class Prediction(BaseModel):
+class Prediction(StrictBase):
     """An immutable prediction from a model."""
 
     model_config = ConfigDict(frozen=True)
@@ -38,7 +40,7 @@ class Prediction(BaseModel):
     features_used: list[str] = Field(default_factory=list)
 
 
-class TrainResult(BaseModel):
+class TrainResult(StrictBase):
     """Immutable result of a model training run."""
 
     model_config = ConfigDict(frozen=True)
@@ -49,7 +51,7 @@ class TrainResult(BaseModel):
     train_accuracy: float = 0.0
 
 
-class EvalMetrics(BaseModel):
+class EvalMetrics(StrictBase):
     """Immutable evaluation metrics for a trained model."""
 
     model_config = ConfigDict(frozen=True)
@@ -62,7 +64,7 @@ class EvalMetrics(BaseModel):
     test_samples: int = 0
 
 
-class WalkForwardResult(BaseModel):
+class WalkForwardResult(StrictBase):
     """Immutable result of a single walk-forward validation fold."""
 
     model_config = ConfigDict(frozen=True)
@@ -73,7 +75,7 @@ class WalkForwardResult(BaseModel):
     eval_result: EvalMetrics
 
 
-class Dataset(BaseModel):
+class Dataset(StrictBase):
     """Mutable container for building training/test datasets."""
 
     feature_names: list[str] = Field(default_factory=list)

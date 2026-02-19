@@ -1,9 +1,13 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { getMarketPrices, getSparklines, getOHLC } from "@/lib/api";
+import { getMarketPrices, getOHLC, getSparklines } from "@/lib/api";
 
 export function useMarketPrices() {
-  return useQuery({ queryKey: ["market-prices"], queryFn: getMarketPrices, refetchInterval: 10000 });
+  return useQuery({
+    queryKey: ["market-prices"],
+    queryFn: getMarketPrices,
+    refetchInterval: 10000,
+  });
 }
 
 export function useSparklines() {

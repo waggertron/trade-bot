@@ -1,4 +1,4 @@
-import { type DeepPartial, type ChartOptions, ColorType } from "lightweight-charts";
+import { type ChartOptions, ColorType, type DeepPartial } from "lightweight-charts";
 
 // ---------------------------------------------------------------------------
 // Design tokens — reads CSS variables from globals.css at runtime.
@@ -21,20 +21,48 @@ function token(name: string, fallback: string): string {
 // Eagerly-resolved tokens for chart libraries that need plain strings.
 // Fallbacks match globals.css so SSR / static builds still look correct.
 export const themeColors = {
-  get background() { return token("--background", "#0a0a0f"); },
-  get foreground() { return token("--foreground", "#f0f0f3"); },
-  get card()       { return token("--card", "rgba(17, 17, 24, 0.65)"); },
-  get cardHover()  { return token("--card-hover", "rgba(30, 30, 42, 0.7)"); },
-  get border()     { return token("--border", "rgba(55, 55, 68, 0.6)"); },
-  get accent()     { return token("--accent", "#3b82f6"); },
-  get accentHover(){ return token("--accent-hover", "#2563eb"); },
-  get green()      { return token("--green", "#22c55e"); },
-  get red()        { return token("--red", "#ef4444"); },
-  get yellow()     { return token("--yellow", "#eab308"); },
-  get muted()      { return token("--muted", "#9ca3af"); },
-  get purple()     { return token("--purple", "#a855f7"); },
-  get cyan()       { return token("--cyan", "#06b6d4"); },
-  get orange()     { return token("--orange", "#f97316"); },
+  get background() {
+    return token("--background", "#0a0a0f");
+  },
+  get foreground() {
+    return token("--foreground", "#f0f0f3");
+  },
+  get card() {
+    return token("--card", "rgba(17, 17, 24, 0.65)");
+  },
+  get cardHover() {
+    return token("--card-hover", "rgba(30, 30, 42, 0.7)");
+  },
+  get border() {
+    return token("--border", "rgba(55, 55, 68, 0.6)");
+  },
+  get accent() {
+    return token("--accent", "#3b82f6");
+  },
+  get accentHover() {
+    return token("--accent-hover", "#2563eb");
+  },
+  get green() {
+    return token("--green", "#22c55e");
+  },
+  get red() {
+    return token("--red", "#ef4444");
+  },
+  get yellow() {
+    return token("--yellow", "#eab308");
+  },
+  get muted() {
+    return token("--muted", "#9ca3af");
+  },
+  get purple() {
+    return token("--purple", "#a855f7");
+  },
+  get cyan() {
+    return token("--cyan", "#06b6d4");
+  },
+  get orange() {
+    return token("--orange", "#f97316");
+  },
 } as const;
 
 /** Build an rgba() string from a CSS `--*-rgb` channel variable with dynamic opacity */
