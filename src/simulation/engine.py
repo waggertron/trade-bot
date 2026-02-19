@@ -122,7 +122,7 @@ class SimulationEngine:
                 train_prices_per_stock[symbol] = train_prices
             if len(train_prices) > 5:
                 projector = MonteCarloProjector(
-                    n_paths=self._config.mc_simulations, seed=42,
+                    n_paths=self._config.mc_simulations, seed=self._config.mc_seed,
                 )
                 paths = projector.generate_paths(train_prices, self._config.test_days)
                 # Use allocated balance per stock in portfolio mode
@@ -176,7 +176,7 @@ class SimulationEngine:
         portfolio_mc: PortfolioMonteCarloProjection | None = None
         if portfolio_sim is not None and len(train_prices_per_stock) > 0:
             projector = MonteCarloProjector(
-                n_paths=self._config.mc_simulations, seed=42,
+                n_paths=self._config.mc_simulations, seed=self._config.mc_seed,
             )
             portfolio_paths, corr_matrix = (
                 projector.generate_correlated_portfolio_paths(
