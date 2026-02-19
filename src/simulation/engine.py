@@ -42,9 +42,15 @@ class SimulationEngine:
         self,
         config: SimulationConfig,
         progress_cb: ProgressCallback | None = None,
+        use_cache: bool = True,
     ) -> None:
         self._config = config
         self._progress_cb = progress_cb
+        if use_cache:
+            from src.simulation.cache import BarCache
+            self._bar_cache: BarCache | None = BarCache()
+        else:
+            self._bar_cache = None
 
     async def run(self) -> SimulationReport:
         """Execute the full simulation pipeline."""
@@ -227,10 +233,10 @@ class SimulationEngine:
             stock_equity_curves: dict[str, list[float]] = {
                 r.symbol: r.equity_curve for r in stock_results
             }
-            portfolio_curve = portfolio_sim.build_portfolio_equity_curve(stock_equity_curves)
+            portfolio_curve, rebalance_days = portfolio_sim.build_portfolio_equity_curve(stock_equity_curves)
             if portfolio_curve:
                 portfolio_metrics = portfolio_sim.compute_portfolio_metrics(
-                    portfolio_curve, total_trades,
+                    portfolio_curve, total_trades, rebalance_days=rebalance_days,
                 )
 
         # Correlated Monte Carlo for portfolio mode
@@ -276,7 +282,12 @@ class SimulationEngine:
         )
 
     async def _fetch_bars(self, symbol: str) -> list[OHLCBar]:
-        """Fetch OHLC bars via yfinance."""
+        """Fetch OHLC bars via yfinance, with optional disk cache."""
+        if self._bar_cache is not None:
+            cached = self._bar_cache.get(symbol)
+            if cached is not None:
+                return cached
+
         from src.data.providers import yfinance_provider
         from src.data.providers.base import Interval
 
@@ -284,9 +295,14 @@ class SimulationEngine:
         total_trading_days = self._config.train_days + self._config.test_days
         total_calendar_days = int(total_trading_days * 1.5) + 20
         since_ts = int((datetime.now(UTC) - timedelta(days=total_calendar_days)).timestamp())
-        return await yfinance_provider.download(
+        bars = await yfinance_provider.download(
             symbol, interval=Interval.D1, since=since_ts,
         )
+
+        if self._bar_cache is not None and bars:
+            self._bar_cache.put(symbol, bars)
+
+        return bars
 
     def _bars_to_ticks(self, bars: list[OHLCBar], symbol: str) -> list[MarketTick]:
         """Convert OHLCBar list to MarketTick list."""

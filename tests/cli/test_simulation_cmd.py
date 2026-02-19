@@ -412,6 +412,7 @@ def test_run_simulation_passes_mc_seed_to_simulation_config():
             risk_levels=[],
             mc_sims=100,
             seed=42,
+            use_cache=False,
         )
 
         config_arg = mock_engine_cls.call_args[0][0]
@@ -582,3 +583,155 @@ def test_charts_none_no_rendering_progress():
         result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
     assert result.exit_code == 0, result.output
     assert "Rendering charts" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# Multi-rebalance CLI tests
+# ---------------------------------------------------------------------------
+
+
+def test_single_rebalance_backward_compatible():
+    """--rebalance none still works as a single value (backward compatible)."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--rebalance", "none",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        mock_fn.assert_called_once()
+        args = mock_fn.call_args
+        assert args.kwargs.get("rebalance_freq") == "none"
+
+
+def test_multiple_rebalance_values_accepted():
+    """--rebalance none --rebalance monthly should parse as two values."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--rebalance", "none",
+            "--rebalance", "monthly",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        # Should be called twice — once per rebalance mode
+        assert mock_fn.call_count == 2
+        rebal_freqs = [c.kwargs["rebalance_freq"] for c in mock_fn.call_args_list]
+        assert "none" in rebal_freqs
+        assert "monthly" in rebal_freqs
+
+
+def _mock_report_with_recommendation(*, optimal_risk: str = "moderate", return_pct: float = 10.0, sharpe: float = 1.5, max_dd: float = 5.0) -> dict:
+    """Build a mock report with a recommendation and risk level results."""
+    report = _mock_report()
+    report["risk_level_results"] = {
+        optimal_risk: {
+            "risk_level": optimal_risk,
+            "stock_results": [],
+            "monte_carlo_projections": [],
+            "strategy_assessments": [],
+            "total_return_pct": return_pct,
+            "avg_sharpe": sharpe,
+            "avg_max_drawdown": max_dd,
+            "total_trades": 10,
+            "portfolio_metrics": None,
+            "portfolio_monte_carlo": None,
+        },
+    }
+    report["recommendation"] = {
+        "optimal_risk_level": optimal_risk,
+        "reasoning": "test",
+        "suggested_weights": {},
+        "confidence": 0.8,
+    }
+    return report
+
+
+def test_multiple_rebalance_prints_comparison_table():
+    """When multiple rebalance modes are given, output should include a comparison table."""
+    report_none = _mock_report_with_recommendation(return_pct=10.0, sharpe=1.5, max_dd=5.0)
+    report_monthly = _mock_report_with_recommendation(return_pct=12.0, sharpe=1.8, max_dd=4.0)
+
+    def side_effect(*args, **kwargs):
+        if kwargs.get("rebalance_freq") == "none":
+            return report_none
+        return report_monthly
+
+    with patch("src.cli.simulation_cmd._run_simulation", side_effect=side_effect):
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--rebalance", "none",
+            "--rebalance", "monthly",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Rebalance Comparison" in result.output
+
+
+def test_single_rebalance_no_comparison_table():
+    """With a single rebalance mode, no comparison table should appear."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--rebalance", "none",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Rebalance Comparison" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# --no-cache flag tests
+# ---------------------------------------------------------------------------
+
+
+def test_run_help_shows_no_cache_flag():
+    """Help text should include the --no-cache flag."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--no-cache" in result.output
+
+
+def test_no_cache_flag_passed_to_run_simulation():
+    """--no-cache should forward use_cache=False to _run_simulation."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--no-cache",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        mock_fn.assert_called_once()
+        args = mock_fn.call_args
+        assert args.kwargs.get("use_cache") is False
+
+
+def test_cache_enabled_by_default():
+    """When --no-cache is not specified, use_cache should default to True."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        args = mock_fn.call_args
+        assert args.kwargs.get("use_cache") is True
+
+
+def test_no_cache_shows_status_message():
+    """When --no-cache is set, the output should include 'Cache: DISABLED'."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--no-cache",
+            "--charts", "none",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Cache: DISABLED" in result.output

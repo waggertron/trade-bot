@@ -413,3 +413,36 @@ async def test_engine_works_without_progress_callback():
         report = await engine.run()
 
     assert report.status == "completed"
+
+
+# ---------------------------------------------------------------------------
+# Cache integration tests
+# ---------------------------------------------------------------------------
+
+
+def test_engine_use_cache_false_has_no_bar_cache():
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    engine = SimulationEngine(config, use_cache=False)
+    assert engine._bar_cache is None
+
+
+def test_engine_use_cache_true_creates_bar_cache():
+    from src.simulation.cache import BarCache
+
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    engine = SimulationEngine(config, use_cache=True)
+    assert isinstance(engine._bar_cache, BarCache)

@@ -50,6 +50,7 @@ def _run_simulation(
     rebalance_threshold: float = 5.0,
     max_position_pct: float | None = None,
     progress_cb=None,
+    use_cache: bool = True,
 ) -> dict:
     """Run the simulation engine and return the report as a dict."""
     from src.simulation.engine import SimulationEngine
@@ -74,9 +75,24 @@ def _run_simulation(
         allocation=allocation,
         rebalance=rebalance,
     )
-    engine = SimulationEngine(config, progress_cb=progress_cb)
+
+    # Check report cache on hit (only when cache enabled and seed is set)
+    report_cache = None
+    if use_cache and seed is not None:
+        from src.simulation.cache import ReportCache
+        report_cache = ReportCache()
+        cached = report_cache.get(config)
+        if cached is not None:
+            return cached
+
+    engine = SimulationEngine(config, progress_cb=progress_cb, use_cache=use_cache)
     report = asyncio.run(engine.run())
-    return report.model_dump()
+    result = report.model_dump()
+
+    if report_cache is not None:
+        report_cache.put(config, result)
+
+    return result
 
 
 @app.command()
@@ -92,13 +108,14 @@ def run(
     weights: str | None = typer.Option(
         None, "--weights", help='Custom weights JSON',
     ),
-    rebalance: str = typer.Option(
-        "none", "--rebalance", help="none|daily|weekly|monthly",
+    rebalance: list[str] = typer.Option(
+        ["none"], "--rebalance", help="Rebalance modes: none, daily, weekly, monthly (repeat for comparison)",
     ),
     seed: int | None = typer.Option(None, "--seed", help="Monte Carlo random seed (default: random)"),
     rebalance_threshold: float = typer.Option(5.0, "--rebalance-threshold", help="Rebalance drift threshold %"),
     max_position_pct: float | None = typer.Option(None, "--max-position-pct", help="Override max position size %"),
     charts: str = typer.Option("summary", "--charts", help="Chart detail: none, summary, full"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Disable disk cache"),
 ) -> None:
     """Run a full simulation across stocks and risk levels."""
     stock_list = stocks or ALL_STOCKS
@@ -119,49 +136,65 @@ def run(
         status_console.print(f"Seed: {seed}")
     if max_position_pct is not None:
         status_console.print(f"Max Position Size: {max_position_pct}%")
+    if no_cache:
+        status_console.print("Cache: DISABLED")
     if portfolio:
-        status_console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
+        rebal_display = ", ".join(rebalance)
+        status_console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebal_display}")
     status_console.print()
 
     num_stocks = len(stock_list)
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        console=status_console,
-    ) as progress:
-        risk_task = progress.add_task("Risk levels", total=len(levels))
-        stock_task = progress.add_task("Stocks", total=num_stocks)
+    reports: dict[str, dict] = {}
 
-        def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
-            if stage == "risk_level":
-                progress.update(risk_task, completed=current, description=f"Risk: {detail}")
-                progress.update(stock_task, completed=0, total=num_stocks)
-            elif stage == "stock":
-                progress.update(stock_task, completed=current, description=f"Stock: {detail}")
-            elif stage == "benchmark":
-                progress.update(risk_task, description="SPY benchmarks")
+    for rebal_mode in rebalance:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=status_console,
+        ) as progress:
+            risk_task = progress.add_task("Risk levels", total=len(levels))
+            stock_task = progress.add_task("Stocks", total=num_stocks)
 
-        report = _run_simulation(
-            stock_list, balance, train_days, test_days, levels, mc_sims,
-            portfolio_mode=portfolio,
-            allocation_weights=allocation_weights,
-            rebalance_freq=rebalance,
-            seed=seed,
-            rebalance_threshold=rebalance_threshold,
-            max_position_pct=max_position_pct,
-            progress_cb=on_progress,
-        )
-        progress.update(risk_task, completed=len(levels))
-        progress.update(stock_task, completed=num_stocks)
+            def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
+                if stage == "risk_level":
+                    progress.update(risk_task, completed=current, description=f"Risk: {detail}")
+                    progress.update(stock_task, completed=0, total=num_stocks)
+                elif stage == "stock":
+                    progress.update(stock_task, completed=current, description=f"Stock: {detail}")
+                elif stage == "benchmark":
+                    progress.update(risk_task, description="SPY benchmarks")
+
+            report = _run_simulation(
+                stock_list, balance, train_days, test_days, levels, mc_sims,
+                portfolio_mode=portfolio,
+                allocation_weights=allocation_weights,
+                rebalance_freq=rebal_mode,
+                seed=seed,
+                rebalance_threshold=rebalance_threshold,
+                max_position_pct=max_position_pct,
+                progress_cb=on_progress,
+                use_cache=not no_cache,
+            )
+            progress.update(risk_task, completed=len(levels))
+            progress.update(stock_task, completed=num_stocks)
+
+        reports[rebal_mode] = report
 
     if output_json:
-        sys.stdout.write(json.dumps(report, indent=2, default=str))
+        output = reports if len(reports) > 1 else next(iter(reports.values()))
+        sys.stdout.write(json.dumps(output, indent=2, default=str))
         sys.stdout.write("\n")
         return
 
-    _print_report(report, charts_mode=charts)
+    if len(reports) == 1:
+        _print_report(next(iter(reports.values())), charts_mode=charts)
+    else:
+        for mode, report in reports.items():
+            console.print(Rule(f"[bold]Rebalance: {mode}[/bold]"))
+            _print_report(report, charts_mode=charts)
+        _print_rebalance_comparison(reports)
 
 
 def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
@@ -334,15 +367,21 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             alloc = config.get("allocation", {})
             weights_dict = alloc.get("weights", {})
             mode = alloc.get("mode", "equal_weight")
+
+            alloc_table = Table(title=f"{level_name.upper()} — Allocation")
+            alloc_table.add_column("Symbol", style="bold")
+            alloc_table.add_column("Weight %", justify="right")
+
             if mode == "equal_weight" and result.get("stock_results"):
                 n = len(result["stock_results"])
-                symbols = [sr["symbol"] for sr in result["stock_results"]]
-                weights_str = " | ".join(f"{s}: {100/n:.1f}%" for s in symbols)
+                for sr in result["stock_results"]:
+                    alloc_table.add_row(sr["symbol"], f"{100/n:.1f}%")
             elif weights_dict:
-                weights_str = " | ".join(f"{s}: {w*100:.1f}%" for s, w in weights_dict.items())
-            else:
-                weights_str = "N/A"
-            console.print(f"\n  [bold]Allocation:[/bold] {weights_str}")
+                for sym, w in weights_dict.items():
+                    alloc_table.add_row(sym, f"{w*100:.1f}%")
+
+            if alloc_table.row_count:
+                console.print(alloc_table)
 
         # --- Portfolio Monte Carlo projection summary ---
         pmc = result.get("portfolio_monte_carlo")
@@ -528,3 +567,46 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
         if rec.get("suggested_weights"):
             console.print(f"  Strategy Weights: {rec['suggested_weights']}")
         console.print()
+
+
+def _print_rebalance_comparison(reports: dict[str, dict]) -> None:
+    """Print a side-by-side comparison table of the best risk level across rebalance modes."""
+    console.print(Rule("[bold]Rebalance Comparison[/bold]"))
+
+    table = Table(title="Rebalance Comparison")
+    table.add_column("Metric", style="bold")
+    for mode in reports:
+        table.add_column(mode, justify="right")
+
+    rows: dict[str, list[str]] = {
+        "Best Return %": [],
+        "Best Sharpe": [],
+        "Best Max DD %": [],
+        "Optimal Risk": [],
+    }
+
+    for _mode, report in reports.items():
+        rl_results = report.get("risk_level_results", {})
+        rec = report.get("recommendation", {})
+        optimal = rec.get("optimal_risk_level", "")
+        best = rl_results.get(optimal, {})
+
+        pm = best.get("portfolio_metrics")
+        if pm:
+            ret = pm.get("total_return_pct", 0.0)
+            sharpe = pm.get("sharpe_ratio", 0.0)
+            dd = pm.get("max_drawdown", 0.0)
+        else:
+            ret = best.get("total_return_pct", 0.0)
+            sharpe = best.get("avg_sharpe", 0.0)
+            dd = best.get("avg_max_drawdown", 0.0)
+
+        rows["Best Return %"].append(f"{ret:.2f}%")
+        rows["Best Sharpe"].append(f"{sharpe:.3f}")
+        rows["Best Max DD %"].append(f"{dd:.2f}%")
+        rows["Optimal Risk"].append(optimal)
+
+    for metric, values in rows.items():
+        table.add_row(metric, *values)
+
+    console.print(table)
