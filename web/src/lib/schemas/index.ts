@@ -86,9 +86,19 @@ export {
   RiskSettingsSchema,
   RiskStatusSchema,
 } from "./risk";
-export type { Recommendation, SimulationConfig, SimulationRun } from "./simulation";
+export type {
+  PortfolioMC,
+  PortfolioMetrics,
+  Recommendation,
+  SimulationConfig,
+  SimulationRun,
+} from "./simulation";
 export {
+  AllocationWeightsSchema,
   MonteCarloProjectionSchema,
+  PortfolioMCSchema,
+  PortfolioMetricsSchema,
+  RebalanceConfigSchema,
   RecommendationSchema,
   RiskLevelResultSchema,
   SimulationConfigSchema,

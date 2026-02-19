@@ -8,6 +8,8 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -71,6 +73,32 @@ type MCProjection = {
   n_paths: number;
 };
 
+type PortfolioMetricsType = {
+  initial_balance: number;
+  final_value: number;
+  total_return_pct: number;
+  max_drawdown: number;
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  calmar_ratio: number;
+  total_trades: number;
+  equity_curve: number[];
+  daily_returns: number[];
+  rebalance_dates: number[];
+};
+
+type PortfolioMCType = {
+  median_final: number;
+  p5_final: number;
+  p95_final: number;
+  median_return_pct: number;
+  p5_return_pct: number;
+  p95_return_pct: number;
+  worst_drawdown_p95: number;
+  n_paths: number;
+  correlation_matrix: number[][];
+};
+
 type RiskResult = {
   risk_level: string;
   total_return_pct: number;
@@ -79,6 +107,8 @@ type RiskResult = {
   total_trades: number;
   stock_results: StockResult[];
   monte_carlo_projections: MCProjection[];
+  portfolio_metrics?: PortfolioMetricsType | null;
+  portfolio_monte_carlo?: PortfolioMCType | null;
 };
 
 type SimReport = {
@@ -108,13 +138,29 @@ export default function SimulationPage() {
     test_days: 30,
     risk_levels: RISK_LEVELS,
     mc_simulations: 1000,
+    portfolio_mode: false,
+    allocation_mode: "equal_weight" as string,
+    custom_weights: {} as Record<string, number>,
+    rebalance_frequency: "none" as string,
   });
 
   const [report, setReport] = useState<SimReport | null>(null);
   const [activeRisk, setActiveRisk] = useState("moderate");
 
   const mutation = useMutation({
-    mutationFn: () => runSimulation(config),
+    mutationFn: () =>
+      runSimulation({
+        ...config,
+        ...(config.portfolio_mode
+          ? {
+              portfolio_mode: true,
+              allocation_mode: config.allocation_mode,
+              custom_weights:
+                config.allocation_mode === "custom" ? config.custom_weights : undefined,
+              rebalance_frequency: config.rebalance_frequency,
+            }
+          : {}),
+      }),
     onSuccess: (data) => {
       setReport(data as unknown as SimReport);
       queryClient.invalidateQueries({ queryKey: ["simulation-runs"] });
@@ -232,6 +278,94 @@ export default function SimulationPage() {
                 ))}
               </div>
             </div>
+
+            {/* Portfolio Mode Toggle */}
+            <div className="border-t border-border pt-4 mt-4">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.portfolio_mode}
+                  onChange={(e) => setConfig({ ...config, portfolio_mode: e.target.checked })}
+                  className="rounded border-border"
+                />
+                Portfolio Mode
+              </label>
+
+              {config.portfolio_mode && (
+                <div className="mt-3 space-y-3">
+                  {/* Allocation selector */}
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">Allocation</label>
+                    <select
+                      value={config.allocation_mode}
+                      onChange={(e) =>
+                        setConfig({ ...config, allocation_mode: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    >
+                      <option value="equal_weight">Equal Weight</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+
+                  {/* Custom weight inputs per stock */}
+                  {config.allocation_mode === "custom" && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-muted">
+                        Stock Weights (must sum to 100%)
+                      </span>
+                      {config.stocks.map((stock) => (
+                        <div key={stock} className="flex items-center gap-2">
+                          <span className="w-12 text-xs text-foreground">{stock}</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={(config.custom_weights[stock] || 0) * 100}
+                            onChange={(e) => {
+                              const newWeights = {
+                                ...config.custom_weights,
+                                [stock]: Number(e.target.value) / 100,
+                              };
+                              setConfig({ ...config, custom_weights: newWeights });
+                            }}
+                            className="flex-1"
+                          />
+                          <span className="w-10 text-xs text-muted text-right">
+                            {((config.custom_weights[stock] || 0) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-muted">
+                        Total:{" "}
+                        {(
+                          Object.values(config.custom_weights).reduce((a, b) => a + b, 0) * 100
+                        ).toFixed(0)}
+                        %
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Rebalance frequency */}
+                  <div>
+                    <label className="mb-1 block text-xs text-muted">Rebalance Frequency</label>
+                    <select
+                      value={config.rebalance_frequency}
+                      onChange={(e) =>
+                        setConfig({ ...config, rebalance_frequency: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    >
+                      <option value="none">None</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => mutation.mutate()}
@@ -459,6 +593,154 @@ export default function SimulationPage() {
                     }
                     emptyMessage="No projections"
                   />
+                </ChartContainer>
+              )}
+
+              {/* Portfolio Equity Curve */}
+              {activeResult?.portfolio_metrics?.equity_curve &&
+                activeResult.portfolio_metrics.equity_curve.length > 1 && (
+                  <ChartContainer
+                    title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Portfolio Equity Curve`}
+                    subtitle="Combined portfolio value over time"
+                  >
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart
+                        data={activeResult.portfolio_metrics.equity_curve.map((val, i) => ({
+                          day: i,
+                          value: val,
+                        }))}
+                      >
+                        <CartesianGrid {...chartGridProps} />
+                        <XAxis dataKey="day" tick={chartAxisTick} />
+                        <YAxis
+                          tick={chartAxisTick}
+                          tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
+                        />
+                        <Tooltip
+                          contentStyle={chartTooltipStyle}
+                          formatter={(v: number | undefined) =>
+                            v != null ? [`$${v.toFixed(2)}`, "Value"] : ["-", "Value"]
+                          }
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke={themeColors.accent}
+                          dot={false}
+                          strokeWidth={2}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
+
+              {/* Portfolio Metrics Card */}
+              {activeResult?.portfolio_metrics && (
+                <ChartContainer
+                  title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Portfolio Metrics`}
+                  subtitle="Aggregated portfolio performance"
+                >
+                  <div className="grid grid-cols-4 gap-4 p-4">
+                    {[
+                      {
+                        label: "Total Return",
+                        value: `${activeResult.portfolio_metrics.total_return_pct >= 0 ? "+" : ""}${activeResult.portfolio_metrics.total_return_pct.toFixed(2)}%`,
+                        color:
+                          activeResult.portfolio_metrics.total_return_pct >= 0
+                            ? "text-profit"
+                            : "text-loss",
+                      },
+                      {
+                        label: "Sharpe Ratio",
+                        value: activeResult.portfolio_metrics.sharpe_ratio.toFixed(3),
+                        color: "text-foreground",
+                      },
+                      {
+                        label: "Sortino Ratio",
+                        value: activeResult.portfolio_metrics.sortino_ratio.toFixed(3),
+                        color: "text-foreground",
+                      },
+                      {
+                        label: "Calmar Ratio",
+                        value: activeResult.portfolio_metrics.calmar_ratio.toFixed(3),
+                        color: "text-foreground",
+                      },
+                      {
+                        label: "Max Drawdown",
+                        value: `${activeResult.portfolio_metrics.max_drawdown.toFixed(2)}%`,
+                        color: "text-loss",
+                      },
+                      {
+                        label: "Initial Balance",
+                        value: formatCurrency(activeResult.portfolio_metrics.initial_balance),
+                        color: "text-foreground",
+                      },
+                      {
+                        label: "Final Value",
+                        value: formatCurrency(activeResult.portfolio_metrics.final_value),
+                        color:
+                          activeResult.portfolio_metrics.final_value >=
+                          activeResult.portfolio_metrics.initial_balance
+                            ? "text-profit"
+                            : "text-loss",
+                      },
+                      {
+                        label: "Total Trades",
+                        value: String(activeResult.portfolio_metrics.total_trades),
+                        color: "text-foreground",
+                      },
+                    ].map((metric) => (
+                      <div key={metric.label} className="text-center">
+                        <p className="text-xs text-muted">{metric.label}</p>
+                        <p className={cn("text-lg font-semibold", metric.color)}>
+                          {metric.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ChartContainer>
+              )}
+
+              {/* Portfolio Monte Carlo Projection */}
+              {activeResult?.portfolio_monte_carlo && (
+                <ChartContainer
+                  title={`${activeRisk.replace("_", " ").toUpperCase()} \u2014 Portfolio Monte Carlo Projection`}
+                  subtitle={`${activeResult.portfolio_monte_carlo.n_paths} simulated paths`}
+                >
+                  <div className="grid grid-cols-3 gap-4 p-4">
+                    {[
+                      {
+                        label: "P5 (Pessimistic)",
+                        value: formatCurrency(activeResult.portfolio_monte_carlo.p5_final),
+                        sub: `${activeResult.portfolio_monte_carlo.p5_return_pct.toFixed(2)}%`,
+                      },
+                      {
+                        label: "Median",
+                        value: formatCurrency(activeResult.portfolio_monte_carlo.median_final),
+                        sub: `${activeResult.portfolio_monte_carlo.median_return_pct.toFixed(2)}%`,
+                      },
+                      {
+                        label: "P95 (Optimistic)",
+                        value: formatCurrency(activeResult.portfolio_monte_carlo.p95_final),
+                        sub: `${activeResult.portfolio_monte_carlo.p95_return_pct.toFixed(2)}%`,
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="rounded-lg border border-border p-3 text-center"
+                      >
+                        <p className="text-xs text-muted">{item.label}</p>
+                        <p className="text-lg font-semibold text-foreground">{item.value}</p>
+                        <p className="text-xs text-muted">{item.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 pb-3">
+                    <p className="text-xs text-muted">
+                      Worst Drawdown (P95):{" "}
+                      {activeResult.portfolio_monte_carlo.worst_drawdown_p95.toFixed(2)}%
+                    </p>
+                  </div>
                 </ChartContainer>
               )}
             </>

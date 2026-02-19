@@ -1,5 +1,19 @@
 import { z } from "zod";
 
+export const AllocationWeightsSchema = z
+  .object({
+    mode: z.string(),
+    weights: z.record(z.string(), z.number()),
+  })
+  .passthrough();
+
+export const RebalanceConfigSchema = z
+  .object({
+    frequency: z.string(),
+    threshold_pct: z.number(),
+  })
+  .passthrough();
+
 export const SimulationConfigSchema = z
   .object({
     stocks: z.array(z.string()),
@@ -8,6 +22,9 @@ export const SimulationConfigSchema = z
     test_days: z.number(),
     risk_levels: z.array(z.string()),
     mc_simulations: z.number(),
+    portfolio_mode: z.boolean().optional(),
+    allocation: AllocationWeightsSchema.optional(),
+    rebalance: RebalanceConfigSchema.optional(),
   })
   .passthrough();
 
@@ -44,6 +61,40 @@ export const MonteCarloProjectionSchema = z
   })
   .passthrough();
 
+export const PortfolioMetricsSchema = z
+  .object({
+    initial_balance: z.number(),
+    final_value: z.number(),
+    total_return_pct: z.number(),
+    max_drawdown: z.number(),
+    sharpe_ratio: z.number(),
+    sortino_ratio: z.number(),
+    calmar_ratio: z.number(),
+    total_trades: z.number(),
+    equity_curve: z.array(z.number()),
+    daily_returns: z.array(z.number()),
+    rebalance_dates: z.array(z.number()),
+  })
+  .passthrough();
+
+export type PortfolioMetrics = z.infer<typeof PortfolioMetricsSchema>;
+
+export const PortfolioMCSchema = z
+  .object({
+    median_final: z.number(),
+    p5_final: z.number(),
+    p95_final: z.number(),
+    median_return_pct: z.number(),
+    p5_return_pct: z.number(),
+    p95_return_pct: z.number(),
+    worst_drawdown_p95: z.number(),
+    n_paths: z.number(),
+    correlation_matrix: z.array(z.array(z.number())),
+  })
+  .passthrough();
+
+export type PortfolioMC = z.infer<typeof PortfolioMCSchema>;
+
 export const RiskLevelResultSchema = z
   .object({
     risk_level: z.string(),
@@ -54,6 +105,8 @@ export const RiskLevelResultSchema = z
     stock_results: z.array(StockResultSchema),
     monte_carlo_projections: z.array(MonteCarloProjectionSchema),
     strategy_assessments: z.array(z.unknown()),
+    portfolio_metrics: PortfolioMetricsSchema.nullable().optional(),
+    portfolio_monte_carlo: PortfolioMCSchema.nullable().optional(),
   })
   .passthrough();
 

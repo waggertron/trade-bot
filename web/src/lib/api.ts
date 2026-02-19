@@ -303,6 +303,11 @@ export const runSimulation = (config: {
   test_days: number;
   risk_levels: string[];
   mc_simulations: number;
+  portfolio_mode?: boolean;
+  allocation_mode?: string;
+  custom_weights?: Record<string, number>;
+  rebalance_frequency?: string;
+  rebalance_threshold_pct?: number;
 }) =>
   fetchAndParse("/api/simulation/run", SimulationRunSchema, {
     method: "POST",
