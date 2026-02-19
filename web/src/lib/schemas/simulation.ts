@@ -22,6 +22,7 @@ export const SimulationConfigSchema = z
     test_days: z.number(),
     risk_levels: z.array(z.string()),
     mc_simulations: z.number(),
+    mc_seed: z.number().nullable().optional(),
     portfolio_mode: z.boolean().optional(),
     allocation: AllocationWeightsSchema.optional(),
     rebalance: RebalanceConfigSchema.optional(),

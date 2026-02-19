@@ -303,6 +303,7 @@ export const runSimulation = (config: {
   test_days: number;
   risk_levels: string[];
   mc_simulations: number;
+  mc_seed?: number | null;
   portfolio_mode?: boolean;
   allocation_mode?: string;
   custom_weights?: Record<string, number>;

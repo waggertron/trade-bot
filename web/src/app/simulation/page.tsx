@@ -142,6 +142,7 @@ export default function SimulationPage() {
     allocation_mode: "equal_weight" as string,
     custom_weights: {} as Record<string, number>,
     rebalance_frequency: "none" as string,
+    mc_seed: null as number | null,
   });
 
   const [report, setReport] = useState<SimReport | null>(null);
@@ -151,6 +152,7 @@ export default function SimulationPage() {
     mutationFn: () =>
       runSimulation({
         ...config,
+        ...(config.mc_seed != null ? { mc_seed: config.mc_seed } : {}),
         ...(config.portfolio_mode
           ? {
               portfolio_mode: true,
@@ -234,6 +236,24 @@ export default function SimulationPage() {
                 type="number"
                 value={config.mc_simulations}
                 onChange={(e) => setConfig({ ...config, mc_simulations: Number(e.target.value) })}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+            <div>
+              <label htmlFor="sim-mc-seed" className="mb-1 block text-xs text-muted">
+                Random Seed (optional)
+              </label>
+              <input
+                id="sim-mc-seed"
+                type="number"
+                value={config.mc_seed ?? ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    mc_seed: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="Leave empty for random"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
               />
             </div>
