@@ -60,6 +60,9 @@ class MonteCarloProjector:
         symbols = list(historical_prices.keys())
         n_stocks = len(symbols)
 
+        if n_stocks == 0:
+            return np.empty((self._n_paths, 0)), []
+
         # 1. Compute log returns per stock
         all_log_returns: list[np.ndarray] = []
         for sym in symbols:
@@ -102,14 +105,14 @@ class MonteCarloProjector:
         sigmas = []
         last_prices = []
         for i, sym in enumerate(symbols):
-            lr = all_log_returns[i]
-            mu_i = float(np.mean(lr))
-            sigma_i = float(np.std(lr))
+            lr_aligned = aligned[:, i]
+            mu_i = float(np.mean(lr_aligned))
+            sigma_i = float(np.std(lr_aligned))
             if sigma_i == 0:
                 sigma_i = 1e-10
             mus.append(mu_i)
             sigmas.append(sigma_i)
-            last_prices.append(float(np.array(historical_prices[sym])[-1]))
+            last_prices.append(historical_prices[sym][-1])
 
         # Build per-stock price paths: shape (n_paths, days_forward, n_stocks)
         stock_price_paths = np.empty((self._n_paths, days_forward, n_stocks))
