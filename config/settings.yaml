@@ -37,6 +37,15 @@ strategies:
     weight: 0.25
     mean_reversion_threshold: 2.0
 
+sentiment:
+  enabled: true
+  analyzer: ollama
+  pipeline_interval_seconds: 300
+  rss_feed_urls:
+    - "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"
+    - "https://feeds.marketwatch.com/marketwatch/topstories/"
+    - "https://investing.com/rss/news_301.rss"
+
 ai:
   claude_model: "claude-sonnet-4-5-20250929"
   ollama_model: "llama3.2"
@@ -44,3 +53,10 @@ ai:
 dashboard:
   host: "0.0.0.0"
   port: 8080
+
+use_mocks:
+  stock_feed: true    # Set false when TWS is running
+  sentiment: true     # Set false when Ollama is available
+  onchain: true       # Set false for live on-chain data
+  ml: true            # Set false when models are trained
+  position_sizer: true # Set false for real position sizing

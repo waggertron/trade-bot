@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from decimal import Decimal
 from pathlib import Path
 
@@ -20,12 +21,43 @@ from src.core.event_bus import EventBus
 from src.core.orchestrator import Orchestrator
 from src.db.database import Database
 from src.integrations.kraken import KrakenFeed
+from src.providers.configs import OllamaSentimentConfig, RSSConfig
+from src.providers.ollama_sentiment import OllamaSentimentAnalyzer
+from src.providers.rss import RSSNewsProvider
+from src.sentiment.bridge import SentimentBridge
+from src.sentiment.pipeline import SentimentPipeline
+
+from src.core.models import Fill
+from src.db.models import TradeRecord
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 logger = logging.getLogger("trade-bot")
+
+
+async def persist_fill(
+    db: Database,
+    fill: Fill,
+    strategy_name: str,
+    is_paper: bool,
+) -> None:
+    """Persist a trade fill to the database. Failures are logged, not raised."""
+    try:
+        record = TradeRecord(
+            symbol=fill.symbol,
+            side=fill.side.value,
+            quantity=str(fill.quantity),
+            price=str(fill.fill_price),
+            commission=str(fill.commission),
+            strategy=strategy_name,
+            paper=is_paper,
+            timestamp=fill.timestamp,
+        )
+        await db.save_trade(record)
+    except Exception:
+        logger.exception("Failed to persist fill for %s", fill.symbol)
 
 
 class NullStockFeed:
@@ -42,6 +74,39 @@ class NullStockFeed:
 
     async def get_order_book(self, symbol: str) -> dict:
         return {"bids": [], "asks": []}
+
+
+async def run_sentiment_cycle(
+    pipeline: SentimentPipeline,
+    bridge: SentimentBridge,
+    orchestrator: Orchestrator,
+    symbols: list[str],
+) -> None:
+    """Run one sentiment pipeline cycle and update orchestrator research."""
+    try:
+        await pipeline.run_cycle(symbols)
+        reports = bridge.to_research_reports(symbols)
+        orchestrator.set_research(reports)
+        logger.info(
+            "Sentiment cycle complete: %d reports, scores=%s",
+            len(reports),
+            {r.symbol: f"{r.sentiment_score:+.2f}" for r in reports},
+        )
+    except Exception:
+        logger.exception("Error in sentiment pipeline cycle")
+
+
+async def sentiment_loop(
+    pipeline: SentimentPipeline,
+    bridge: SentimentBridge,
+    orchestrator: Orchestrator,
+    symbols: list[str],
+    interval_seconds: int,
+) -> None:
+    """Background task that runs sentiment pipeline cycles on a timer."""
+    while True:
+        await run_sentiment_cycle(pipeline, bridge, orchestrator, symbols)
+        await asyncio.sleep(interval_seconds)
 
 
 async def main():
@@ -77,7 +142,54 @@ async def main():
         executor=executor,
         portfolio=portfolio,
         event_bus=event_bus,
+        db=db,
     )
+
+    # Sentiment pipeline
+    sentiment_task = None
+    if settings.sentiment.enabled:
+        rss_provider = RSSNewsProvider(
+            RSSConfig(feed_urls=settings.sentiment.rss_feed_urls)
+        )
+        analyzer = OllamaSentimentAnalyzer(
+            OllamaSentimentConfig(model=settings.ai.ollama_model)
+        )
+        sentiment_pipeline = SentimentPipeline(
+            news_providers=[rss_provider],
+            analyzer=analyzer,
+        )
+        sentiment_bridge = SentimentBridge(
+            aggregator=sentiment_pipeline.aggregator
+        )
+
+        # Strip slash-pair suffixes for symbol matching (e.g. "BTC/USD" -> "BTC")
+        sentiment_symbols = [
+            s.split("/")[0] for s in settings.trading.symbols.crypto
+        ]
+
+        # Run initial sentiment cycle before trading starts
+        await run_sentiment_cycle(
+            sentiment_pipeline, sentiment_bridge, orchestrator, sentiment_symbols,
+        )
+
+        # Launch background sentiment loop
+        sentiment_task = asyncio.create_task(
+            sentiment_loop(
+                sentiment_pipeline,
+                sentiment_bridge,
+                orchestrator,
+                sentiment_symbols,
+                settings.sentiment.pipeline_interval_seconds,
+            )
+        )
+        logger.info(
+            "Sentiment pipeline active: %d RSS feeds, %ds interval, analyzer=%s",
+            len(settings.sentiment.rss_feed_urls),
+            settings.sentiment.pipeline_interval_seconds,
+            settings.sentiment.analyzer,
+        )
+    else:
+        logger.info("Sentiment pipeline disabled")
 
     # Market data — Kraken for crypto (no auth needed for public data)
     # IBKR skipped for now (needs TWS running)
@@ -125,6 +237,11 @@ async def main():
                             fill.quantity,
                             fill.fill_price,
                         )
+                        await persist_fill(
+                            db, fill,
+                            strategy_name="consensus",
+                            is_paper=settings.is_paper,
+                        )
 
                 # Log portfolio summary every 5 ticks
                 if tick_count % 5 == 0:
@@ -153,6 +270,8 @@ async def main():
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
+        if sentiment_task is not None:
+            sentiment_task.cancel()
         await market_data.disconnect()
         await db.close()
 

@@ -7,7 +7,10 @@ from src.providers.configs import MockNewsConfig, MockSentimentConfig
 from src.sentiment.pipeline import SentimentPipeline
 from src.sentiment.bridge import SentimentBridge
 from src.agents.strategies.sentiment import SentimentStrategy
-from src.core.models import MarketTick, AssetType
+from src.core.models import AssetType, Fill, MarketTick, OrderSide, PortfolioSnapshot
+from src.core.orchestrator import Orchestrator
+from src.core.event_bus import EventBus
+from src.core.config import SentimentSettings
 
 
 class TestSentimentE2E:
@@ -132,6 +135,58 @@ class TestSentimentE2E:
         assert positive_pipeline.store.score_count() >= 1
 
     @pytest.mark.asyncio
+    async def test_pipeline_feeds_orchestrator_research(self, positive_pipeline):
+        """Pipeline → bridge → orchestrator.set_research → strategy signal."""
+
+        class SimpleRiskManager:
+            async def evaluate_trade(self, signal, portfolio):
+                from src.core.models import RiskAction, RiskDecision
+                return RiskDecision(action=RiskAction.APPROVE, reason="ok")
+
+        class SimpleExecutor:
+            async def submit_order(self, order):
+                return Fill(
+                    order_id=order.id, symbol=order.symbol, side=order.side,
+                    quantity=order.quantity, fill_price=Decimal("100000"),
+                    timestamp=datetime.now(timezone.utc),
+                )
+
+        class SimplePortfolio:
+            async def get_snapshot(self):
+                return PortfolioSnapshot(
+                    cash=Decimal("100000"), positions=[],
+                    timestamp=datetime.now(timezone.utc),
+                )
+            async def record_fill(self, fill):
+                pass
+
+        # Run pipeline cycle
+        await positive_pipeline.run_cycle(symbols=["BTC"])
+
+        # Bridge to research reports
+        bridge = SentimentBridge(aggregator=positive_pipeline.aggregator)
+        reports = bridge.to_research_reports(["BTC"])
+
+        # Feed to orchestrator
+        strategy = SentimentStrategy(buy_threshold=0.6, sell_threshold=-0.6)
+        orchestrator = Orchestrator(
+            strategies=[strategy],
+            risk_manager=SimpleRiskManager(),
+            executor=SimpleExecutor(),
+            portfolio=SimplePortfolio(),
+            event_bus=EventBus(),
+        )
+        orchestrator.set_research(reports)
+
+        tick = MarketTick(
+            symbol="BTC", price=Decimal("100000"), volume=1000,
+            timestamp=datetime.now(timezone.utc), asset_type=AssetType.CRYPTO,
+        )
+        fills = await orchestrator.process_tick(tick)
+        assert len(fills) == 1
+        assert fills[0].side == OrderSide.BUY
+
+    @pytest.mark.asyncio
     async def test_multiple_symbols(self):
         """Pipeline handles multiple symbols correctly."""
         canned = [
@@ -161,3 +216,26 @@ class TestSentimentE2E:
         assert "ETH" in scores
         assert scores["BTC"] > 0
         assert scores["ETH"] > 0
+
+
+class TestSentimentConfig:
+    """SentimentSettings config model."""
+
+    def test_default_sentiment_settings(self):
+        settings = SentimentSettings()
+        assert settings.enabled is True
+        assert settings.pipeline_interval_seconds > 0
+        assert len(settings.rss_feed_urls) > 0
+        assert settings.analyzer == "ollama"
+
+    def test_custom_feed_urls(self):
+        settings = SentimentSettings(
+            rss_feed_urls=["https://example.com/feed"],
+            pipeline_interval_seconds=120,
+        )
+        assert settings.rss_feed_urls == ["https://example.com/feed"]
+        assert settings.pipeline_interval_seconds == 120
+
+    def test_disabled_sentiment(self):
+        settings = SentimentSettings(enabled=False)
+        assert settings.enabled is False

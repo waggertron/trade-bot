@@ -97,6 +97,19 @@ class TradingSettings(StrictBase):
     market_hours: dict[str, str] = Field(default_factory=dict)
 
 
+class SentimentSettings(StrictBase):
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = True
+    analyzer: str = "ollama"
+    pipeline_interval_seconds: int = Field(300, ge=10)
+    rss_feed_urls: list[str] = Field(default=[
+        "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114",
+        "https://feeds.marketwatch.com/marketwatch/topstories/",
+        "https://investing.com/rss/news_301.rss",
+    ])
+
+
 class AISettings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
@@ -111,14 +124,26 @@ class DashboardSettings(StrictBase):
     port: int = Field(8080, gt=0, le=65535)
 
 
+class MockSettings(StrictBase):
+    model_config = ConfigDict(frozen=True)
+
+    stock_feed: bool = True
+    sentiment: bool = True
+    onchain: bool = True
+    ml: bool = True
+    position_sizer: bool = True
+
+
 class Settings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
     mode: str = Field("paper", pattern=r"^(paper|live)$")
     trading: TradingSettings = Field(default_factory=TradingSettings)
     risk: RiskSettings = Field(default_factory=RiskSettings)
+    sentiment: SentimentSettings = Field(default_factory=SentimentSettings)
     ai: AISettings = Field(default_factory=AISettings)
     dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
+    use_mocks: MockSettings = Field(default_factory=MockSettings)
 
     @property
     def is_paper(self) -> bool:
@@ -126,9 +151,16 @@ class Settings(StrictBase):
 
     @classmethod
     def from_yaml(cls, path: Path) -> Settings:
-        """Load and validate settings from a YAML file."""
+        """Load and validate settings from a YAML file.
+
+        Unknown top-level keys (e.g. ``strategies``, ``research``) are
+        silently dropped so the YAML can contain sections consumed by
+        other subsystems without breaking validation.
+        """
         data = yaml.safe_load(path.read_text())
-        return cls.model_validate(data)
+        known_fields = cls.model_fields.keys()
+        filtered = {k: v for k, v in data.items() if k in known_fields}
+        return cls.model_validate(filtered)
 
     @classmethod
     def for_testing(cls, **overrides: Any) -> Settings:

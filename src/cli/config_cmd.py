@@ -126,7 +126,7 @@ def show(
     if fmt != "json":
         console.print(Rule("[bold]Configuration[/bold]"))
     if fmt == "json":
-        console.print(json.dumps(data, indent=2))
+        typer.echo(json.dumps(data, indent=2))
     elif fmt == "tree":
         try:
             tree = Tree(

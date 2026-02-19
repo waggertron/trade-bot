@@ -39,12 +39,15 @@ class RSSNewsProvider:
         for url in self._config.feed_urls:
             feed = await asyncio.to_thread(feedparser.parse, url)
             for entry in feed["entries"]:
+                title = entry.get("title", "")
+                if not title:
+                    continue
                 articles.append(
                     Article(
-                        title=entry["title"],
-                        body=entry["summary"],
+                        title=title,
+                        body=entry.get("summary", ""),
                         source="rss",
-                        url=entry["link"],
+                        url=entry.get("link", ""),
                         published_at=self._parse_time(entry.get("published_parsed")),
                         related_symbols=[symbol],
                     )

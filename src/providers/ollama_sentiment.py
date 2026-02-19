@@ -57,8 +57,8 @@ class OllamaSentimentAnalyzer:
                 reasoning=data.get("reasoning"),
                 analyzer="ollama",
             )
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError, httpx.HTTPError):
-            logger.warning("Failed to parse Ollama response, returning neutral fallback")
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError, httpx.HTTPError) as exc:
+            logger.warning("Failed to parse Ollama response (%s: %s), returning neutral fallback", type(exc).__name__, exc)
             return SentimentResult(
                 score=0.0,
                 magnitude=0.0,

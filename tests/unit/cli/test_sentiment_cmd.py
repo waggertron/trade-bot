@@ -15,10 +15,19 @@ class TestSentimentStatus:
         assert result.exit_code == 0
         assert "Sentiment Pipeline" in result.stdout
 
-    def test_status_shows_counts(self):
+    def test_status_shows_config_details(self):
         result = runner.invoke(app, ["sentiment", "status"])
-        assert "Articles" in result.stdout
-        assert "Scores" in result.stdout
+        assert "Enabled" in result.stdout
+        assert "Analyzer" in result.stdout
+        assert "ollama" in result.stdout
+
+    def test_status_shows_feed_count(self):
+        result = runner.invoke(app, ["sentiment", "status"])
+        assert "RSS Feeds" in result.stdout
+
+    def test_status_shows_interval(self):
+        result = runner.invoke(app, ["sentiment", "status"])
+        assert "Interval" in result.stdout
 
 
 class TestSentimentScores:

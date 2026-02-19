@@ -87,8 +87,8 @@ class SentimentConfig(StrictBase):
 
 class OllamaSentimentConfig(SentimentConfig):
     model: str = "llama3.2"
-    base_url: str = "http://localhost:11434"
-    timeout: float = 30.0
+    base_url: str = "http://127.0.0.1:11434"
+    timeout: float = 120.0
 
 
 class FinBERTSentimentConfig(SentimentConfig):

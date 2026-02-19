@@ -6,7 +6,7 @@ from src.core.orchestrator import Orchestrator
 from src.core.event_bus import EventBus
 from src.core.models import (
     AssetType, Fill, MarketTick, OrderSide, PortfolioSnapshot,
-    RiskAction, RiskDecision, Signal, SignalDirection,
+    ResearchReport, RiskAction, RiskDecision, Signal, SignalDirection,
 )
 
 
@@ -156,3 +156,76 @@ async def test_pause_and_resume(bus):
     orchestrator.resume()
     fills = await orchestrator.process_tick(tick)
     assert len(fills) == 1
+
+
+class ResearchCapturingStrategy:
+    """Strategy that captures the research reports it receives."""
+
+    name = "research_capturer"
+
+    def __init__(self):
+        self.received_research = None
+
+    async def evaluate(self, symbol, market_data, research=None):
+        self.received_research = research
+        return Signal(
+            symbol=symbol,
+            direction=SignalDirection.BUY,
+            confidence=0.7,
+            strategy_name=self.name,
+            timestamp=datetime.now(timezone.utc),
+            reasoning="test",
+        )
+
+
+async def test_set_research_passes_reports_to_strategies(bus):
+    """Orchestrator passes stored research reports to strategy.evaluate()."""
+    strategy = ResearchCapturingStrategy()
+    orchestrator = Orchestrator(
+        strategies=[strategy],
+        risk_manager=MockRiskManager(approve=True),
+        executor=MockExecutor(),
+        portfolio=MockPortfolio(),
+        event_bus=bus,
+    )
+
+    reports = [
+        ResearchReport(
+            symbol="AAPL",
+            summary="Bullish sentiment from news",
+            sentiment_score=0.8,
+            timestamp=datetime.now(timezone.utc),
+            sources=["sentiment_pipeline"],
+        ),
+    ]
+    orchestrator.set_research(reports)
+
+    tick = MarketTick(
+        symbol="AAPL", price=Decimal("150"), volume=1000,
+        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+    )
+    await orchestrator.process_tick(tick)
+
+    assert strategy.received_research is not None
+    assert len(strategy.received_research) == 1
+    assert strategy.received_research[0].sentiment_score == 0.8
+
+
+async def test_research_defaults_to_empty_when_not_set(bus):
+    """Without set_research, strategies receive None for research."""
+    strategy = ResearchCapturingStrategy()
+    orchestrator = Orchestrator(
+        strategies=[strategy],
+        risk_manager=MockRiskManager(approve=True),
+        executor=MockExecutor(),
+        portfolio=MockPortfolio(),
+        event_bus=bus,
+    )
+
+    tick = MarketTick(
+        symbol="AAPL", price=Decimal("150"), volume=1000,
+        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+    )
+    await orchestrator.process_tick(tick)
+
+    assert strategy.received_research is None

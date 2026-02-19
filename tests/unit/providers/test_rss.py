@@ -123,6 +123,44 @@ class TestRSSNewsProvider:
         # 2 feeds * 2 entries each = 4 articles
         assert len(articles) == 4
 
+    async def test_entries_missing_summary_use_empty_string(
+        self, provider: RSSNewsProvider,
+    ):
+        feed = {
+            "entries": [
+                {
+                    "title": "No summary article",
+                    "link": "https://example.com/no-summary",
+                    "published_parsed": (2026, 1, 15, 12, 0, 0, 0, 0, 0),
+                },
+            ],
+            "bozo": False,
+        }
+        with patch("src.providers.rss.feedparser.parse", return_value=feed):
+            articles = await provider.fetch_articles("BTC", limit=10)
+
+        assert len(articles) == 1
+        assert articles[0].body == ""
+
+    async def test_entries_missing_link_use_empty_string(
+        self, provider: RSSNewsProvider,
+    ):
+        feed = {
+            "entries": [
+                {
+                    "title": "No link article",
+                    "summary": "Has a summary but no link.",
+                    "published_parsed": (2026, 1, 15, 12, 0, 0, 0, 0, 0),
+                },
+            ],
+            "bozo": False,
+        }
+        with patch("src.providers.rss.feedparser.parse", return_value=feed):
+            articles = await provider.fetch_articles("BTC", limit=10)
+
+        assert len(articles) == 1
+        assert articles[0].url == ""
+
     async def test_parse_time_converts_struct_time(self):
         from src.providers.rss import RSSNewsProvider
 

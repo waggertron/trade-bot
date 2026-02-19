@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from src.cli.charts import ascii_line_chart
+from src.core.config import Settings
 
 app = typer.Typer(name="sentiment", help="Sentiment pipeline commands.", no_args_is_help=True)
 console = Console()
@@ -16,23 +19,19 @@ _GAUGE_FULL = "\u2588"
 _GAUGE_EMPTY = "\u2591"
 
 
+def _load_settings() -> Settings:
+    """Load settings from config/settings.yaml, falling back to defaults."""
+    path = Path("config/settings.yaml")
+    if path.exists():
+        return Settings.from_yaml(path)
+    return Settings()
+
+
 def _sentiment_gauge(score: float, width: int = 20) -> str:
     """Render a sentiment score gauge using Unicode blocks.
 
     Score range is -1.0 to 1.0.  The gauge center represents 0 (neutral).
     Positive scores fill rightward in green, negative fill leftward in red.
-
-    Parameters
-    ----------
-    score : float
-        Sentiment score between -1.0 and 1.0.
-    width : int
-        Total width of the gauge in characters.
-
-    Returns
-    -------
-    str
-        A Rich-markup formatted gauge string.
     """
     half = width // 2
     clamped = max(-1.0, min(1.0, score))
@@ -50,12 +49,29 @@ def _sentiment_gauge(score: float, width: int = 20) -> str:
 
 @app.command()
 def status() -> None:
-    """Show sentiment pipeline status summary."""
+    """Show sentiment pipeline configuration and status."""
+    settings = _load_settings()
+    cfg = settings.sentiment
+
     console.print("[bold]Sentiment Pipeline Status[/bold]")
-    console.print("  Providers: (none active)")
-    console.print("  Articles: 0")
-    console.print("  Scores: 0")
-    console.print("  Use 'tradebot sentiment scores --symbol <SYM>' to see per-symbol scores.")
+    console.print()
+
+    enabled_str = "[green]Yes[/green]" if cfg.enabled else "[red]No[/red]"
+    console.print(f"  Enabled:    {enabled_str}")
+    console.print(f"  Analyzer:   {cfg.analyzer}")
+    console.print(f"  RSS Feeds:  {len(cfg.rss_feed_urls)}")
+    console.print(f"  Interval:   {cfg.pipeline_interval_seconds}s")
+
+    if cfg.rss_feed_urls:
+        console.print()
+        console.print("[bold]  Feed URLs:[/bold]")
+        for url in cfg.rss_feed_urls:
+            console.print(f"    - {url}")
+
+    console.print()
+    console.print(
+        "[dim]  Run 'tradebot sentiment scores --symbol <SYM>' to see per-symbol scores.[/dim]"
+    )
 
 
 @app.command()
@@ -71,10 +87,10 @@ def scores(
     console.print(table)
     console.print("No scores yet. Run a pipeline cycle first.")
 
-    # Sentiment score gauge (example showing what output would look like)
+    # Sentiment score gauge
     try:
         console.print()
-        console.print("[bold]Sentiment Gauge (example format)[/bold]")
+        console.print("[bold]Sentiment Gauge[/bold]")
         example_scores = {
             "overall": 0.0,
             "news": 0.0,
@@ -83,7 +99,7 @@ def scores(
         for analyzer, score in example_scores.items():
             console.print(f"  {analyzer:<12} {_sentiment_gauge(score)}")
     except Exception:
-        pass  # Don't crash the command if gauge rendering fails
+        pass
 
     # Sentiment timeline chart placeholder
     try:
@@ -93,9 +109,6 @@ def scores(
             "[dim]No historical sentiment data available. "
             "Run pipeline cycles to populate the timeline.[/dim]"
         )
-        # When data is available, this would render:
-        # chart = ascii_line_chart(scores_over_time, title=f"Sentiment: {symbol}")
-        # console.print(chart)
         _ = ascii_line_chart  # Acknowledge import for future use
     except Exception:
-        pass  # Don't crash the command if timeline rendering fails
+        pass

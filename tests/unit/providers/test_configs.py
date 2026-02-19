@@ -78,8 +78,8 @@ class TestOllamaSentimentConfig:
     def test_defaults(self):
         cfg = OllamaSentimentConfig()
         assert cfg.model == "llama3.2"
-        assert cfg.base_url == "http://localhost:11434"
-        assert cfg.timeout == 30.0
+        assert cfg.base_url == "http://127.0.0.1:11434"
+        assert cfg.timeout == 120.0
 
 
 class TestMockSentimentConfig:

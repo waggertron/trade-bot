@@ -7,8 +7,10 @@ from decimal import Decimal
 
 from src.core.event_bus import EventBus
 from src.core.models import (
-    Fill, MarketTick, Order, OrderSide, OrderType, Signal, SignalDirection,
+    Fill, MarketTick, Order, OrderSide, OrderType, ResearchReport, Signal,
+    SignalDirection,
 )
+from src.db.models import SignalRecord
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,7 @@ class Orchestrator:
         event_bus: EventBus,
         position_size_pct: float = 2.0,
         min_order_value: Decimal = Decimal("10"),
+        db=None,
     ):
         self._strategies = strategies
         self._risk_manager = risk_manager
@@ -34,6 +37,12 @@ class Orchestrator:
         self._paused = False
         self._tick_history: dict[str, list[MarketTick]] = {}
         self._max_history = 200
+        self._research: list[ResearchReport] | None = None
+        self._db = db
+
+    def set_research(self, reports: list[ResearchReport]) -> None:
+        """Update the research reports passed to strategies."""
+        self._research = reports
 
     def pause(self) -> None:
         self._paused = True
@@ -56,6 +65,7 @@ class Orchestrator:
             self._tick_history[tick.symbol] = history[-self._max_history:]
 
         signals = await self._gather_signals(tick)
+        await self._persist_signals(signals)
         if not signals:
             return []
 
@@ -140,7 +150,7 @@ class Orchestrator:
     async def _gather_signals(self, tick: MarketTick) -> list[Signal]:
         history = self._tick_history.get(tick.symbol, [tick])
         tasks = [
-            strategy.evaluate(tick.symbol, history)
+            strategy.evaluate(tick.symbol, history, research=self._research)
             for strategy in self._strategies
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -151,6 +161,24 @@ class Orchestrator:
             elif isinstance(result, Exception):
                 logger.exception("Strategy error: %s", result)
         return signals
+
+    async def _persist_signals(self, signals: list[Signal]) -> None:
+        """Persist signals to the database if one is configured."""
+        if self._db is None or not signals:
+            return
+        for signal in signals:
+            try:
+                record = SignalRecord(
+                    symbol=signal.symbol,
+                    direction=signal.direction.value,
+                    confidence=signal.confidence,
+                    strategy=signal.strategy_name,
+                    reasoning=signal.reasoning,
+                    timestamp=signal.timestamp,
+                )
+                await self._db.save_signal(record)
+            except Exception:
+                logger.exception("Failed to persist signal for %s", signal.symbol)
 
     def _find_consensus(self, signals: list[Signal]) -> Signal | None:
         if not signals:
