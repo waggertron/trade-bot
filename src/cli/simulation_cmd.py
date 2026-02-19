@@ -214,11 +214,12 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
 
     for level_name, result in report.get("risk_level_results", {}).items():
         ret_style = "green" if result["total_return_pct"] >= 0 else "red"
+        sh_style = "green" if result["avg_sharpe"] >= 0 else "red"
         table.add_row(
             level_name,
             f"[{ret_style}]{result['total_return_pct']:.2f}%[/{ret_style}]",
-            f"{result['avg_sharpe']:.3f}",
-            f"{result['avg_max_drawdown']:.2f}%",
+            f"[{sh_style}]{result['avg_sharpe']:.3f}[/{sh_style}]",
+            f"[red]{result['avg_max_drawdown']:.2f}%[/red]",
             str(result["total_trades"]),
         )
 
@@ -238,11 +239,12 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
 
         for _key, bm in benchmarks.items():
             ret_style = "green" if bm["return_pct"] >= 0 else "red"
+            sh_style = "green" if bm["sharpe_ratio"] >= 0 else "red"
             bench_table.add_row(
                 bm["name"],
                 f"[{ret_style}]{bm['return_pct']:.2f}%[/{ret_style}]",
-                f"{bm['sharpe_ratio']:.3f}",
-                f"{bm['max_drawdown']:.2f}%",
+                f"[{sh_style}]{bm['sharpe_ratio']:.3f}[/{sh_style}]",
+                f"[red]{bm['max_drawdown']:.2f}%[/red]",
             )
 
         # Add best risk level for comparison
@@ -265,11 +267,12 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
                 sharpe = best["avg_sharpe"]
                 dd = best["avg_max_drawdown"]
             ret_style = "green" if ret >= 0 else "red"
+            sh_style = "green" if sharpe >= 0 else "red"
             bench_table.add_row(
                 f"Best ({best_name})",
                 f"[{ret_style}]{ret:.2f}%[/{ret_style}]",
-                f"{sharpe:.3f}",
-                f"{dd:.2f}%",
+                f"[{sh_style}]{sharpe:.3f}[/{sh_style}]",
+                f"[red]{dd:.2f}%[/red]",
             )
 
         console.print(bench_table)
@@ -321,11 +324,12 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
 
             for sr in result["stock_results"]:
                 ret_style = "green" if sr["return_pct"] >= 0 else "red"
+                sh_style = "green" if sr["sharpe_ratio"] >= 0 else "red"
                 stock_table.add_row(
                     sr["symbol"],
                     f"[{ret_style}]{sr['return_pct']:.2f}%[/{ret_style}]",
-                    f"{sr['sharpe_ratio']:.3f}",
-                    f"{sr['max_drawdown']:.2f}%",
+                    f"[{sh_style}]{sr['sharpe_ratio']:.3f}[/{sh_style}]",
+                    f"[red]{sr['max_drawdown']:.2f}%[/red]",
                     f"{sr['win_rate']:.1%}",
                     str(sr["total_trades"]),
                 )
@@ -353,12 +357,16 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             metrics_table.add_column("Metric", style="bold")
             metrics_table.add_column("Value", justify="right")
             metrics_table.add_row("Initial Balance", f"${pm['initial_balance']:,.2f}")
-            metrics_table.add_row("Final Value", f"${pm['final_value']:,.2f}")
+            fv_style = "green" if pm["final_value"] >= pm["initial_balance"] else "red"
+            metrics_table.add_row("Final Value", f"[{fv_style}]${pm['final_value']:,.2f}[/{fv_style}]")
             metrics_table.add_row("Total Return", format_pct(pm["total_return_pct"]))
-            metrics_table.add_row("Max Drawdown", f"{pm['max_drawdown']:.2f}%")
-            metrics_table.add_row("Sharpe Ratio", f"{pm['sharpe_ratio']:.3f}")
-            metrics_table.add_row("Sortino Ratio", f"{pm['sortino_ratio']:.3f}")
-            metrics_table.add_row("Calmar Ratio", f"{pm['calmar_ratio']:.3f}")
+            metrics_table.add_row("Max Drawdown", f"[red]{pm['max_drawdown']:.2f}%[/red]")
+            sh_style = "green" if pm["sharpe_ratio"] >= 0 else "red"
+            metrics_table.add_row("Sharpe Ratio", f"[{sh_style}]{pm['sharpe_ratio']:.3f}[/{sh_style}]")
+            so_style = "green" if pm["sortino_ratio"] >= 0 else "red"
+            metrics_table.add_row("Sortino Ratio", f"[{so_style}]{pm['sortino_ratio']:.3f}[/{so_style}]")
+            ca_style = "green" if pm["calmar_ratio"] >= 0 else "red"
+            metrics_table.add_row("Calmar Ratio", f"[{ca_style}]{pm['calmar_ratio']:.3f}[/{ca_style}]")
             metrics_table.add_row("Total Trades", str(pm["total_trades"]))
             console.print(metrics_table)
 
@@ -393,8 +401,9 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             pmc_table.add_row("Median Final", f"${pmc['median_final']:,.2f}")
             pmc_table.add_row("P5 Final", f"${pmc['p5_final']:,.2f}")
             pmc_table.add_row("P95 Final", f"${pmc['p95_final']:,.2f}")
-            pmc_table.add_row("Median Return %", f"{pmc['median_return_pct']:.2f}%")
-            pmc_table.add_row("Worst DD (P95)", f"{pmc['worst_drawdown_p95']:.2f}%")
+            mr_style = "green" if pmc["median_return_pct"] >= 0 else "red"
+            pmc_table.add_row("Median Return %", f"[{mr_style}]{pmc['median_return_pct']:.2f}%[/{mr_style}]")
+            pmc_table.add_row("Worst DD (P95)", f"[red]{pmc['worst_drawdown_p95']:.2f}%[/red]")
             console.print(pmc_table)
 
         # --- Correlation matrix (skip in none mode — 16×16 is very wide) ---
@@ -430,13 +439,14 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             mc_table.add_column("Worst DD (P95) %", justify="right")
 
             for mc in result["monte_carlo_projections"]:
+                mr_style = "green" if mc["median_return_pct"] >= 0 else "red"
                 mc_table.add_row(
                     mc["symbol"],
                     f"${mc['median_final']:,.2f}",
                     f"${mc['p5_final']:,.2f}",
                     f"${mc['p95_final']:,.2f}",
-                    f"{mc['median_return_pct']:.2f}%",
-                    f"{mc['worst_drawdown_p95']:.2f}%",
+                    f"[{mr_style}]{mc['median_return_pct']:.2f}%[/{mr_style}]",
+                    f"[red]{mc['worst_drawdown_p95']:.2f}%[/red]",
                 )
 
             console.print(mc_table)
@@ -602,9 +612,11 @@ def _print_rebalance_comparison(reports: dict[str, dict]) -> None:
             sharpe = best.get("avg_sharpe", 0.0)
             dd = best.get("avg_max_drawdown", 0.0)
 
-        rows["Best Return %"].append(f"{ret:.2f}%")
-        rows["Best Sharpe"].append(f"{sharpe:.3f}")
-        rows["Best Max DD %"].append(f"{dd:.2f}%")
+        ret_s = "green" if ret >= 0 else "red"
+        sh_s = "green" if sharpe >= 0 else "red"
+        rows["Best Return %"].append(f"[{ret_s}]{ret:.2f}%[/{ret_s}]")
+        rows["Best Sharpe"].append(f"[{sh_s}]{sharpe:.3f}[/{sh_s}]")
+        rows["Best Max DD %"].append(f"[red]{dd:.2f}%[/red]")
         rows["Optimal Risk"].append(optimal)
 
     for metric, values in rows.items():
