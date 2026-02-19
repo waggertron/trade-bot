@@ -13,6 +13,7 @@ from src.data.backtester import BacktestResult, run_backtest
 from src.data.providers.base import OHLCBar
 from src.simulation.models import (
     MonteCarloProjection,
+    PortfolioMonteCarloProjection,
     Recommendation,
     RiskLevelResult,
     SimulationConfig,
@@ -69,6 +70,9 @@ class SimulationEngine:
         if self._config.portfolio_mode:
             portfolio_sim = PortfolioSimulator(self._config)
 
+        # Collect training prices per stock for correlated MC (portfolio mode)
+        train_prices_per_stock: dict[str, list[float]] = {}
+
         for symbol in self._config.stocks:
             bars = await self._fetch_bars(symbol)
             total_needed = self._config.train_days + self._config.test_days
@@ -114,6 +118,8 @@ class SimulationEngine:
 
             # Monte Carlo projection using training data
             train_prices = [float(b.close) for b in train_bars]
+            if portfolio_sim is not None and len(train_prices) > 5:
+                train_prices_per_stock[symbol] = train_prices
             if len(train_prices) > 5:
                 projector = MonteCarloProjector(
                     n_paths=self._config.mc_simulations, seed=42,
@@ -166,6 +172,35 @@ class SimulationEngine:
                     portfolio_curve, total_trades,
                 )
 
+        # Correlated Monte Carlo for portfolio mode
+        portfolio_mc: PortfolioMonteCarloProjection | None = None
+        if portfolio_sim is not None and len(train_prices_per_stock) > 0:
+            projector = MonteCarloProjector(
+                n_paths=self._config.mc_simulations, seed=42,
+            )
+            portfolio_paths, corr_matrix = (
+                projector.generate_correlated_portfolio_paths(
+                    historical_prices=train_prices_per_stock,
+                    days_forward=self._config.test_days,
+                    weights=portfolio_sim.weights,
+                    initial_balance=self._config.initial_balance,
+                )
+            )
+            pmc_summary = projector.summarize_portfolio_paths(
+                portfolio_paths, self._config.initial_balance,
+            )
+            portfolio_mc = PortfolioMonteCarloProjection(
+                median_final=pmc_summary["median_final"],
+                p5_final=pmc_summary["p5_final"],
+                p95_final=pmc_summary["p95_final"],
+                median_return_pct=pmc_summary["median_return_pct"],
+                p5_return_pct=pmc_summary["p5_return_pct"],
+                p95_return_pct=pmc_summary["p95_return_pct"],
+                worst_drawdown_p95=pmc_summary["worst_drawdown_p95"],
+                n_paths=self._config.mc_simulations,
+                correlation_matrix=corr_matrix,
+            )
+
         return RiskLevelResult(
             risk_level=risk_level.value,
             stock_results=stock_results,
@@ -176,6 +211,7 @@ class SimulationEngine:
             avg_max_drawdown=avg_dd,
             total_trades=total_trades,
             portfolio_metrics=portfolio_metrics,
+            portfolio_monte_carlo=portfolio_mc,
         )
 
     async def _fetch_bars(self, symbol: str) -> list[OHLCBar]:
