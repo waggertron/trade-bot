@@ -142,6 +142,7 @@ export default function SimulationPage() {
     allocation_mode: "equal_weight" as string,
     custom_weights: {} as Record<string, number>,
     rebalance_frequency: "none" as string,
+    rebalance_threshold_pct: 5.0,
     mc_seed: null as number | null,
   });
 
@@ -160,6 +161,7 @@ export default function SimulationPage() {
               custom_weights:
                 config.allocation_mode === "custom" ? config.custom_weights : undefined,
               rebalance_frequency: config.rebalance_frequency,
+              rebalance_threshold_pct: config.rebalance_threshold_pct,
             }
           : {}),
       }),
@@ -381,6 +383,31 @@ export default function SimulationPage() {
                       <option value="weekly">Weekly</option>
                       <option value="monthly">Monthly</option>
                     </select>
+                  </div>
+
+                  {/* Rebalance threshold */}
+                  <div>
+                    <label
+                      htmlFor="sim-rebalance-threshold"
+                      className="mb-1 block text-xs text-muted"
+                    >
+                      Rebalance Threshold (%)
+                    </label>
+                    <input
+                      id="sim-rebalance-threshold"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={config.rebalance_threshold_pct}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          rebalance_threshold_pct: Number(e.target.value),
+                        })
+                      }
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    />
                   </div>
                 </div>
               )}
