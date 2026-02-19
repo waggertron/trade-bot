@@ -31,8 +31,9 @@ app.add_typer(analytics_app, name="analytics")
 app.add_typer(config_app,    name="config")
 app.add_typer(ml_app,        name="ml")
 app.add_typer(providers_app, name="providers")
-app.add_typer(risk_app,      name="risk")
-app.add_typer(sentiment_app, name="sentiment")
+app.add_typer(risk_app,       name="risk")
+app.add_typer(sentiment_app,  name="sentiment")
+app.add_typer(simulation_app, name="simulation")
 ```
 
 Each command file (`src/cli/<name>_cmd.py`) exports its own `app` Typer
@@ -48,6 +49,7 @@ instance which is imported and mounted in `main.py`.
 | `ml`         | `src/cli/ml_cmd.py`         | ML pipeline status and feature store     |
 | `risk`       | `src/cli/risk_cmd.py`       | Risk settings and regime limits          |
 | `analytics`  | `src/cli/analytics_cmd.py`  | Analytics module status and attribution  |
+| `simulation` | `src/cli/simulation_cmd.py` | Walk-forward backtests and MC projections |
 
 ## Command details
 
@@ -125,6 +127,57 @@ uv run tradebot risk limits --regime high
 uv run tradebot analytics status
 uv run tradebot analytics attribution
 ```
+
+### simulation
+
+| Command | Description                                                     |
+| ------- | --------------------------------------------------------------- |
+| `run`   | Run walk-forward backtests and Monte Carlo projections          |
+
+```bash
+# Full simulation with all 16 stocks and all risk levels
+uv run tradebot simulation run
+
+# Specific stocks with custom balance
+uv run tradebot simulation run --stocks AAPL --stocks MSFT --stocks GOOGL --balance 30000
+
+# Portfolio mode with custom weights and weekly rebalancing
+uv run tradebot simulation run --portfolio --stocks AAPL --stocks MSFT --weights '{"AAPL":0.6,"MSFT":0.4}' --rebalance weekly
+
+# Quick simulation with fewer MC paths
+uv run tradebot simulation run --stocks AAPL --test-days 10 --train-days 20 --mc-sims 50
+
+# Specific risk levels
+uv run tradebot simulation run --risk moderate --risk aggressive
+
+# JSON output
+uv run tradebot simulation run --stocks AAPL --json
+```
+
+**Flags:**
+
+| Flag            | Default | Description                                    |
+| --------------- | ------- | ---------------------------------------------- |
+| `--stocks`      | all 16  | Stock symbols to simulate                      |
+| `--balance`     | 10000   | Starting balance in USD                        |
+| `--train-days`  | 60      | Training window in trading days                |
+| `--test-days`   | 30      | Test/simulation window in trading days         |
+| `--risk`        | all     | Risk levels (conservative, moderate, etc.)     |
+| `--mc-sims`     | 1000    | Number of Monte Carlo simulation paths         |
+| `--json`        | false   | Output raw JSON instead of Rich tables         |
+| `--portfolio`   | false   | Enable portfolio simulation mode               |
+| `--weights`     | none    | Custom allocation weights as JSON string       |
+| `--rebalance`   | none    | Rebalance frequency: none/daily/weekly/monthly |
+
+**Output includes:**
+- Risk level comparison table (return %, Sharpe, max drawdown, trades)
+- Per-stock results table per risk level
+- Portfolio equity curve chart (portfolio mode)
+- Portfolio metrics panel (Sharpe, Sortino, Calmar)
+- Monte Carlo projection tables (P5/Median/P95)
+- Win rate heatmap (stocks x risk levels)
+- Return comparison bar chart
+- Optimal risk level recommendation
 
 ## How to add a new CLI command
 

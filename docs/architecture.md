@@ -84,6 +84,29 @@ All domain objects are **Pydantic v2 frozen models** (`ConfigDict(frozen=True)`)
 │  ExecutionAgent  PortfolioManager  Attribution  Monte Carlo │
 │  (Paper/Live)    (Positions/P&L)   Reporter     Simulator   │
 │                                    FastAPI      Discord Bot │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   SIMULATION LAYER                          │
+│                                                             │
+│  SimulationEngine         PortfolioSimulator                │
+│  ┌───────────────────┐    ┌──────────────────────────┐      │
+│  │ Walk-forward      │    │ Capital allocation       │      │
+│  │ backtesting       │    │ (equal_weight / custom)  │      │
+│  │ Multi-risk-level  │    │ Portfolio equity curve    │      │
+│  │ MC projection     │    │ Sharpe / Sortino / Calmar│      │
+│  │ Recommendation    │    │ Rebalancing              │      │
+│  └─────────┬─────────┘    └──────────┬───────────────┘      │
+│            │                         │                      │
+│            ▼                         ▼                      │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              MonteCarloProjector                    │    │
+│  │   GBM paths │ Cholesky-correlated portfolio paths   │    │
+│  │   P5/Median/P95 summary │ Drawdown analysis        │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│  Exposed via: CLI (Typer) │ API (FastAPI) │ Web (Next.js)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -115,6 +138,21 @@ The `Orchestrator` gathers signals from all active strategies, finds majority co
 
 `ExecutionAgent` submits `Order` objects and returns `Fill` confirmations (paper or live mode). `PortfolioAgent` tracks positions, cash, and P&L. The `EventBus` publishes trade events that feed into the FastAPI dashboard (portfolio view, trade history, control endpoints) and the Discord bot (real-time trade alerts, portfolio formatting). Attribution and Monte Carlo simulation provide post-hoc analysis.
 
+### Simulation Layer
+
+The simulation system (`src/simulation/`) provides walk-forward backtesting and Monte Carlo projections across multiple risk levels and stocks. It operates in two modes:
+
+**Per-stock mode** (default): Each stock receives the full initial balance independently. Walk-forward backtesting splits historical data into training and test windows, runs the existing backtest engine per stock, and generates independent GBM (geometric Brownian motion) Monte Carlo price paths for forward projections.
+
+**Portfolio mode** (`portfolio_mode=True`): Capital is split across stocks according to allocation weights (equal-weight or custom). The `PortfolioSimulator` manages per-stock capital allocation, combines individual equity curves into a unified portfolio curve, and computes portfolio-level metrics (Sharpe, Sortino, Calmar ratios, max drawdown). The `MonteCarloProjector` generates Cholesky-decomposed correlated price paths that preserve cross-asset return correlations, then converts them to portfolio dollar values for P5/Median/P95 projections.
+
+The `SimulationEngine` orchestrates the pipeline: fetch bars via yfinance, split train/test, run backtests per risk level, generate MC projections, build portfolio metrics, and produce recommendations. A scoring function (`sharpe * 0.5 + return * 0.3 - drawdown * 0.2`) selects the optimal risk level.
+
+Results are exposed through three interfaces:
+- **CLI** (`tradebot simulation run`): Rich tables, ASCII charts, equity curves, heatmaps
+- **API** (`POST /api/simulation/run`): JSON response with full report structure
+- **Frontend** (`/simulation`): Interactive config panel, risk level cards, Recharts visualizations
+
 ---
 
 ## Protocol Summary Table
@@ -129,6 +167,14 @@ The `Orchestrator` gathers signals from all active strategies, finds majority co
 | `ModelProvider` | ML predict/train | XGBoost, LSTM, Mock |
 | `PositionSizer` | Order sizing | Fixed, Kelly, VolTargeted |
 | `FeatureStrategy` | Signal generation | Momentum, Sentiment, Quant, ML Ensemble, Event-Driven, Cross-Asset |
+
+Key simulation components (not protocol-based, but central to the system):
+
+| Component | Purpose | Key methods |
+|-----------|---------|-------------|
+| `SimulationEngine` | Orchestrate full simulation pipeline | `run()`, `_run_risk_level()`, `_generate_recommendation()` |
+| `PortfolioSimulator` | Portfolio-level capital allocation and metrics | `get_stock_balance()`, `build_portfolio_equity_curve()`, `compute_portfolio_metrics()` |
+| `MonteCarloProjector` | GBM price path generation and summary | `generate_paths()`, `generate_correlated_portfolio_paths()`, `summarize()` |
 
 Supporting protocols not in the table above:
 
