@@ -18,6 +18,7 @@ from src.dashboard.routers import (
     portfolio,
     risk,
     signals,
+    simulation,
     strategies,
     trades,
     trading,
@@ -71,6 +72,7 @@ def create_app(
     app.include_router(ml.router)
     app.include_router(config.router)
     app.include_router(market.router)
+    app.include_router(simulation.router)
     app.include_router(websocket.router)
 
     # System endpoints (kept inline)

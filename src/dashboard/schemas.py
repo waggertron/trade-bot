@@ -72,3 +72,20 @@ class BacktestRequest(BaseModel):
     strategies: list[str] = Field(default_factory=list)
     symbols: list[str] = Field(default_factory=list)
     initial_capital: float = 100000.0
+
+
+# -- Simulation ---------------------------------------------------------------
+
+class SimulationRequest(BaseModel):
+    stocks: list[str] = Field(default_factory=lambda: [
+        "SPY", "QQQ", "DIA", "IWM",
+        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
+        "XLF", "XLK", "XLE", "XLV", "XLI",
+    ])
+    initial_balance: float = Field(default=10_000.0, gt=0)
+    train_days: int = Field(default=60, gt=0)
+    test_days: int = Field(default=30, gt=0)
+    risk_levels: list[str] = Field(default_factory=lambda: [
+        "conservative", "moderate", "aggressive", "very_aggressive",
+    ])
+    mc_simulations: int = Field(default=1000, gt=0)
