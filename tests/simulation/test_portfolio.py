@@ -216,17 +216,17 @@ class TestComputePortfolioMetrics:
         assert metrics.calmar_ratio == pytest.approx(0.0)
 
     def test_monotonically_increasing_curve(self):
-        """No drawdown, no negative returns -> sortino should be 0."""
+        """No drawdown, no negative returns -> sortino should be capped at 99.99."""
         sim = PortfolioSimulator(_cfg(stocks=["A"], balance=10_000))
         curve = [10_000.0, 10_100.0, 10_200.0, 10_300.0]
         metrics = sim.compute_portfolio_metrics(curve, total_trades=5)
 
         assert metrics.total_return_pct == pytest.approx(3.0)
         assert metrics.max_drawdown == pytest.approx(0.0)
-        # No negative returns -> sortino = 0
-        assert metrics.sortino_ratio == pytest.approx(0.0)
+        # No negative returns -> sortino = 99.99 (capped)
+        assert metrics.sortino_ratio == pytest.approx(99.99)
         # sharpe should be positive (there is variance because returns decrease)
-        assert metrics.sharpe_ratio != 0.0 or True  # could be 0 if all returns equal
+        assert isinstance(metrics.sharpe_ratio, float)
         assert metrics.calmar_ratio == pytest.approx(0.0)  # max_dd = 0
 
     def test_daily_returns_count(self):

@@ -60,6 +60,8 @@ class PortfolioSimulator:
         # Filter usable curves
         usable: list[tuple[str, list[float]]] = []
         for symbol, curve in stock_curves.items():
+            if symbol not in self._weights:
+                continue
             if curve and curve[0] != 0:
                 usable.append((symbol, curve))
 
@@ -131,6 +133,7 @@ class PortfolioSimulator:
 
     def should_rebalance(self, day_index: int, total_days: int) -> bool:
         """Return whether the portfolio should be rebalanced on *day_index*."""
+        # total_days reserved for threshold-based rebalancing
         if day_index == 0:
             return False
 
@@ -184,7 +187,9 @@ class PortfolioSimulator:
         mean_r = sum(daily_returns) / len(daily_returns)
         neg = [r for r in daily_returns if r < 0]
         if not neg:
-            return 0.0
+            # No downside risk — return capped high value
+            mean_r = sum(daily_returns) / len(daily_returns) if daily_returns else 0.0
+            return 99.99 if mean_r > 0 else 0.0
         variance = sum(r**2 for r in neg) / len(neg)
         std_neg = math.sqrt(variance)
         if std_neg == 0:
