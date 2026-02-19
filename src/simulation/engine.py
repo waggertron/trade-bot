@@ -6,6 +6,9 @@ import math
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Protocol
+
+import numpy as np
 
 from src.core.config import RiskLevel, RiskSettings
 from src.core.models import AssetType, MarketTick
@@ -26,11 +29,22 @@ from src.simulation.projector import MonteCarloProjector
 logger = logging.getLogger(__name__)
 
 
+class ProgressCallback(Protocol):
+    """Callback for reporting simulation progress."""
+
+    def __call__(self, stage: str, current: int, total: int, detail: str = "") -> None: ...
+
+
 class SimulationEngine:
     """Run walk-forward backtests and Monte Carlo projections across risk levels."""
 
-    def __init__(self, config: SimulationConfig) -> None:
+    def __init__(
+        self,
+        config: SimulationConfig,
+        progress_cb: ProgressCallback | None = None,
+    ) -> None:
         self._config = config
+        self._progress_cb = progress_cb
 
     async def run(self) -> SimulationReport:
         """Execute the full simulation pipeline."""
@@ -43,14 +57,29 @@ class SimulationEngine:
 
         try:
             risk_results: dict[str, RiskLevelResult] = {}
+            num_levels = len(self._config.risk_levels)
 
-            for risk_level in self._config.risk_levels:
-                result = await self._run_risk_level(risk_level)
+            # Derive unique but deterministic child seeds per risk level
+            # from a single parent RNG seeded with the user's mc_seed.
+            parent_rng = np.random.default_rng(self._config.mc_seed)
+            child_seeds = [
+                int(parent_rng.integers(0, 2**31))
+                for _ in self._config.risk_levels
+            ]
+
+            for i, risk_level in enumerate(self._config.risk_levels):
+                if self._progress_cb:
+                    self._progress_cb("risk_level", i + 1, num_levels, risk_level.value)
+                result = await self._run_risk_level(
+                    risk_level, mc_seed=child_seeds[i],
+                )
                 risk_results[risk_level.value] = result
 
             report.risk_level_results = risk_results
 
             # Compute SPY benchmarks (once per simulation)
+            if self._progress_cb:
+                self._progress_cb("benchmark", 0, 0, "Computing SPY benchmarks")
             try:
                 spy_bars = await self._fetch_bars("SPY")
                 total_needed = self._config.train_days + self._config.test_days
@@ -84,7 +113,7 @@ class SimulationEngine:
         report.completed_at = datetime.now(UTC).isoformat()
         return report
 
-    async def _run_risk_level(self, risk_level: RiskLevel) -> RiskLevelResult:
+    async def _run_risk_level(self, risk_level: RiskLevel, *, mc_seed: int | None = None) -> RiskLevelResult:
         """Run simulation for one risk level across all stocks."""
         overrides: dict[str, float] = {}
         if self._config.max_position_pct is not None:
@@ -101,7 +130,8 @@ class SimulationEngine:
         # Collect training prices per stock for correlated MC (portfolio mode)
         train_prices_per_stock: dict[str, list[float]] = {}
 
-        for symbol in self._config.stocks:
+        num_stocks = len(self._config.stocks)
+        for j, symbol in enumerate(self._config.stocks):
             bars = await self._fetch_bars(symbol)
             total_needed = self._config.train_days + self._config.test_days
 
@@ -150,7 +180,7 @@ class SimulationEngine:
                 train_prices_per_stock[symbol] = train_prices
             if len(train_prices) > 5:
                 projector = MonteCarloProjector(
-                    n_paths=self._config.mc_simulations, seed=self._config.mc_seed,
+                    n_paths=self._config.mc_simulations, seed=mc_seed,
                 )
                 paths = projector.generate_paths(train_prices, self._config.test_days)
                 # Use allocated balance per stock in portfolio mode
@@ -172,6 +202,9 @@ class SimulationEngine:
                     worst_drawdown_p95=summary["worst_drawdown_p95"],
                     n_paths=self._config.mc_simulations,
                 ))
+
+            if self._progress_cb:
+                self._progress_cb("stock", j + 1, num_stocks, symbol)
 
         # Aggregate metrics
         total_return = (
@@ -204,7 +237,7 @@ class SimulationEngine:
         portfolio_mc: PortfolioMonteCarloProjection | None = None
         if portfolio_sim is not None and len(train_prices_per_stock) > 0:
             projector = MonteCarloProjector(
-                n_paths=self._config.mc_simulations, seed=self._config.mc_seed,
+                n_paths=self._config.mc_simulations, seed=mc_seed,
             )
             portfolio_paths, corr_matrix = (
                 projector.generate_correlated_portfolio_paths(

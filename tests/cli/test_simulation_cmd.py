@@ -416,3 +416,164 @@ def test_run_simulation_passes_mc_seed_to_simulation_config():
 
         config_arg = mock_engine_cls.call_args[0][0]
         assert config_arg.mc_seed == 42
+
+
+# ---------------------------------------------------------------------------
+# --charts flag tests
+# ---------------------------------------------------------------------------
+
+
+def _mock_report_with_stocks(*, num_stocks: int = 2) -> dict:
+    """Build a mock report with per-stock results and equity curves for chart tests."""
+    stock_results = []
+    for i in range(num_stocks):
+        sym = f"STK{i}"
+        stock_results.append({
+            "symbol": sym,
+            "initial_balance": 5000.0,
+            "final_value": 5500.0,
+            "total_pnl": 500.0,
+            "return_pct": 10.0,
+            "max_drawdown": 5.0,
+            "sharpe_ratio": 1.2,
+            "total_trades": 10,
+            "winning_trades": 6,
+            "losing_trades": 4,
+            "win_rate": 0.6,
+            "equity_curve": [5000, 5100, 5200, 5300, 5500],
+        })
+
+    report = _mock_report()
+    report["risk_level_results"] = {
+        "moderate": {
+            "risk_level": "moderate",
+            "stock_results": stock_results,
+            "monte_carlo_projections": [],
+            "strategy_assessments": [],
+            "total_return_pct": 10.0,
+            "avg_sharpe": 1.2,
+            "avg_max_drawdown": 5.0,
+            "total_trades": 20,
+            "portfolio_metrics": None,
+            "portfolio_monte_carlo": None,
+        },
+    }
+    return report
+
+
+def test_run_help_shows_charts_flag():
+    """Help text should include the --charts flag."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--charts" in result.output
+
+
+def test_charts_none_skips_all_charts():
+    """--charts none should produce output with no chart panels."""
+    report = _mock_report_with_stocks()
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
+    assert result.exit_code == 0, result.output
+    # No chart-related content
+    assert "Equity Curve" not in result.output
+    assert "Charts" not in result.output
+
+
+def test_charts_summary_skips_per_stock_equity_curves():
+    """--charts summary should skip per-stock equity curves but show summary charts."""
+    report = _mock_report_with_stocks(num_stocks=3)
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "summary"])
+    assert result.exit_code == 0, result.output
+    # Per-stock equity curves should NOT appear
+    assert "STK0 Equity Curve" not in result.output
+    assert "STK1 Equity Curve" not in result.output
+    # Summary chart section should still appear
+    assert "Charts" in result.output
+
+
+def test_charts_full_includes_per_stock_equity_curves():
+    """--charts full should include per-stock equity curves."""
+    report = _mock_report_with_stocks(num_stocks=2)
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "full"])
+    assert result.exit_code == 0, result.output
+    # Per-stock equity curves should appear
+    assert "STK0 Equity Curve" in result.output
+    assert "STK1 Equity Curve" in result.output
+
+
+def test_charts_default_is_summary():
+    """When --charts is not specified, it should default to summary (no per-stock curves)."""
+    report = _mock_report_with_stocks(num_stocks=2)
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0"])
+    assert result.exit_code == 0, result.output
+    # Per-stock equity curves should NOT appear (summary mode)
+    assert "STK0 Equity Curve" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# Engine progress callback wiring tests
+# ---------------------------------------------------------------------------
+
+
+def test_run_simulation_passes_progress_cb_to_engine():
+    """_run_simulation should pass progress_cb to SimulationEngine when provided."""
+    from unittest.mock import MagicMock
+
+    mock_report = MagicMock()
+    mock_report.model_dump.return_value = _mock_report()
+
+    with patch("src.simulation.engine.SimulationEngine") as mock_engine_cls, \
+         patch("src.cli.simulation_cmd.asyncio") as mock_asyncio:
+        mock_engine_cls.return_value.run.return_value = mock_report
+        mock_asyncio.run.side_effect = lambda coro: mock_report
+
+        cb = MagicMock()
+        from src.cli.simulation_cmd import _run_simulation
+        _run_simulation(
+            stocks=["AAPL"],
+            balance=10000.0,
+            train_days=60,
+            test_days=30,
+            risk_levels=[],
+            mc_sims=100,
+            progress_cb=cb,
+        )
+
+        mock_engine_cls.assert_called_once()
+        _, kwargs = mock_engine_cls.call_args
+        assert kwargs.get("progress_cb") is cb
+
+
+# ---------------------------------------------------------------------------
+# Chart rendering progress bar tests
+# ---------------------------------------------------------------------------
+
+
+def test_charts_full_shows_rendering_progress():
+    """--charts full should show a chart rendering progress indicator."""
+    report = _mock_report_with_stocks(num_stocks=3)
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "full"])
+    assert result.exit_code == 0, result.output
+    assert "Rendering charts" in result.output
+
+
+def test_charts_summary_no_rendering_progress():
+    """--charts summary should NOT show chart rendering progress."""
+    report = _mock_report_with_stocks(num_stocks=3)
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "summary"])
+    assert result.exit_code == 0, result.output
+    assert "Rendering charts" not in result.output
+
+
+def test_charts_none_no_rendering_progress():
+    """--charts none should NOT show chart rendering progress."""
+    report = _mock_report_with_stocks(num_stocks=3)
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
+        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
+    assert result.exit_code == 0, result.output
+    assert "Rendering charts" not in result.output

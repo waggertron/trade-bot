@@ -49,6 +49,7 @@ def _run_simulation(
     seed: int | None = None,
     rebalance_threshold: float = 5.0,
     max_position_pct: float | None = None,
+    progress_cb=None,
 ) -> dict:
     """Run the simulation engine and return the report as a dict."""
     from src.simulation.engine import SimulationEngine
@@ -73,7 +74,7 @@ def _run_simulation(
         allocation=allocation,
         rebalance=rebalance,
     )
-    engine = SimulationEngine(config)
+    engine = SimulationEngine(config, progress_cb=progress_cb)
     report = asyncio.run(engine.run())
     return report.model_dump()
 
@@ -97,6 +98,7 @@ def run(
     seed: int | None = typer.Option(None, "--seed", help="Monte Carlo random seed (default: random)"),
     rebalance_threshold: float = typer.Option(5.0, "--rebalance-threshold", help="Rebalance drift threshold %"),
     max_position_pct: float | None = typer.Option(None, "--max-position-pct", help="Override max position size %"),
+    charts: str = typer.Option("summary", "--charts", help="Chart detail: none, summary, full"),
 ) -> None:
     """Run a full simulation across stocks and risk levels."""
     stock_list = stocks or ALL_STOCKS
@@ -104,27 +106,43 @@ def run(
 
     allocation_weights = json.loads(weights) if weights else None
 
-    console.print(f"\n[bold]Simulation: {len(stock_list)} stocks, {len(levels)} risk levels[/bold]")
-    console.print(
+    # Use stderr for status when JSON output is requested
+    import sys
+    status_console = Console(stderr=True) if output_json else console
+
+    status_console.print(f"\n[bold]Simulation: {len(stock_list)} stocks, {len(levels)} risk levels[/bold]")
+    status_console.print(
         f"Balance: ${balance:,.0f} | Train: {train_days}d"
         f" | Test: {test_days}d | MC paths: {mc_sims}"
     )
     if seed is not None:
-        console.print(f"Seed: {seed}")
+        status_console.print(f"Seed: {seed}")
     if max_position_pct is not None:
-        console.print(f"Max Position Size: {max_position_pct}%")
+        status_console.print(f"Max Position Size: {max_position_pct}%")
     if portfolio:
-        console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
-    console.print()
+        status_console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
+    status_console.print()
 
+    num_stocks = len(stock_list)
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
-        TextColumn("{task.completed}/{task.total} risk levels"),
-        console=console,
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        console=status_console,
     ) as progress:
-        task_id = progress.add_task("Running simulation...", total=1)
+        risk_task = progress.add_task("Risk levels", total=len(levels))
+        stock_task = progress.add_task("Stocks", total=num_stocks)
+
+        def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
+            if stage == "risk_level":
+                progress.update(risk_task, completed=current, description=f"Risk: {detail}")
+                progress.update(stock_task, completed=0, total=num_stocks)
+            elif stage == "stock":
+                progress.update(stock_task, completed=current, description=f"Stock: {detail}")
+            elif stage == "benchmark":
+                progress.update(risk_task, description="SPY benchmarks")
+
         report = _run_simulation(
             stock_list, balance, train_days, test_days, levels, mc_sims,
             portfolio_mode=portfolio,
@@ -133,17 +151,20 @@ def run(
             seed=seed,
             rebalance_threshold=rebalance_threshold,
             max_position_pct=max_position_pct,
+            progress_cb=on_progress,
         )
-        progress.update(task_id, completed=1)
+        progress.update(risk_task, completed=len(levels))
+        progress.update(stock_task, completed=num_stocks)
 
     if output_json:
-        console.print(Syntax(json.dumps(report, indent=2, default=str), "json"))
+        sys.stdout.write(json.dumps(report, indent=2, default=str))
+        sys.stdout.write("\n")
         return
 
-    _print_report(report)
+    _print_report(report, charts_mode=charts)
 
 
-def _print_report(report: dict) -> None:
+def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
     """Pretty-print simulation results."""
     console.print(f"\n[bold green]Simulation {report['id']} — {report['status']}[/bold green]\n")
 
@@ -278,7 +299,7 @@ def _print_report(report: dict) -> None:
 
         # --- Portfolio Equity Curve chart ---
         pm = result.get("portfolio_metrics")
-        if pm:
+        if pm and charts_mode != "none":
             curve = pm.get("equity_curve", [])
             if len(curve) >= 2:
                 try:
@@ -378,102 +399,122 @@ def _print_report(report: dict) -> None:
 
         console.print(mc_table)
 
-    console.print()
-    console.print(Rule("[bold]Charts[/bold]"))
+    if charts_mode != "none":
+        console.print()
+        console.print(Rule("[bold]Charts[/bold]"))
 
-    # --- Charts: Equity curve per stock (first risk level with stock results) ---
-    try:
-        for level_name, result in report.get("risk_level_results", {}).items():
-            for sr in result.get("stock_results") or []:
-                curve = sr.get("equity_curve", [])
-                if len(curve) >= 2:
-                    chart = ascii_line_chart(
-                        curve,
-                        title=f"{level_name.upper()} | {sr['symbol']} Equity Curve",
-                        height=10,
-                    )
-                    console.print(Panel(chart, expand=False))
-    except Exception:
-        pass  # chart rendering is best-effort
-
-    # --- Chart: Return comparison bar chart across risk levels ---
-    try:
-        rl_results = report.get("risk_level_results", {})
-        if rl_results:
-            rl_labels = list(rl_results.keys())
-            rl_returns = [rl_results[k]["total_return_pct"] for k in rl_labels]
-            chart = plotext_bar_chart(
-                rl_labels,
-                rl_returns,
-                title="Return % by Risk Level",
+        # --- Charts: Equity curve per stock (only in full mode) ---
+        if charts_mode == "full":
+            total_stock_charts = sum(
+                len(rl.get("stock_results") or [])
+                for rl in report.get("risk_level_results", {}).values()
             )
-            console.print()
-            console.print(Panel(chart, expand=False))
-    except Exception:
-        pass
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                console=console,
+            ) as chart_progress:
+                chart_task = chart_progress.add_task(
+                    "Rendering charts", total=total_stock_charts,
+                )
+                try:
+                    for level_name, result in report.get("risk_level_results", {}).items():
+                        for sr in result.get("stock_results") or []:
+                            curve = sr.get("equity_curve", [])
+                            if len(curve) >= 2:
+                                chart = ascii_line_chart(
+                                    curve,
+                                    title=f"{level_name.upper()} | {sr['symbol']} Equity Curve",
+                                    height=10,
+                                )
+                                console.print(Panel(chart, expand=False))
+                            chart_progress.update(
+                                chart_task, advance=1,
+                                description=f"Rendering charts: {sr['symbol']}",
+                            )
+                except Exception:
+                    pass  # chart rendering is best-effort
 
-    # --- Chart: Monte Carlo projection cone (P5 / Median / P95) per risk level ---
-    try:
-        for level_name, result in report.get("risk_level_results", {}).items():
-            mc_list = result.get("monte_carlo_projections") or []
-            if mc_list:
-                series: dict[str, list[float]] = {
-                    "P5": [],
-                    "Median": [],
-                    "P95": [],
-                }
-                symbols: list[str] = []
-                for mc in mc_list:
-                    symbols.append(mc["symbol"])
-                    series["P5"].append(mc["p5_final"])
-                    series["Median"].append(mc["median_final"])
-                    series["P95"].append(mc["p95_final"])
-                chart = plotext_multi_line(
-                    series,
-                    title=f"{level_name.upper()} | Monte Carlo Projection Cone",
+        # --- Chart: Return comparison bar chart across risk levels ---
+        try:
+            rl_results = report.get("risk_level_results", {})
+            if rl_results:
+                rl_labels = list(rl_results.keys())
+                rl_returns = [rl_results[k]["total_return_pct"] for k in rl_labels]
+                chart = plotext_bar_chart(
+                    rl_labels,
+                    rl_returns,
+                    title="Return % by Risk Level",
                 )
                 console.print()
                 console.print(Panel(chart, expand=False))
-    except Exception:
-        pass
+        except Exception:
+            pass
 
-    # --- Chart: Win rate heatmap (stocks x risk levels) ---
-    try:
-        rl_results = report.get("risk_level_results", {})
-        if rl_results:
-            risk_labels = list(rl_results.keys())
-            # Collect all unique stock symbols across risk levels
-            all_symbols: list[str] = []
-            for rl in rl_results.values():
-                for sr in rl.get("stock_results") or []:
-                    if sr["symbol"] not in all_symbols:
-                        all_symbols.append(sr["symbol"])
+        # --- Chart: Monte Carlo projection cone (P5 / Median / P95) per risk level ---
+        try:
+            for level_name, result in report.get("risk_level_results", {}).items():
+                mc_list = result.get("monte_carlo_projections") or []
+                if mc_list:
+                    series: dict[str, list[float]] = {
+                        "P5": [],
+                        "Median": [],
+                        "P95": [],
+                    }
+                    symbols: list[str] = []
+                    for mc in mc_list:
+                        symbols.append(mc["symbol"])
+                        series["P5"].append(mc["p5_final"])
+                        series["Median"].append(mc["median_final"])
+                        series["P95"].append(mc["p95_final"])
+                    chart = plotext_multi_line(
+                        series,
+                        title=f"{level_name.upper()} | Monte Carlo Projection Cone",
+                    )
+                    console.print()
+                    console.print(Panel(chart, expand=False))
+        except Exception:
+            pass
 
-            if all_symbols:
-                # Build matrix: rows = stocks, cols = risk levels
-                matrix: list[list[float]] = []
-                for sym in all_symbols:
-                    row: list[float] = []
-                    for rl_name in risk_labels:
-                        rl = rl_results[rl_name]
-                        wr = 0.0
-                        for sr in rl.get("stock_results") or []:
-                            if sr["symbol"] == sym:
-                                wr = sr.get("win_rate", 0.0) * 100.0
-                                break
-                        row.append(wr)
-                    matrix.append(row)
+        # --- Chart: Win rate heatmap (stocks x risk levels) ---
+        try:
+            rl_results = report.get("risk_level_results", {})
+            if rl_results:
+                risk_labels = list(rl_results.keys())
+                # Collect all unique stock symbols across risk levels
+                all_symbols: list[str] = []
+                for rl in rl_results.values():
+                    for sr in rl.get("stock_results") or []:
+                        if sr["symbol"] not in all_symbols:
+                            all_symbols.append(sr["symbol"])
 
-                chart = plotext_heatmap(
-                    matrix,
-                    row_labels=all_symbols,
-                    col_labels=risk_labels,
-                    title="Win Rate % (Stocks x Risk Levels)",
-                )
-                console.print()
-                console.print(Panel(chart, expand=False))
-    except Exception:
-        pass
+                if all_symbols:
+                    # Build matrix: rows = stocks, cols = risk levels
+                    matrix: list[list[float]] = []
+                    for sym in all_symbols:
+                        row: list[float] = []
+                        for rl_name in risk_labels:
+                            rl = rl_results[rl_name]
+                            wr = 0.0
+                            for sr in rl.get("stock_results") or []:
+                                if sr["symbol"] == sym:
+                                    wr = sr.get("win_rate", 0.0) * 100.0
+                                    break
+                            row.append(wr)
+                        matrix.append(row)
+
+                    chart = plotext_heatmap(
+                        matrix,
+                        row_labels=all_symbols,
+                        col_labels=risk_labels,
+                        title="Win Rate % (Stocks x Risk Levels)",
+                    )
+                    console.print()
+                    console.print(Panel(chart, expand=False))
+        except Exception:
+            pass
 
     # Recommendation
     rec = report.get("recommendation")

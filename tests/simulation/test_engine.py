@@ -212,3 +212,204 @@ async def test_engine_generates_recommendation():
     assert report.recommendation is not None
     assert report.recommendation.optimal_risk_level in ("conservative", "moderate")
     assert report.recommendation.reasoning != ""
+
+
+# ---------------------------------------------------------------------------
+# MC seed derivation per risk level
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mc_projections_differ_across_risk_levels():
+    """Portfolio MC projections should differ across risk levels even with a fixed seed."""
+    config = SimulationConfig(
+        stocks=["AAPL", "MSFT"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.CONSERVATIVE, RiskLevel.MODERATE, RiskLevel.AGGRESSIVE],
+        mc_simulations=50,
+        mc_seed=42,
+        portfolio_mode=True,
+    )
+    engine = SimulationEngine(config)
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        report = await engine.run()
+
+    assert report.status == "completed"
+    pmc_values = []
+    for level in ("conservative", "moderate", "aggressive"):
+        result = report.risk_level_results[level]
+        assert result.portfolio_monte_carlo is not None
+        pmc_values.append(result.portfolio_monte_carlo.median_final)
+
+    # All three should be different
+    assert len(set(pmc_values)) == 3, f"Expected 3 distinct values, got {pmc_values}"
+
+
+@pytest.mark.asyncio
+async def test_mc_projections_reproducible_with_same_seed():
+    """Running twice with the same seed should produce identical results."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=50,
+        mc_seed=99,
+    )
+    bars = _make_bars(90)
+
+    results = []
+    for _ in range(2):
+        engine = SimulationEngine(config)
+        with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+            report = await engine.run()
+        mc = report.risk_level_results["moderate"].monte_carlo_projections[0]
+        results.append(mc.median_final)
+
+    assert results[0] == results[1], f"Same seed should reproduce: {results}"
+
+
+@pytest.mark.asyncio
+async def test_per_stock_mc_differs_across_risk_levels():
+    """Per-stock MC projections should also differ across risk levels with a fixed seed."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.CONSERVATIVE, RiskLevel.AGGRESSIVE],
+        mc_simulations=50,
+        mc_seed=42,
+    )
+    engine = SimulationEngine(config)
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        report = await engine.run()
+
+    assert report.status == "completed"
+    con_mc = report.risk_level_results["conservative"].monte_carlo_projections[0]
+    agg_mc = report.risk_level_results["aggressive"].monte_carlo_projections[0]
+    assert con_mc.median_final != agg_mc.median_final, (
+        f"Per-stock MC should differ: conservative={con_mc.median_final}, aggressive={agg_mc.median_final}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Progress callback tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_engine_calls_progress_callback_for_risk_levels():
+    """progress_cb should be called with 'risk_level' stage for each risk level."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.CONSERVATIVE, RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    calls: list[tuple] = []
+
+    def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
+        calls.append((stage, current, total, detail))
+
+    engine = SimulationEngine(config, progress_cb=on_progress)
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        report = await engine.run()
+
+    assert report.status == "completed"
+    risk_calls = [(s, c, t, d) for s, c, t, d in calls if s == "risk_level"]
+    assert len(risk_calls) == 2
+    assert risk_calls[0] == ("risk_level", 1, 2, "conservative")
+    assert risk_calls[1] == ("risk_level", 2, 2, "moderate")
+
+
+@pytest.mark.asyncio
+async def test_engine_calls_progress_callback_for_stocks():
+    """progress_cb should be called with 'stock' stage for each stock."""
+    config = SimulationConfig(
+        stocks=["AAPL", "MSFT"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    calls: list[tuple] = []
+
+    def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
+        calls.append((stage, current, total, detail))
+
+    engine = SimulationEngine(config, progress_cb=on_progress)
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        report = await engine.run()
+
+    assert report.status == "completed"
+    stock_calls = [(s, c, t, d) for s, c, t, d in calls if s == "stock"]
+    assert len(stock_calls) == 2
+    assert stock_calls[0] == ("stock", 1, 2, "AAPL")
+    assert stock_calls[1] == ("stock", 2, 2, "MSFT")
+
+
+@pytest.mark.asyncio
+async def test_engine_calls_progress_callback_for_benchmark():
+    """progress_cb should be called with 'benchmark' stage before SPY computation."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    calls: list[tuple] = []
+
+    def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
+        calls.append((stage, current, total, detail))
+
+    engine = SimulationEngine(config, progress_cb=on_progress)
+    aapl_bars = _make_bars(90, start_price=150.0)
+    spy_bars = _make_bars(90, start_price=400.0)
+
+    async def mock_fetch(symbol: str):
+        return spy_bars if symbol == "SPY" else aapl_bars
+
+    with patch.object(engine, "_fetch_bars", side_effect=mock_fetch):
+        report = await engine.run()
+
+    assert report.status == "completed"
+    bench_calls = [c for c in calls if c[0] == "benchmark"]
+    assert len(bench_calls) == 1
+    assert bench_calls[0][3] == "Computing SPY benchmarks"
+
+
+@pytest.mark.asyncio
+async def test_engine_works_without_progress_callback():
+    """Engine should work fine when no progress_cb is provided (default None)."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    engine = SimulationEngine(config)  # No callback
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        report = await engine.run()
+
+    assert report.status == "completed"
