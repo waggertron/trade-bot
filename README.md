@@ -2,6 +2,293 @@
 
 Protocol-first agentic trading system for crypto and equities.
 
+## Installation
+
+### Prerequisites
+
+- Python 3.12+
+- Git
+
+### Using uv (recommended)
+
+```bash
+git clone <repo-url> trade-bot
+cd trade-bot
+uv sync                          # Install all dependencies
+uv sync --extra ml               # Optional: XGBoost, scikit-learn, PyTorch
+uv sync --extra yfinance         # Optional: Yahoo Finance provider
+uv run tradebot --help           # Verify installation
+```
+
+### Using pip
+
+```bash
+git clone <repo-url> trade-bot
+cd trade-bot
+python -m venv .venv
+source .venv/bin/activate        # macOS/Linux
+# .venv\Scripts\activate         # Windows
+pip install -e .
+pip install -e ".[ml]"           # Optional: ML dependencies
+pip install -e ".[yfinance]"     # Optional: Yahoo Finance
+tradebot --help
+```
+
+### Using conda
+
+```bash
+git clone <repo-url> trade-bot
+cd trade-bot
+conda create -n tradebot python=3.12 -y
+conda activate tradebot
+pip install -e .
+pip install -e ".[ml]"           # Optional: ML dependencies
+pip install -e ".[yfinance]"     # Optional: Yahoo Finance
+tradebot --help
+```
+
+### Using npm (Docker-based)
+
+If you prefer Docker, use the included Makefile:
+
+```bash
+git clone <repo-url> trade-bot
+cd trade-bot
+cp .env.example .env             # Configure API keys
+make build                       # Build all containers
+make up                          # Start the full stack
+```
+
+See the [Docker](#docker) section below for full container commands.
+
+---
+
+## CLI Usage
+
+All commands are run via the `tradebot` entry point. With uv, prefix commands with `uv run`:
+
+```bash
+uv run tradebot <command> [options]
+```
+
+### Simulation
+
+Run walk-forward backtests and Monte Carlo projections across stocks and risk levels.
+
+```bash
+# Run a basic simulation on two stocks
+uv run tradebot simulation run --stocks AAPL --stocks MSFT
+
+# Run with a fixed seed for reproducible results
+uv run tradebot simulation run --stocks AAPL --stocks MSFT --seed 42
+
+# Custom balance, training window, and test window
+uv run tradebot simulation run --stocks NVDA --balance 50000 --train-days 90 --test-days 60
+
+# Run only specific risk levels
+uv run tradebot simulation run --stocks AAPL --risk conservative --risk aggressive
+
+# Portfolio mode with equal-weight allocation
+uv run tradebot simulation run --stocks AAPL --stocks MSFT --stocks GOOGL --portfolio
+
+# Portfolio mode with custom weights and monthly rebalancing
+uv run tradebot simulation run \
+  --stocks AAPL --stocks MSFT --stocks GOOGL \
+  --portfolio \
+  --weights '{"AAPL":0.5,"MSFT":0.3,"GOOGL":0.2}' \
+  --rebalance monthly
+
+# Compare rebalance strategies side by side
+uv run tradebot simulation run \
+  --stocks AAPL --stocks MSFT \
+  --portfolio \
+  --rebalance none --rebalance weekly --rebalance monthly
+
+# Full chart output (per-stock equity curves, heatmaps, MC cones)
+uv run tradebot simulation run --stocks AAPL --charts full
+
+# Minimal output (tables only, no charts)
+uv run tradebot simulation run --stocks AAPL --charts none
+
+# Output raw JSON for programmatic use
+uv run tradebot simulation run --stocks AAPL --seed 42 --json
+
+# Bypass the disk cache for fresh data
+uv run tradebot simulation run --stocks AAPL --no-cache
+
+# Override max position size
+uv run tradebot simulation run --stocks AAPL --max-position-pct 10
+
+# Run all 16 default stocks (SPY, QQQ, AAPL, MSFT, NVDA, etc.)
+uv run tradebot simulation run --seed 42
+```
+
+### Providers
+
+List and health-check registered data providers.
+
+```bash
+# List all known providers
+uv run tradebot providers list
+
+# Filter by protocol type
+uv run tradebot providers list --protocol market_data
+uv run tradebot providers list --protocol sentiment
+
+# Health-check providers (uses mocks by default)
+uv run tradebot providers health
+uv run tradebot providers health --no-mock
+```
+
+### Portfolio
+
+View portfolio snapshots, positions, and P&L.
+
+```bash
+# Show current portfolio summary
+uv run tradebot portfolio show
+
+# Show recent trade history
+uv run tradebot portfolio trades
+uv run tradebot portfolio trades --limit 50
+
+# Show P&L summary
+uv run tradebot portfolio pnl
+uv run tradebot portfolio pnl --period 7d
+uv run tradebot portfolio pnl --period 90d
+```
+
+### Risk
+
+Inspect risk settings, regime limits, and circuit breaker state.
+
+```bash
+# Show current risk settings
+uv run tradebot risk status
+
+# Show regime-specific risk limits
+uv run tradebot risk limits
+uv run tradebot risk limits --regime high
+uv run tradebot risk limits --regime low
+```
+
+### Strategies
+
+List registered strategies and inspect signal generation.
+
+```bash
+# List all strategies with their types and required features
+uv run tradebot strategies list
+
+# Show strategy module summary
+uv run tradebot strategies status
+```
+
+### Analytics
+
+View performance analytics and strategy attribution.
+
+```bash
+# Show analytics summary
+uv run tradebot analytics status
+
+# Show attribution format
+uv run tradebot analytics attribution
+```
+
+### Backtest
+
+Run backtests with strategy replay.
+
+```bash
+# Show backtester summary
+uv run tradebot backtest status
+
+# Run a quick example backtest (no database needed)
+uv run tradebot backtest example
+```
+
+### Config
+
+Validate and inspect configuration.
+
+```bash
+# Validate the settings file
+uv run tradebot config validate
+uv run tradebot config validate --config path/to/settings.yaml
+
+# Show current configuration
+uv run tradebot config show
+uv run tradebot config show --format json
+uv run tradebot config show --format tree
+
+# Print JSON schema for a config model
+uv run tradebot config schema RiskSettings
+uv run tradebot config schema TradingSettings
+```
+
+### Features
+
+Inspect computed features and the feature store.
+
+```bash
+# List all feature categories
+uv run tradebot features list
+
+# Show feature engine status
+uv run tradebot features status
+```
+
+### ML Pipeline
+
+Manage the machine learning pipeline.
+
+```bash
+# Show ML pipeline status
+uv run tradebot ml status
+
+# Show stored features for a symbol
+uv run tradebot ml features --symbol AAPL
+```
+
+### News
+
+Fetch and inspect news articles.
+
+```bash
+# Show news module summary
+uv run tradebot news status
+
+# Show configured RSS feed URLs
+uv run tradebot news feeds
+```
+
+### Sentiment
+
+View sentiment pipeline status and scores.
+
+```bash
+# Show sentiment pipeline status
+uv run tradebot sentiment status
+
+# Show sentiment scores for a symbol
+uv run tradebot sentiment scores --symbol AAPL
+```
+
+### Dashboard
+
+Launch the interactive TUI dashboard.
+
+```bash
+# Launch with defaults
+uv run tradebot dashboard
+
+# Custom API URL and refresh interval
+uv run tradebot dashboard --api-url http://localhost:8080 --refresh 10
+```
+
+---
+
 ## Overview
 
 Trade Bot is a multi-asset automated trading system built on a protocol-first architecture. Every major subsystem -- providers, strategies, risk management, ML models -- is defined as a Python `typing.Protocol`, decoupling interface from implementation and making the entire system testable via mock providers. The system supports both paper and live trading through a consensus-based decision engine that coordinates six trading strategies, an ML pipeline, sentiment analysis, and regime-aware risk management.
@@ -544,21 +831,11 @@ On-chain features are computed by the `FeatureEngine` and stored in the `Feature
 
 ## Quick Start
 
-**Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/)
+See [Installation](#installation) above for setup instructions. Once installed:
 
 ```bash
-git clone <repo-url> trade-bot
-cd trade-bot
-uv sync
 uv run pytest tests/ -v --ignore=tests/test_db.py --ignore=tests/test_db_loader.py
 uv run tradebot --help
-```
-
-To install optional extras:
-
-```bash
-uv sync --extra ml        # XGBoost, scikit-learn, PyTorch
-uv sync --extra yfinance  # Yahoo Finance provider
 ```
 
 ---
@@ -654,11 +931,15 @@ The `backend` and `bot` services share a Docker volume (`db-data`) for the SQLit
 
 ## CLI Commands
 
+See [CLI Usage](#cli-usage) above for detailed examples.
+
 | Command | Description |
 |---------|-------------|
+| `tradebot simulation` | Walk-forward backtests, Monte Carlo projections, portfolio analysis |
 | `tradebot analytics` | Performance analytics, attribution, and reporting |
 | `tradebot backtest` | Backtesting with strategy replay and demo mode |
 | `tradebot config` | Validate, show, and inspect configuration schemas |
+| `tradebot dashboard` | Interactive TUI dashboard for monitoring |
 | `tradebot features` | Feature inspection and feature store queries |
 | `tradebot ml` | ML pipeline status, training, and feature vectors |
 | `tradebot news` | News fetching and article inspection |
