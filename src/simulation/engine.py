@@ -84,9 +84,15 @@ class SimulationEngine:
             # Walk-forward backtest on test data
             ticks = self._bars_to_ticks(test_bars, symbol)
             if ticks:
+                # Adapt SMA windows to fit available test data
+                n_ticks = len(ticks)
+                long_window = min(20, n_ticks // 2) if n_ticks < 50 else 50
+                short_window = min(5, long_window // 2) if long_window < 14 else 14
                 bt_result = await run_backtest(
                     ticks,
                     initial_cash=Decimal(str(self._config.initial_balance)),
+                    short_window=short_window,
+                    long_window=long_window,
                     risk_settings=risk_settings,
                 )
                 stock_results.append(self._to_stock_result(symbol, bt_result))

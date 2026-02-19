@@ -15,7 +15,7 @@ class PortfolioManager:
 
     async def get_snapshot(self) -> PortfolioSnapshot:
         return PortfolioSnapshot(
-            cash=self._cash,
+            cash=max(self._cash, Decimal(0)),
             positions=list(self._positions.values()),
             timestamp=datetime.now(timezone.utc),
         )
