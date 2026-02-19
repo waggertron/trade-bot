@@ -91,3 +91,9 @@ class SimulationRequest(StrictBase):
         "conservative", "moderate", "aggressive", "very_aggressive",
     ])
     mc_simulations: int = Field(default=1000, gt=0)
+    # Portfolio simulation fields
+    portfolio_mode: bool = False
+    allocation_mode: str = Field(default="equal_weight", pattern=r"^(equal_weight|custom)$")
+    custom_weights: dict[str, float] = Field(default_factory=dict)
+    rebalance_frequency: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly)$")
+    rebalance_threshold_pct: float = Field(default=5.0, ge=0.0, le=100.0)

@@ -15,7 +15,7 @@ async def _run_async(req: SimulationRequest) -> dict:
     """Run simulation engine and return report dict."""
     from src.core.config import RiskLevel
     from src.simulation.engine import SimulationEngine
-    from src.simulation.models import SimulationConfig
+    from src.simulation.models import AllocationWeights, RebalanceConfig, SimulationConfig
 
     config = SimulationConfig(
         stocks=req.stocks,
@@ -24,6 +24,15 @@ async def _run_async(req: SimulationRequest) -> dict:
         test_days=req.test_days,
         risk_levels=[RiskLevel(r) for r in req.risk_levels],
         mc_simulations=req.mc_simulations,
+        portfolio_mode=req.portfolio_mode,
+        allocation=AllocationWeights(
+            mode=req.allocation_mode,
+            weights=req.custom_weights,
+        ),
+        rebalance=RebalanceConfig(
+            frequency=req.rebalance_frequency,
+            threshold_pct=req.rebalance_threshold_pct,
+        ),
     )
     engine = SimulationEngine(config)
     report = await engine.run()
