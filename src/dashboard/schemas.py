@@ -90,6 +90,7 @@ class SimulationRequest(StrictBase):
         "conservative", "moderate", "aggressive", "very_aggressive",
     ])
     mc_simulations: int = Field(default=1000, gt=0)
+    mc_seed: int | None = Field(default=None, description="Monte Carlo random seed")
     # Portfolio simulation fields
     portfolio_mode: bool = False
     allocation_mode: str = Field(default="equal_weight", pattern=r"^(equal_weight|custom)$")

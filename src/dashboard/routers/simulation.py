@@ -24,6 +24,7 @@ async def _run_async(req: SimulationRequest) -> dict:
         test_days=req.test_days,
         risk_levels=[RiskLevel(r) for r in req.risk_levels],
         mc_simulations=req.mc_simulations,
+        mc_seed=req.mc_seed,
         portfolio_mode=req.portfolio_mode,
         allocation=AllocationWeights(
             mode=req.allocation_mode,
