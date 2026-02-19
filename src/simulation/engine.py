@@ -19,6 +19,7 @@ from src.simulation.models import (
     SimulationReport,
     StockSimResult,
 )
+from src.simulation.portfolio import PortfolioSimulator
 from src.simulation.projector import MonteCarloProjector
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,11 @@ class SimulationEngine:
         stock_results: list[StockSimResult] = []
         mc_projections: list[MonteCarloProjection] = []
 
+        # Create portfolio simulator when in portfolio mode
+        portfolio_sim: PortfolioSimulator | None = None
+        if self._config.portfolio_mode:
+            portfolio_sim = PortfolioSimulator(self._config)
+
         for symbol in self._config.stocks:
             bars = await self._fetch_bars(symbol)
             total_needed = self._config.train_days + self._config.test_days
@@ -90,9 +96,15 @@ class SimulationEngine:
                 short_window = max(3, long_window // 3)
                 # Lower z-threshold so quant strategy fires on daily data
                 quant_z = 1.0 if n_ticks < 100 else 2.0
+                # Use allocated balance per stock in portfolio mode
+                if portfolio_sim is not None:
+                    stock_balance = Decimal(str(portfolio_sim.get_stock_balance(symbol)))
+                else:
+                    stock_balance = Decimal(str(self._config.initial_balance))
+
                 bt_result = await run_backtest(
                     ticks,
-                    initial_cash=Decimal(str(self._config.initial_balance)),
+                    initial_cash=stock_balance,
                     short_window=short_window,
                     long_window=long_window,
                     quant_z_threshold=quant_z,
@@ -107,8 +119,13 @@ class SimulationEngine:
                     n_paths=self._config.mc_simulations, seed=42,
                 )
                 paths = projector.generate_paths(train_prices, self._config.test_days)
+                # Use allocated balance per stock in portfolio mode
+                if portfolio_sim is not None:
+                    mc_balance = portfolio_sim.get_stock_balance(symbol)
+                else:
+                    mc_balance = self._config.initial_balance
                 summary = projector.summarize(
-                    paths, self._config.initial_balance, train_prices[-1],
+                    paths, mc_balance, train_prices[-1],
                 )
                 mc_projections.append(MonteCarloProjection(
                     symbol=symbol,
@@ -137,6 +154,18 @@ class SimulationEngine:
         )
         total_trades = sum(r.total_trades for r in stock_results)
 
+        # Build portfolio-level metrics when in portfolio mode
+        portfolio_metrics = None
+        if portfolio_sim is not None and stock_results:
+            stock_equity_curves: dict[str, list[float]] = {
+                r.symbol: r.equity_curve for r in stock_results
+            }
+            portfolio_curve = portfolio_sim.build_portfolio_equity_curve(stock_equity_curves)
+            if portfolio_curve:
+                portfolio_metrics = portfolio_sim.compute_portfolio_metrics(
+                    portfolio_curve, total_trades,
+                )
+
         return RiskLevelResult(
             risk_level=risk_level.value,
             stock_results=stock_results,
@@ -146,6 +175,7 @@ class SimulationEngine:
             avg_sharpe=avg_sharpe,
             avg_max_drawdown=avg_dd,
             total_trades=total_trades,
+            portfolio_metrics=portfolio_metrics,
         )
 
     async def _fetch_bars(self, symbol: str) -> list[OHLCBar]:
@@ -206,9 +236,18 @@ class SimulationEngine:
         # Score each risk level: sharpe * 0.5 + return * 0.3 - drawdown * 0.2
         scores: dict[str, float] = {}
         for level, result in results.items():
-            sharpe = result.avg_sharpe if not math.isnan(result.avg_sharpe) else 0.0
-            ret = result.total_return_pct if not math.isnan(result.total_return_pct) else 0.0
-            dd = result.avg_max_drawdown if not math.isnan(result.avg_max_drawdown) else 0.0
+            # Use portfolio-level metrics when available, otherwise per-stock averages
+            if result.portfolio_metrics is not None:
+                sharpe = result.portfolio_metrics.sharpe_ratio
+                ret = result.portfolio_metrics.total_return_pct
+                dd = result.portfolio_metrics.max_drawdown
+            else:
+                sharpe = result.avg_sharpe
+                ret = result.total_return_pct
+                dd = result.avg_max_drawdown
+            sharpe = sharpe if not math.isnan(sharpe) else 0.0
+            ret = ret if not math.isnan(ret) else 0.0
+            dd = dd if not math.isnan(dd) else 0.0
             scores[level] = sharpe * 0.5 + ret * 0.3 - dd * 0.2
 
         best_level = max(scores, key=lambda k: scores[k])
