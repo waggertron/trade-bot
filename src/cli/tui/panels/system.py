@@ -1,10 +1,14 @@
 """System status panel for the TUI dashboard."""
 from __future__ import annotations
 
+import logging
+
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Label, Static
 from textual import work
+
+logger = logging.getLogger(__name__)
 
 
 class SystemPanel(Static):
@@ -37,7 +41,7 @@ class SystemPanel(Static):
         try:
             self.query_one(selector, Label).update(text)
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
     @work(exclusive=True)
     async def refresh_data(self) -> None:
@@ -68,4 +72,4 @@ class SystemPanel(Static):
                 "#sys-paused", f"Paused: [{color}]{paused}[/{color}]",
             )
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)

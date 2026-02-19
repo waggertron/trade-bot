@@ -1,10 +1,14 @@
 """Portfolio panel for the TUI dashboard."""
 from __future__ import annotations
 
+import logging
+
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, Sparkline, Static
 from textual import work
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioPanel(Static):
@@ -46,7 +50,7 @@ class PortfolioPanel(Static):
         try:
             self.query_one(selector, Label).update(text)
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
     @work(exclusive=True)
     async def refresh_data(self) -> None:
@@ -68,7 +72,7 @@ class PortfolioPanel(Static):
             color = "green" if pnl >= 0 else "red"
             self._update_label("#pf-pnl", f"P&L: [{color}]${pnl:,.2f}[/{color}]")
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
         try:
             positions = await api.get_positions()
@@ -83,7 +87,7 @@ class PortfolioPanel(Static):
                     f"{pos.get('pnl_pct', 0):.2f}%",
                 )
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
         try:
             curve_data = await api.get_equity_curve()
@@ -91,4 +95,4 @@ class PortfolioPanel(Static):
             if points:
                 self.query_one("#pf-sparkline", Sparkline).data = points
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)

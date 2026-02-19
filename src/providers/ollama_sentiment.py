@@ -41,7 +41,7 @@ class OllamaSentimentAnalyzer:
 
     @property
     def name(self) -> str:
-        return "ollama"
+        return f"ollama:{self._config.model}"
 
     async def score(self, text: str) -> SentimentResult:
         """Score a single piece of text for financial sentiment."""
@@ -55,7 +55,7 @@ class OllamaSentimentAnalyzer:
                 magnitude=max(0.0, min(1.0, float(data["magnitude"]))),
                 timestamp=datetime.now(timezone.utc),
                 reasoning=data.get("reasoning"),
-                analyzer="ollama",
+                analyzer=self.name,
             )
         except (json.JSONDecodeError, KeyError, ValueError, TypeError, httpx.HTTPError) as exc:
             logger.warning("Failed to parse Ollama response (%s: %s), returning neutral fallback", type(exc).__name__, exc)
@@ -64,7 +64,7 @@ class OllamaSentimentAnalyzer:
                 magnitude=0.0,
                 timestamp=datetime.now(timezone.utc),
                 reasoning="Failed to parse Ollama response",
-                analyzer="ollama",
+                analyzer=self.name,
             )
 
     async def score_batch(self, texts: list[str]) -> list[SentimentResult]:

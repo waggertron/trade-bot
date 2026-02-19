@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -29,6 +30,26 @@ from src.sentiment.pipeline import SentimentPipeline
 
 from src.core.models import Fill
 from src.db.models import TradeRecord
+from src.feeds.null_feed import NullStockFeed
+from src.integrations.ibkr import IBKRFeed
+from src.agents.strategies.ml_ensemble import MLEnsembleStrategy
+from src.ml.ensemble import EnsembleModel
+from src.ml.feature_engine import FeatureEngine
+from src.ml.feature_store import FeatureStore
+from src.ml.mock_model import MockModel
+from src.ml.models import FeatureVector
+from src.providers.mock import MockFeatureProvider, MockOnChainProvider
+from src.providers.onchain_features import OnChainFeatureProvider
+from src.providers.protocols import (
+    FeatureProvider,
+    NewsProvider,
+    OnChainProvider as OnChainProviderProtocol,
+    SentimentAnalyzer,
+)
+from src.providers.registry import ProviderRegistry
+from src.risk.circuit_breaker import DrawdownCircuitBreaker
+from src.risk.fixed_sizer import FixedPositionSizer
+from src.risk.vol_sizer import VolTargetedPositionSizer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,20 +81,126 @@ async def persist_fill(
         logger.exception("Failed to persist fill for %s", fill.symbol)
 
 
-class NullStockFeed:
-    """Placeholder stock feed when IBKR is not connected."""
+class DailyPnLTracker:
+    """Tracks daily PnL from a start-of-day portfolio value, resets at midnight."""
 
-    async def connect(self) -> None:
-        pass
+    def __init__(self) -> None:
+        self.day_start_value: Decimal | None = None
+        self._current_date: datetime | None = None
 
-    async def disconnect(self) -> None:
-        pass
+    def update(self, portfolio_value: Decimal, now: datetime) -> Decimal:
+        """Update with current portfolio value. Returns daily PnL."""
+        today = now.date()
+        if self._current_date is None or today != self._current_date:
+            # New day or first call — reset
+            self.day_start_value = portfolio_value
+            self._current_date = today
+            return Decimal("0")
+        return portfolio_value - self.day_start_value
 
-    async def get_price(self, symbol: str) -> Decimal:
-        return Decimal("0")
 
-    async def get_order_book(self, symbol: str) -> dict:
-        return {"bids": [], "asks": []}
+def build_stock_feed(settings: Settings) -> tuple:
+    """Build stock feed and symbol list based on mock settings."""
+    if settings.use_mocks.stock_feed:
+        return NullStockFeed(), []
+    return IBKRFeed(), settings.trading.symbols.stocks
+
+
+def build_circuit_breaker(settings: Settings) -> DrawdownCircuitBreaker:
+    """Build a circuit breaker from risk settings."""
+    return DrawdownCircuitBreaker(
+        max_drawdown_pct=settings.risk.weekly_drawdown_limit_pct,
+        cooldown_hours=24.0,
+    )
+
+
+def build_risk_manager(settings: Settings) -> RiskManager:
+    """Build RiskManager with circuit breaker wired in."""
+    circuit_breaker = build_circuit_breaker(settings)
+    return RiskManager(settings.risk, circuit_breaker=circuit_breaker)
+
+
+def build_position_sizer(settings: Settings):
+    """Build position sizer based on mock settings."""
+    if settings.use_mocks.position_sizer:
+        return FixedPositionSizer(position_pct=settings.risk.max_position_pct)
+    return VolTargetedPositionSizer(target_vol_contribution=0.01)
+
+
+class MLTickAdapter:
+    """Adapts an MLEnsembleStrategy (feature-based) to the tick-based orchestrator interface."""
+
+    def __init__(self, ml_strategy: MLEnsembleStrategy, feature_store: FeatureStore) -> None:
+        self._ml_strategy = ml_strategy
+        self._feature_store = feature_store
+
+    @property
+    def name(self) -> str:
+        return self._ml_strategy.name
+
+    async def evaluate(self, symbol: str, market_data: list, research=None):
+        """Bridge tick-based evaluate to feature-based evaluate."""
+        if not market_data:
+            return None
+        latest_tick = market_data[-1]
+        timestamp = int(latest_tick.timestamp.timestamp())
+        features = self._feature_store.load(symbol, timestamp)
+        if not features:
+            return None
+        vector = FeatureVector(symbol=symbol, timestamp=timestamp, features=features)
+        return await self._ml_strategy.evaluate(symbol, vector)
+
+
+def build_ml_strategy(settings: Settings) -> MLEnsembleStrategy:
+    """Build ML ensemble strategy with mock or real model."""
+    if settings.use_mocks.ml:
+        model = MockModel()
+    else:
+        model = EnsembleModel(models=[])
+    return MLEnsembleStrategy(model=model)
+
+
+def build_registry(
+    settings: Settings,
+    news_provider=None,
+    sentiment_analyzer=None,
+    onchain_provider=None,
+    feature_provider=None,
+) -> ProviderRegistry:
+    """Build provider registry and register all active providers."""
+    registry = ProviderRegistry()
+    if news_provider is not None:
+        registry.register(NewsProvider, news_provider)
+    if sentiment_analyzer is not None:
+        registry.register(SentimentAnalyzer, sentiment_analyzer)
+    if onchain_provider is not None:
+        registry.register(OnChainProviderProtocol, onchain_provider)
+    if feature_provider is not None:
+        registry.register(FeatureProvider, feature_provider)
+    return registry
+
+
+def build_onchain_provider(settings: Settings) -> OnChainFeatureProvider:
+    """Build on-chain feature provider with mock or real backend."""
+    if settings.use_mocks.onchain:
+        return OnChainFeatureProvider(MockOnChainProvider())
+    from src.providers.blockchair import BlockchairProvider
+    from src.providers.configs import BlockchairConfig
+    from src.providers.mock import MockHttpClient
+    client = MockHttpClient()  # Replaced with real HTTP client when available
+    return OnChainFeatureProvider(BlockchairProvider(BlockchairConfig(), client))
+
+
+def build_feature_engine(settings: Settings) -> tuple[FeatureEngine, FeatureStore]:
+    """Build feature engine with mock or real providers."""
+    store = FeatureStore()
+    if settings.use_mocks.ml:
+        providers = [MockFeatureProvider()]
+    else:
+        from src.providers.technical import TechnicalFeatureProvider
+        providers = [TechnicalFeatureProvider()]
+    engine = FeatureEngine(providers=providers, store=store)
+    return engine, store
 
 
 async def run_sentiment_cycle(
@@ -127,13 +254,28 @@ async def main():
 
     # Agents
     portfolio = PortfolioManager(initial_cash=Decimal("100000"))
-    risk_manager = RiskManager(settings.risk)
+    risk_manager = build_risk_manager(settings)
     executor = PaperExecutionAgent(slippage_pct=Decimal("0.05"))
+    position_sizer = build_position_sizer(settings)
+
+    # Feature engine and on-chain provider (before strategies so adapter can use store)
+    feature_engine, feature_store = build_feature_engine(settings)
+    onchain_provider = build_onchain_provider(settings)
+    logger.info(
+        "Feature engine initialized with %d providers, on-chain: %s",
+        len(feature_engine._providers),
+        onchain_provider._provider.__class__.__name__,
+    )
+
+    # ML strategy with tick adapter
+    ml_strategy = build_ml_strategy(settings)
+    ml_adapter = MLTickAdapter(ml_strategy, feature_store)
 
     strategies = [
         MomentumStrategy(short_window=5, long_window=14),
         SentimentStrategy(),
         QuantitativeStrategy(lookback=10, z_threshold=2.0),
+        ml_adapter,
     ]
 
     orchestrator = Orchestrator(
@@ -143,6 +285,7 @@ async def main():
         portfolio=portfolio,
         event_bus=event_bus,
         db=db,
+        position_sizer=position_sizer,
     )
 
     # Sentiment pipeline
@@ -191,13 +334,23 @@ async def main():
     else:
         logger.info("Sentiment pipeline disabled")
 
-    # Market data — Kraken for crypto (no auth needed for public data)
-    # IBKR skipped for now (needs TWS running)
+    # Provider registry
+    registry = build_registry(
+        settings,
+        news_provider=rss_provider if settings.sentiment.enabled else None,
+        sentiment_analyzer=analyzer if settings.sentiment.enabled else None,
+        onchain_provider=onchain_provider._provider,
+        feature_provider=feature_engine._providers[0] if feature_engine._providers else None,
+    )
+    logger.info("Provider registry: %d providers", len(list(registry.all())))
+
+    # Market data
     crypto_feed = KrakenFeed()
+    stock_feed, stock_symbols = build_stock_feed(settings)
     market_data = MarketDataManager(
-        stock_feed=NullStockFeed(),
+        stock_feed=stock_feed,
         crypto_feed=crypto_feed,
-        stock_symbols=[],  # Skip stocks until IBKR is configured
+        stock_symbols=stock_symbols,
         crypto_symbols=settings.trading.symbols.crypto,
     )
 
@@ -210,6 +363,7 @@ async def main():
 
     poll_interval = 30  # seconds between market data fetches
     tick_count = 0
+    pnl_tracker = DailyPnLTracker()
 
     try:
         while True:
@@ -243,9 +397,15 @@ async def main():
                             is_paper=settings.is_paper,
                         )
 
+                # Update circuit breaker and daily PnL
+                snapshot = await portfolio.get_snapshot()
+                now = datetime.now(timezone.utc)
+                risk_manager.update_circuit_breaker(snapshot.total_value, now)
+                daily_pnl = pnl_tracker.update(snapshot.total_value, now)
+                risk_manager.record_daily_pnl(daily_pnl)
+
                 # Log portfolio summary every 5 ticks
                 if tick_count % 5 == 0:
-                    snapshot = await portfolio.get_snapshot()
                     positions = await portfolio.get_positions()
                     logger.info(
                         "Portfolio: cash=$%s, positions=%d, total=$%s",

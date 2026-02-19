@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from src.db.models import OHLCRecord, SignalRecord, TradeRecord
+from src.db.models import (
+    ArticleRecord,
+    FeedRecord,
+    OHLCRecord,
+    SentimentScoreRecord,
+    SignalRecord,
+    TradeRecord,
+)
 
 metadata = sa.MetaData()
 
@@ -43,6 +52,54 @@ ohlc_bars_table = sa.Table(
     sa.Column("volume", sa.String, nullable=False),
     sa.Column("source", sa.String, nullable=False),
     sa.PrimaryKeyConstraint("symbol", "interval", "timestamp"),
+)
+
+
+feeds_table = sa.Table(
+    "feeds", metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("name", sa.String, nullable=False),
+    sa.Column("url", sa.String, nullable=False, unique=True),
+    sa.Column("feed_type", sa.String, nullable=False),
+    sa.Column("category", sa.String, nullable=False),
+    sa.Column("auth_type", sa.String, nullable=False, server_default="free"),
+    sa.Column("rate_limit_rpm", sa.Integer, server_default="60"),
+    sa.Column("enabled", sa.Boolean, server_default=sa.text("1")),
+    sa.Column("last_fetched_at", sa.DateTime, nullable=True),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+)
+
+articles_table = sa.Table(
+    "articles", metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("content_hash", sa.String, nullable=False, unique=True),
+    sa.Column("title", sa.String, nullable=False),
+    sa.Column("body", sa.String, server_default=""),
+    sa.Column("source", sa.String, nullable=False),
+    sa.Column("url", sa.String, server_default=""),
+    sa.Column("published_at", sa.DateTime, nullable=False),
+    sa.Column("fetched_at", sa.DateTime, nullable=False),
+    sa.Column("feed_id", sa.String, sa.ForeignKey("feeds.id"), nullable=True),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+)
+
+article_symbols_table = sa.Table(
+    "article_symbols", metadata,
+    sa.Column("article_id", sa.String, sa.ForeignKey("articles.id"), nullable=False),
+    sa.Column("symbol", sa.String, nullable=False),
+    sa.PrimaryKeyConstraint("article_id", "symbol"),
+)
+
+sentiment_scores_table = sa.Table(
+    "sentiment_scores", metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("article_id", sa.String, sa.ForeignKey("articles.id"), nullable=False),
+    sa.Column("score", sa.Float, nullable=False),
+    sa.Column("magnitude", sa.Float, nullable=False),
+    sa.Column("reasoning", sa.String, nullable=True),
+    sa.Column("analyzer", sa.String, nullable=False),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.UniqueConstraint("article_id", "analyzer"),
 )
 
 

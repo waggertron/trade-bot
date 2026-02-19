@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -17,6 +18,8 @@ from src.analytics.monte_carlo import MonteCarloSimulator
 from src.analytics.reporter import AnalyticsReporter
 from src.cli.charts import ascii_line_chart, plotext_bar_chart
 from src.core.models import Fill, OrderSide
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="backtest", help="Backtesting commands.", no_args_is_help=True
@@ -223,7 +226,7 @@ def _print_backtest_charts(
         console.print()
         console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)
 
     # --- Chart: Strategy attribution bar chart ---
     console.print(Rule("[bold]Strategy Attribution[/bold]"))
@@ -240,7 +243,7 @@ def _print_backtest_charts(
             console.print()
             console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)
 
     # --- Chart: Drawdown chart (inverted) ---
     console.print(Rule("[bold]Drawdown[/bold]"))
@@ -264,4 +267,4 @@ def _print_backtest_charts(
         console.print()
         console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)

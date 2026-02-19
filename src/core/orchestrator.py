@@ -5,7 +5,7 @@ import logging
 from collections import Counter
 from decimal import Decimal
 
-from src.core.event_bus import EventBus
+from src.core.event_bus import Event, EventBus
 from src.core.models import (
     Fill, MarketTick, Order, OrderSide, OrderType, ResearchReport, Signal,
     SignalDirection,
@@ -26,6 +26,7 @@ class Orchestrator:
         position_size_pct: float = 2.0,
         min_order_value: Decimal = Decimal("10"),
         db=None,
+        position_sizer=None,
     ):
         self._strategies = strategies
         self._risk_manager = risk_manager
@@ -39,6 +40,7 @@ class Orchestrator:
         self._max_history = 200
         self._research: list[ResearchReport] | None = None
         self._db = db
+        self._position_sizer = position_sizer
 
     def set_research(self, reports: list[ResearchReport]) -> None:
         """Update the research reports passed to strategies."""
@@ -69,6 +71,10 @@ class Orchestrator:
         if not signals:
             return []
 
+        # Publish signal events
+        for signal in signals:
+            await self._event_bus.publish(Event(event_type="signal"))
+
         consensus = self._find_consensus(signals)
         if consensus is None:
             return []
@@ -76,12 +82,15 @@ class Orchestrator:
         portfolio = await self._portfolio.get_snapshot()
         decision = await self._risk_manager.evaluate_trade(consensus, portfolio)
 
+        # Publish risk decision event
+        await self._event_bus.publish(Event(event_type="risk_decision"))
+
         if not decision.is_approved:
             logger.info("Trade vetoed for %s: %s", tick.symbol, decision.reason)
             return []
 
         side = OrderSide.BUY if consensus.direction == SignalDirection.BUY else OrderSide.SELL
-        quantity = self._compute_quantity(side, tick, portfolio, decision)
+        quantity = await self._compute_quantity(side, tick, portfolio, decision, consensus)
 
         if quantity <= 0:
             logger.info("Skipping %s %s: computed quantity is zero", side.value, tick.symbol)
@@ -98,22 +107,43 @@ class Orchestrator:
 
         fill = await self._executor.submit_order(order)
         await self._portfolio.record_fill(fill)
+
+        # Publish fill event
+        await self._event_bus.publish(Event(event_type="fill"))
+
         return [fill]
 
-    def _compute_quantity(
+    async def _compute_quantity(
         self,
         side: OrderSide,
         tick: MarketTick,
         portfolio,
         decision,
+        signal: Signal | None = None,
     ) -> Decimal:
         """Compute order quantity with position sizing and hard limits."""
         if tick.price <= 0:
             return Decimal("0")
 
         if side == OrderSide.BUY:
-            # Size based on % of portfolio value
-            trade_value = portfolio.total_value * self._position_size_pct / Decimal("100")
+            if self._position_sizer is not None and signal is not None:
+                # Delegate to position sizer for trade value
+                from src.risk.models import RiskContext, VolatilityRegime
+                # Build a minimal risk context for the sizer
+                risk_context = RiskContext(
+                    regime=VolatilityRegime.MEDIUM,
+                    correlation_matrix={},
+                    strategy_stats={},
+                    drawdown_from_peak=0.0,
+                    portfolio=portfolio,
+                    daily_pnl=Decimal("0"),
+                )
+                trade_value = await self._position_sizer.compute_size(
+                    signal, portfolio, risk_context
+                )
+            else:
+                # Size based on % of portfolio value
+                trade_value = portfolio.total_value * self._position_size_pct / Decimal("100")
             # Never spend more than available cash
             trade_value = min(trade_value, portfolio.cash)
             # Skip if below minimum order value

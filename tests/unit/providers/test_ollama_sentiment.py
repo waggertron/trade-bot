@@ -26,9 +26,15 @@ def analyzer(config: OllamaSentimentConfig) -> OllamaSentimentAnalyzer:
 class TestOllamaSentimentAnalyzer:
     """Tests for OllamaSentimentAnalyzer (all using mocked _call_ollama)."""
 
-    def test_creates_with_config_and_name(self, analyzer: OllamaSentimentAnalyzer):
-        """Creates with config and name is 'ollama'."""
-        assert analyzer.name == "ollama"
+    def test_name_includes_model(self, analyzer: OllamaSentimentAnalyzer):
+        """Name includes the model identifier, e.g. 'ollama:llama3.2'."""
+        assert analyzer.name == "ollama:llama3.2"
+
+    def test_name_reflects_custom_model(self):
+        """Name changes when a different model is configured."""
+        config = OllamaSentimentConfig(model="mistral")
+        custom = OllamaSentimentAnalyzer(config)
+        assert custom.name == "ollama:mistral"
 
     def test_implements_sentiment_analyzer_protocol(
         self, analyzer: OllamaSentimentAnalyzer,
@@ -54,7 +60,7 @@ class TestOllamaSentimentAnalyzer:
         assert result.score == 0.7
         assert result.magnitude == 0.8
         assert result.reasoning == "positive outlook"
-        assert result.analyzer == "ollama"
+        assert result.analyzer == "ollama:llama3.2"
 
     async def test_score_clamps_out_of_range_values(
         self, analyzer: OllamaSentimentAnalyzer,
@@ -122,7 +128,7 @@ class TestOllamaSentimentAnalyzer:
         assert result.score == 0.0
         assert result.magnitude == 0.0
         assert result.reasoning == "Failed to parse Ollama response"
-        assert result.analyzer == "ollama"
+        assert result.analyzer == "ollama:llama3.2"
 
     async def test_handles_missing_keys_gracefully(
         self, analyzer: OllamaSentimentAnalyzer,
@@ -162,7 +168,7 @@ class TestOllamaSentimentAnalyzer:
         assert result.score == 0.0
         assert result.magnitude == 0.0
         assert result.reasoning == "Failed to parse Ollama response"
-        assert result.analyzer == "ollama"
+        assert result.analyzer == "ollama:llama3.2"
 
     async def test_handles_connection_error_gracefully(
         self, analyzer: OllamaSentimentAnalyzer,
@@ -180,4 +186,4 @@ class TestOllamaSentimentAnalyzer:
         assert result.score == 0.0
         assert result.magnitude == 0.0
         assert result.reasoning == "Failed to parse Ollama response"
-        assert result.analyzer == "ollama"
+        assert result.analyzer == "ollama:llama3.2"

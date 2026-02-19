@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -17,6 +18,8 @@ from src.cli.charts import (
     spark_line,
 )
 from src.core.models import AssetType, OrderSide, Position
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="portfolio", help="Portfolio management commands.", no_args_is_help=True
@@ -174,6 +177,7 @@ def show() -> None:
             ]
             trend_str = spark_line(trend_vals)
         except Exception:
+            logger.debug("Chart render error", exc_info=True)
             trend_str = ""
 
         table.add_row(
@@ -202,7 +206,7 @@ def show() -> None:
         console.print()
         console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)
 
     # --- Chart: P&L bar chart per position ---
     console.print(Rule("[bold]Unrealized P&L[/bold]"))
@@ -217,7 +221,7 @@ def show() -> None:
         console.print()
         console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)
 
 
 @app.command()
@@ -316,7 +320,7 @@ def pnl(
         console.print()
         console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)
 
     # --- Chart: Win/Loss distribution bar chart ---
     console.print(Rule("[bold]Win/Loss Distribution[/bold]"))
@@ -329,4 +333,4 @@ def pnl(
         console.print()
         console.print(Panel(chart, expand=False))
     except Exception:
-        pass
+        logger.debug("Chart render error", exc_info=True)

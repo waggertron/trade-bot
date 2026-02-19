@@ -1,10 +1,14 @@
 """Simulation panel for the TUI dashboard."""
 from __future__ import annotations
 
+import logging
+
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, RichLog, Static
 from textual import work
+
+logger = logging.getLogger(__name__)
 
 
 class SimulationPanel(Static):
@@ -70,4 +74,4 @@ class SimulationPanel(Static):
                     str(run.get("started_at", ""))[:19],
                 )
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)

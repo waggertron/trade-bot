@@ -1,10 +1,14 @@
 """Risk panel for the TUI dashboard."""
 from __future__ import annotations
 
+import logging
+
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, ProgressBar, Static
 from textual import work
+
+logger = logging.getLogger(__name__)
 
 
 class RiskPanel(Static):
@@ -49,7 +53,7 @@ class RiskPanel(Static):
         try:
             self.query_one(selector, Label).update(text)
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
     @work(exclusive=True)
     async def refresh_data(self) -> None:
@@ -68,7 +72,7 @@ class RiskPanel(Static):
                 bar.total = limit
                 bar.progress = min(current, limit)
             except Exception:
-                pass
+                logger.debug("Panel render error", exc_info=True)
         except Exception:
             self._update_label("#risk-dd-label", "Current: [red]error[/red]")
 
@@ -81,14 +85,14 @@ class RiskPanel(Static):
                 f"Status: [{color}]{'TRIPPED' if tripped else 'OK'}[/{color}]",
             )
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
         try:
             regime = await api.get_regime()
             regime_name = regime.get("regime", "unknown")
             self._update_label("#risk-regime", f"Regime: [bold]{regime_name}[/bold]")
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
 
         try:
             status = await api.get_risk_status()
@@ -98,4 +102,4 @@ class RiskPanel(Static):
                 if key not in ("risk_level",):
                     table.add_row(str(key), str(value))
         except Exception:
-            pass
+            logger.debug("Panel render error", exc_info=True)
