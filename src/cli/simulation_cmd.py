@@ -11,6 +11,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.rule import Rule
 from rich.syntax import Syntax
 from rich.table import Table
+from rich.text import Text
 
 from src.cli.charts import (
     ascii_line_chart,
@@ -298,7 +299,7 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
                         title="Benchmark vs Strategy Equity Curves",
                     )
                     console.print()
-                    console.print(Panel(chart, expand=False))
+                    console.print(Panel(Text.from_ansi(chart), expand=False))
             except Exception:
                 pass  # chart rendering is best-effort
 
@@ -515,7 +516,7 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
                         title=f"{level_name.upper()} | Monte Carlo Projection Cone",
                     )
                     console.print()
-                    console.print(Panel(chart, expand=False))
+                    console.print(Panel(Text.from_ansi(chart), expand=False))
         except Exception:
             pass
 

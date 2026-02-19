@@ -137,15 +137,31 @@ def plotext_bar_chart(
 
 
 # ---------------------------------------------------------------------------
-# Multi-line chart (asciichartpy wrapper)
+# Multi-line chart (asciichartpy wrapper, colored)
 # ---------------------------------------------------------------------------
+
+# Distinct ANSI colors for multi-series charts (ordered for readability)
+_SERIES_COLORS = [
+    asciichartpy.red,
+    asciichartpy.green,
+    asciichartpy.cyan,
+    asciichartpy.yellow,
+    asciichartpy.magenta,
+    asciichartpy.lightblue,
+    asciichartpy.lightred,
+    asciichartpy.lightgreen,
+]
 
 
 def plotext_multi_line(
     series_dict: dict[str, Sequence[float | int]],
     title: str = "",
 ) -> str:
-    """Render multiple line series on a single ASCII chart via asciichartpy.
+    """Render multiple colored line series on a single ASCII chart.
+
+    Each series gets a distinct ANSI color for both the chart line and
+    its legend marker.  The output contains ANSI escape codes; callers
+    rendering via Rich should wrap with ``Text.from_ansi()``.
 
     Parameters
     ----------
@@ -157,7 +173,7 @@ def plotext_multi_line(
     Returns
     -------
     str
-        Rendered chart as a string.
+        Rendered chart as a string (contains ANSI escape codes).
     """
     if not series_dict or not any(series_dict.values()):
         return f"{title}\n(no data)" if title else "(no data)"
@@ -173,16 +189,23 @@ def plotext_multi_line(
     if not all_series:
         return f"{title}\n(no data)" if title else "(no data)"
 
-    cfg = {"height": 12}
+    # Assign colors (cycle if more series than colors)
+    colors = [_SERIES_COLORS[i % len(_SERIES_COLORS)] for i in range(len(all_series))]
+
+    cfg = {"height": 12, "colors": colors}
     chart = asciichartpy.plot(all_series, cfg)
 
-    # Build legend line
-    legend = "  ".join(labels)
+    # Build colored legend line
+    legend_parts: list[str] = []
+    for i, label in enumerate(labels):
+        color = colors[i]
+        legend_parts.append(f"{color}\u2501\u2501{asciichartpy.reset} {label}")
+
     parts: list[str] = []
     if title:
         parts.append(title)
     parts.append(chart)
-    parts.append(f"  Legend: {legend}")
+    parts.append(f"  Legend: {'   '.join(legend_parts)}")
     return "\n".join(parts)
 
 
