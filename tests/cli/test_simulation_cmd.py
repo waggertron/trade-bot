@@ -1,7 +1,7 @@
 """Tests for simulation CLI command."""
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import patch, call
 
 from typer.testing import CliRunner
 
@@ -16,12 +16,32 @@ def test_simulation_run_help():
     assert "balance" in result.output.lower()
 
 
-def test_simulation_run_defaults():
-    """Smoke test: ensure the command can be invoked (mocking the engine)."""
-    mock_report = {
+def test_simulation_run_help_shows_portfolio_flags():
+    """Help text should include the new portfolio-mode flags."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--portfolio" in result.output
+    assert "--weights" in result.output
+    assert "--rebalance" in result.output
+
+
+def _mock_report(*, portfolio_mode: bool = False, config_extras: dict | None = None) -> dict:
+    """Build a minimal mock report dict."""
+    config = {
+        "stocks": ["AAPL"],
+        "initial_balance": 10000.0,
+        "train_days": 60,
+        "test_days": 30,
+        "risk_levels": ["moderate"],
+        "mc_simulations": 50,
+        "portfolio_mode": portfolio_mode,
+    }
+    if config_extras:
+        config.update(config_extras)
+    return {
         "id": "test123",
         "status": "completed",
-        "config": {"stocks": ["AAPL"], "initial_balance": 10000.0, "train_days": 60, "test_days": 30, "risk_levels": ["moderate"], "mc_simulations": 50},
+        "config": config,
         "risk_level_results": {},
         "recommendation": {"optimal_risk_level": "moderate", "reasoning": "test", "suggested_weights": {}, "confidence": 0.5},
         "started_at": "2026-01-01T00:00:00",
@@ -29,7 +49,10 @@ def test_simulation_run_defaults():
         "error": None,
     }
 
-    with patch("src.cli.simulation_cmd._run_simulation", return_value=mock_report):
+
+def test_simulation_run_defaults():
+    """Smoke test: ensure the command can be invoked (mocking the engine)."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
         result = runner.invoke(app, [
             "run",
             "--stocks", "AAPL",
@@ -39,3 +62,228 @@ def test_simulation_run_defaults():
             "--mc-sims", "50",
         ])
         assert result.exit_code == 0
+
+
+def test_run_passes_portfolio_flags_to_run_simulation():
+    """--portfolio, --weights, --rebalance should be forwarded to _run_simulation."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report(portfolio_mode=True)) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--stocks", "MSFT",
+            "--balance", "20000",
+            "--train-days", "60",
+            "--test-days", "30",
+            "--mc-sims", "50",
+            "--portfolio",
+            "--weights", '{"AAPL":0.6,"MSFT":0.4}',
+            "--rebalance", "weekly",
+        ])
+        assert result.exit_code == 0, result.output
+        mock_fn.assert_called_once()
+        _, kwargs = mock_fn.call_args
+        # Positional args are first 6, then portfolio-specific kwargs
+        args = mock_fn.call_args
+        # Check portfolio-related kwargs were passed
+        assert args.kwargs.get("portfolio_mode") is True or args.args[6] is True  # noqa: PLR2004
+        # Check allocation_weights was parsed from JSON
+        alloc = args.kwargs.get("allocation_weights") or args.args[7]
+        assert alloc == {"AAPL": 0.6, "MSFT": 0.4}
+        # Check rebalance frequency
+        rebal = args.kwargs.get("rebalance_freq") or args.args[8]
+        assert rebal == "weekly"
+
+
+def test_run_portfolio_mode_status_message():
+    """When --portfolio is set, the output should include a portfolio mode message."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report(portfolio_mode=True)):
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--portfolio",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Portfolio Mode" in result.output
+
+
+def test_run_simulation_creates_config_with_portfolio_fields():
+    """_run_simulation should create a SimulationConfig with portfolio fields."""
+    from unittest.mock import MagicMock
+
+    mock_engine_cls = MagicMock()
+    mock_report = MagicMock()
+    mock_report.model_dump.return_value = _mock_report(portfolio_mode=True)
+    mock_engine_cls.return_value.run.return_value = mock_report
+
+    with patch("src.simulation.engine.SimulationEngine", mock_engine_cls), \
+         patch("src.cli.simulation_cmd.asyncio") as mock_asyncio:
+        # asyncio.run should call the coroutine; simulate that
+        mock_asyncio.run.side_effect = lambda coro: mock_report
+
+        from src.cli.simulation_cmd import _run_simulation
+        _run_simulation(
+            stocks=["AAPL", "MSFT"],
+            balance=10000.0,
+            train_days=60,
+            test_days=30,
+            risk_levels=[],
+            mc_sims=100,
+            portfolio_mode=True,
+            allocation_weights={"AAPL": 0.5, "MSFT": 0.5},
+            rebalance_freq="monthly",
+        )
+
+        # asyncio.run was called; check the config passed to SimulationEngine
+        # Since the import is local, we need to check what asyncio.run received
+        # The config is constructed before SimulationEngine, so let's verify
+        # by checking the mock_asyncio.run call and the report return
+        mock_asyncio.run.assert_called_once()
+
+
+def test_run_simulation_config_construction():
+    """Verify _run_simulation constructs SimulationConfig with correct portfolio fields."""
+    from unittest.mock import MagicMock
+    from src.simulation.models import AllocationWeights, RebalanceConfig, SimulationConfig
+
+    captured_configs = []
+    original_init = SimulationConfig.__init__
+
+    # We can test the config construction by patching _run_simulation more directly.
+    # Since SimulationEngine is imported locally, let's test by capturing the config
+    # object created. We'll mock the entire engine path.
+    mock_report = MagicMock()
+    mock_report.model_dump.return_value = _mock_report(portfolio_mode=True)
+
+    with patch("src.simulation.engine.SimulationEngine") as mock_engine_cls, \
+         patch("src.cli.simulation_cmd.asyncio") as mock_asyncio:
+        mock_engine_cls.return_value.run.return_value = mock_report
+        mock_asyncio.run.side_effect = lambda coro: mock_report
+
+        from src.cli.simulation_cmd import _run_simulation
+        _run_simulation(
+            stocks=["AAPL", "MSFT"],
+            balance=10000.0,
+            train_days=60,
+            test_days=30,
+            risk_levels=[],
+            mc_sims=100,
+            portfolio_mode=True,
+            allocation_weights={"AAPL": 0.5, "MSFT": 0.5},
+            rebalance_freq="monthly",
+        )
+
+        # The SimulationEngine was constructed with a config inside _run_simulation
+        # Since it's a local import, we patched at source. Check if it was called.
+        mock_engine_cls.assert_called_once()
+        config_arg = mock_engine_cls.call_args[0][0]
+        assert config_arg.portfolio_mode is True
+        assert config_arg.allocation.mode == "custom"
+        assert config_arg.allocation.weights == {"AAPL": 0.5, "MSFT": 0.5}
+        assert config_arg.rebalance.frequency == "monthly"
+
+
+def test_run_simulation_equal_weight_when_no_custom_weights():
+    """_run_simulation should default to equal_weight when no weights given."""
+    from unittest.mock import MagicMock
+
+    mock_report = MagicMock()
+    mock_report.model_dump.return_value = _mock_report(portfolio_mode=True)
+
+    with patch("src.simulation.engine.SimulationEngine") as mock_engine_cls, \
+         patch("src.cli.simulation_cmd.asyncio") as mock_asyncio:
+        mock_engine_cls.return_value.run.return_value = mock_report
+        mock_asyncio.run.side_effect = lambda coro: mock_report
+
+        from src.cli.simulation_cmd import _run_simulation
+        _run_simulation(
+            stocks=["AAPL", "MSFT"],
+            balance=10000.0,
+            train_days=60,
+            test_days=30,
+            risk_levels=[],
+            mc_sims=100,
+            portfolio_mode=True,
+            allocation_weights=None,
+            rebalance_freq="none",
+        )
+
+        config_arg = mock_engine_cls.call_args[0][0]
+        assert config_arg.allocation.mode == "equal_weight"
+        assert config_arg.allocation.weights == {}
+        assert config_arg.rebalance.frequency == "none"
+
+
+def test_print_report_with_portfolio_metrics():
+    """_print_report should display portfolio metrics when present."""
+    report = _mock_report(portfolio_mode=True, config_extras={
+        "allocation": {"mode": "equal_weight", "weights": {}},
+    })
+    report["risk_level_results"] = {
+        "moderate": {
+            "risk_level": "moderate",
+            "stock_results": [
+                {
+                    "symbol": "AAPL",
+                    "initial_balance": 5000.0,
+                    "final_value": 5500.0,
+                    "total_pnl": 500.0,
+                    "return_pct": 10.0,
+                    "max_drawdown": 5.0,
+                    "sharpe_ratio": 1.2,
+                    "total_trades": 10,
+                    "winning_trades": 6,
+                    "losing_trades": 4,
+                    "win_rate": 0.6,
+                    "equity_curve": [5000, 5100, 5200, 5300, 5500],
+                },
+                {
+                    "symbol": "MSFT",
+                    "initial_balance": 5000.0,
+                    "final_value": 5300.0,
+                    "total_pnl": 300.0,
+                    "return_pct": 6.0,
+                    "max_drawdown": 3.0,
+                    "sharpe_ratio": 0.9,
+                    "total_trades": 8,
+                    "winning_trades": 5,
+                    "losing_trades": 3,
+                    "win_rate": 0.625,
+                    "equity_curve": [5000, 5050, 5100, 5200, 5300],
+                },
+            ],
+            "monte_carlo_projections": [],
+            "strategy_assessments": [],
+            "total_return_pct": 8.0,
+            "avg_sharpe": 1.05,
+            "avg_max_drawdown": 4.0,
+            "total_trades": 18,
+            "portfolio_metrics": {
+                "initial_balance": 10000.0,
+                "final_value": 10800.0,
+                "total_return_pct": 8.0,
+                "max_drawdown": 4.5,
+                "sharpe_ratio": 1.1,
+                "sortino_ratio": 1.5,
+                "calmar_ratio": 1.78,
+                "total_trades": 18,
+                "equity_curve": [10000, 10150, 10300, 10500, 10800],
+                "daily_returns": [0.015, 0.0148, 0.0194, 0.0286],
+                "rebalance_dates": [],
+            },
+            "portfolio_monte_carlo": {
+                "median_final": 11000.0,
+                "p5_final": 9500.0,
+                "p95_final": 12500.0,
+                "median_return_pct": 10.0,
+                "p5_return_pct": -5.0,
+                "p95_return_pct": 25.0,
+                "worst_drawdown_p95": 8.5,
+                "n_paths": 1000,
+                "correlation_matrix": [[1.0, 0.65], [0.65, 1.0]],
+            },
+        }
+    }
+
+    from src.cli.simulation_cmd import _print_report
+    # This should not raise; we verify it runs without error
+    _print_report(report)

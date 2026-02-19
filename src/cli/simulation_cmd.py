@@ -12,6 +12,7 @@ from rich.table import Table
 
 from src.cli.charts import (
     ascii_line_chart,
+    format_pct,
     plotext_bar_chart,
     plotext_heatmap,
     plotext_multi_line,
@@ -40,10 +41,19 @@ def _run_simulation(
     test_days: int,
     risk_levels: list[RiskLevel],
     mc_sims: int,
+    portfolio_mode: bool = False,
+    allocation_weights: dict[str, float] | None = None,
+    rebalance_freq: str = "none",
 ) -> dict:
     """Run the simulation engine and return the report as a dict."""
     from src.simulation.engine import SimulationEngine
-    from src.simulation.models import SimulationConfig
+    from src.simulation.models import AllocationWeights, RebalanceConfig, SimulationConfig
+
+    allocation = AllocationWeights(
+        mode="custom" if allocation_weights else "equal_weight",
+        weights=allocation_weights or {},
+    )
+    rebalance = RebalanceConfig(frequency=rebalance_freq)
 
     config = SimulationConfig(
         stocks=stocks,
@@ -52,6 +62,9 @@ def _run_simulation(
         test_days=test_days,
         risk_levels=risk_levels,
         mc_simulations=mc_sims,
+        portfolio_mode=portfolio_mode,
+        allocation=allocation,
+        rebalance=rebalance,
     )
     engine = SimulationEngine(config)
     report = asyncio.run(engine.run())
@@ -67,16 +80,29 @@ def run(
     risk_levels: Optional[list[str]] = typer.Option(None, "--risk", help="Risk levels (default: all)"),
     mc_sims: int = typer.Option(1000, help="Number of Monte Carlo simulations"),
     output_json: bool = typer.Option(False, "--json", help="Output raw JSON"),
+    portfolio: bool = typer.Option(False, "--portfolio", help="Enable portfolio simulation mode"),
+    weights: Optional[str] = typer.Option(None, "--weights", help='Custom weights: \'{"AAPL":0.5,"MSFT":0.5}\''),
+    rebalance: str = typer.Option("none", "--rebalance", help="Rebalance: none|daily|weekly|monthly"),
 ) -> None:
     """Run a full simulation across stocks and risk levels."""
     stock_list = stocks or ALL_STOCKS
     levels = [RiskLevel(r) for r in risk_levels] if risk_levels else list(RiskLevel)
 
+    allocation_weights = json.loads(weights) if weights else None
+
     console.print(f"\n[bold]Simulation: {len(stock_list)} stocks, {len(levels)} risk levels[/bold]")
-    console.print(f"Balance: ${balance:,.0f} | Train: {train_days}d | Test: {test_days}d | MC paths: {mc_sims}\n")
+    console.print(f"Balance: ${balance:,.0f} | Train: {train_days}d | Test: {test_days}d | MC paths: {mc_sims}")
+    if portfolio:
+        console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
+    console.print()
 
     with console.status("[bold green]Running simulation..."):
-        report = _run_simulation(stock_list, balance, train_days, test_days, levels, mc_sims)
+        report = _run_simulation(
+            stock_list, balance, train_days, test_days, levels, mc_sims,
+            portfolio_mode=portfolio,
+            allocation_weights=allocation_weights,
+            rebalance_freq=rebalance,
+        )
 
     if output_json:
         console.print(json.dumps(report, indent=2, default=str))
@@ -134,6 +160,78 @@ def _print_report(report: dict) -> None:
             )
 
         console.print(stock_table)
+
+        # --- Portfolio Equity Curve chart ---
+        pm = result.get("portfolio_metrics")
+        if pm:
+            curve = pm.get("equity_curve", [])
+            if len(curve) >= 2:
+                try:
+                    chart = ascii_line_chart(
+                        curve,
+                        title=f"{level_name.upper()} | Portfolio Equity Curve",
+                        height=10,
+                    )
+                    console.print(Panel(chart, expand=False))
+                except Exception:
+                    pass  # chart rendering is best-effort
+
+        # --- Portfolio Metrics panel ---
+        if pm:
+            metrics_table = Table(title=f"{level_name.upper()} — Portfolio Metrics")
+            metrics_table.add_column("Metric", style="bold")
+            metrics_table.add_column("Value", justify="right")
+            metrics_table.add_row("Initial Balance", f"${pm['initial_balance']:,.2f}")
+            metrics_table.add_row("Final Value", f"${pm['final_value']:,.2f}")
+            metrics_table.add_row("Total Return", format_pct(pm["total_return_pct"]))
+            metrics_table.add_row("Max Drawdown", f"{pm['max_drawdown']:.2f}%")
+            metrics_table.add_row("Sharpe Ratio", f"{pm['sharpe_ratio']:.3f}")
+            metrics_table.add_row("Sortino Ratio", f"{pm['sortino_ratio']:.3f}")
+            metrics_table.add_row("Calmar Ratio", f"{pm['calmar_ratio']:.3f}")
+            metrics_table.add_row("Total Trades", str(pm["total_trades"]))
+            console.print(metrics_table)
+
+        # --- Allocation display ---
+        config = report.get("config", {})
+        if config.get("portfolio_mode"):
+            alloc = config.get("allocation", {})
+            weights_dict = alloc.get("weights", {})
+            mode = alloc.get("mode", "equal_weight")
+            if mode == "equal_weight" and result.get("stock_results"):
+                n = len(result["stock_results"])
+                symbols = [sr["symbol"] for sr in result["stock_results"]]
+                weights_str = " | ".join(f"{s}: {100/n:.1f}%" for s in symbols)
+            elif weights_dict:
+                weights_str = " | ".join(f"{s}: {w*100:.1f}%" for s, w in weights_dict.items())
+            else:
+                weights_str = "N/A"
+            console.print(f"\n  [bold]Allocation:[/bold] {weights_str}")
+
+        # --- Portfolio Monte Carlo projection summary ---
+        pmc = result.get("portfolio_monte_carlo")
+        if pmc:
+            pmc_table = Table(title=f"{level_name.upper()} — Portfolio Monte Carlo Projection")
+            pmc_table.add_column("Metric", style="bold")
+            pmc_table.add_column("Value", justify="right")
+            pmc_table.add_row("Median Final", f"${pmc['median_final']:,.2f}")
+            pmc_table.add_row("P5 Final", f"${pmc['p5_final']:,.2f}")
+            pmc_table.add_row("P95 Final", f"${pmc['p95_final']:,.2f}")
+            pmc_table.add_row("Median Return %", f"{pmc['median_return_pct']:.2f}%")
+            pmc_table.add_row("Worst DD (P95)", f"{pmc['worst_drawdown_p95']:.2f}%")
+            console.print(pmc_table)
+
+        # --- Correlation matrix ---
+        if pmc and pmc.get("correlation_matrix"):
+            corr = pmc["correlation_matrix"]
+            corr_table = Table(title="Return Correlation Matrix")
+            corr_table.add_column("")
+            symbols = [sr["symbol"] for sr in result.get("stock_results", [])]
+            for sym in symbols:
+                corr_table.add_column(sym, justify="right")
+            for i, row in enumerate(corr):
+                label = symbols[i] if i < len(symbols) else str(i)
+                corr_table.add_row(label, *[f"{v:.3f}" for v in row])
+            console.print(corr_table)
 
     # Monte Carlo projections
     for level_name, result in report.get("risk_level_results", {}).items():
