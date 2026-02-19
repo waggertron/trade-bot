@@ -287,3 +287,132 @@ def test_print_report_with_portfolio_metrics():
     from src.cli.simulation_cmd import _print_report
     # This should not raise; we verify it runs without error
     _print_report(report)
+
+
+def test_simulation_run_help_shows_seed_and_rebalance_threshold_flags():
+    """Help text should include --seed and --rebalance-threshold flags."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--seed" in result.output
+    assert "--rebalance-threshold" in result.output
+
+
+def test_run_passes_seed_and_rebalance_threshold_to_run_simulation():
+    """--seed and --rebalance-threshold should be forwarded to _run_simulation."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--balance", "10000",
+            "--train-days", "60",
+            "--test-days", "30",
+            "--mc-sims", "50",
+            "--seed", "42",
+            "--rebalance-threshold", "3.5",
+        ])
+        assert result.exit_code == 0, result.output
+        mock_fn.assert_called_once()
+        args = mock_fn.call_args
+        assert args.kwargs.get("seed") == 42
+        assert args.kwargs.get("rebalance_threshold") == 3.5
+
+
+def test_run_seed_default_is_none():
+    """When --seed is not specified, seed should default to None."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+        ])
+        assert result.exit_code == 0, result.output
+        args = mock_fn.call_args
+        assert args.kwargs.get("seed") is None
+
+
+def test_run_rebalance_threshold_default_is_5():
+    """When --rebalance-threshold is not specified, it should default to 5.0."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+        ])
+        assert result.exit_code == 0, result.output
+        args = mock_fn.call_args
+        assert args.kwargs.get("rebalance_threshold") == 5.0
+
+
+def test_run_shows_seed_in_status_display():
+    """When --seed is specified, the output should show the seed value."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+            "--seed", "42",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Seed: 42" in result.output
+
+
+def test_run_does_not_show_seed_when_not_specified():
+    """When --seed is not specified, the output should not show a seed line."""
+    with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
+        result = runner.invoke(app, [
+            "run",
+            "--stocks", "AAPL",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Seed:" not in result.output
+
+
+def test_run_simulation_passes_threshold_pct_to_rebalance_config():
+    """_run_simulation should pass threshold_pct to RebalanceConfig."""
+    from unittest.mock import MagicMock
+
+    mock_report = MagicMock()
+    mock_report.model_dump.return_value = _mock_report()
+
+    with patch("src.simulation.engine.SimulationEngine") as mock_engine_cls, \
+         patch("src.cli.simulation_cmd.asyncio") as mock_asyncio:
+        mock_engine_cls.return_value.run.return_value = mock_report
+        mock_asyncio.run.side_effect = lambda coro: mock_report
+
+        from src.cli.simulation_cmd import _run_simulation
+        _run_simulation(
+            stocks=["AAPL"],
+            balance=10000.0,
+            train_days=60,
+            test_days=30,
+            risk_levels=[],
+            mc_sims=100,
+            rebalance_threshold=3.5,
+        )
+
+        config_arg = mock_engine_cls.call_args[0][0]
+        assert config_arg.rebalance.threshold_pct == 3.5
+
+
+def test_run_simulation_passes_mc_seed_to_simulation_config():
+    """_run_simulation should pass mc_seed to SimulationConfig."""
+    from unittest.mock import MagicMock
+
+    mock_report = MagicMock()
+    mock_report.model_dump.return_value = _mock_report()
+
+    with patch("src.simulation.engine.SimulationEngine") as mock_engine_cls, \
+         patch("src.cli.simulation_cmd.asyncio") as mock_asyncio:
+        mock_engine_cls.return_value.run.return_value = mock_report
+        mock_asyncio.run.side_effect = lambda coro: mock_report
+
+        from src.cli.simulation_cmd import _run_simulation
+        _run_simulation(
+            stocks=["AAPL"],
+            balance=10000.0,
+            train_days=60,
+            test_days=30,
+            risk_levels=[],
+            mc_sims=100,
+            seed=42,
+        )
+
+        config_arg = mock_engine_cls.call_args[0][0]
+        assert config_arg.mc_seed == 42

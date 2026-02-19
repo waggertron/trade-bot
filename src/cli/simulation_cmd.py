@@ -43,6 +43,8 @@ def _run_simulation(
     portfolio_mode: bool = False,
     allocation_weights: dict[str, float] | None = None,
     rebalance_freq: str = "none",
+    seed: int | None = None,
+    rebalance_threshold: float = 5.0,
 ) -> dict:
     """Run the simulation engine and return the report as a dict."""
     from src.simulation.engine import SimulationEngine
@@ -52,7 +54,7 @@ def _run_simulation(
         mode="custom" if allocation_weights else "equal_weight",
         weights=allocation_weights or {},
     )
-    rebalance = RebalanceConfig(frequency=rebalance_freq)
+    rebalance = RebalanceConfig(frequency=rebalance_freq, threshold_pct=rebalance_threshold)
 
     config = SimulationConfig(
         stocks=stocks,
@@ -61,6 +63,7 @@ def _run_simulation(
         test_days=test_days,
         risk_levels=risk_levels,
         mc_simulations=mc_sims,
+        mc_seed=seed,
         portfolio_mode=portfolio_mode,
         allocation=allocation,
         rebalance=rebalance,
@@ -86,6 +89,8 @@ def run(
     rebalance: str = typer.Option(
         "none", "--rebalance", help="none|daily|weekly|monthly",
     ),
+    seed: int | None = typer.Option(None, "--seed", help="Monte Carlo random seed (default: random)"),
+    rebalance_threshold: float = typer.Option(5.0, "--rebalance-threshold", help="Rebalance drift threshold %"),
 ) -> None:
     """Run a full simulation across stocks and risk levels."""
     stock_list = stocks or ALL_STOCKS
@@ -98,6 +103,8 @@ def run(
         f"Balance: ${balance:,.0f} | Train: {train_days}d"
         f" | Test: {test_days}d | MC paths: {mc_sims}"
     )
+    if seed is not None:
+        console.print(f"Seed: {seed}")
     if portfolio:
         console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
     console.print()
@@ -108,6 +115,8 @@ def run(
             portfolio_mode=portfolio,
             allocation_weights=allocation_weights,
             rebalance_freq=rebalance,
+            seed=seed,
+            rebalance_threshold=rebalance_threshold,
         )
 
     if output_json:
