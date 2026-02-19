@@ -45,3 +45,15 @@ def test_simulation_request_threshold_bounds():
     """Threshold must be 0-100."""
     with pytest.raises(ValidationError):
         SimulationRequest(stocks=["AAPL"], rebalance_threshold_pct=101)
+
+
+def test_simulation_request_mc_seed_defaults_none():
+    """mc_seed defaults to None when omitted."""
+    req = SimulationRequest(stocks=["AAPL"])
+    assert req.mc_seed is None
+
+
+def test_simulation_request_mc_seed_accepts_integer():
+    """mc_seed accepts an explicit integer."""
+    req = SimulationRequest(stocks=["AAPL"], mc_seed=42)
+    assert req.mc_seed == 42
