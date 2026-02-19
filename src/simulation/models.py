@@ -50,6 +50,7 @@ class SimulationConfig(StrictBase):
     test_days: int = Field(default=30, gt=0)
     risk_levels: list[RiskLevel] = Field(default_factory=lambda: list(RiskLevel))
     mc_simulations: int = Field(default=1000, gt=0)
+    mc_seed: int | None = Field(default=None, description="Monte Carlo random seed (None = random)")
     portfolio_mode: bool = False
     allocation: AllocationWeights = Field(default_factory=AllocationWeights)
     rebalance: RebalanceConfig = Field(default_factory=RebalanceConfig)

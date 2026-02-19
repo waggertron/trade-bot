@@ -29,6 +29,7 @@ class TestSimulationConfigBackwardCompat:
         assert cfg.allocation.weights == {}
         assert cfg.rebalance.frequency == "none"
         assert cfg.rebalance.threshold_pct == 5.0
+        assert cfg.mc_seed is None
 
     def test_old_style_config_with_explicit_fields(self):
         cfg = SimulationConfig(
@@ -388,6 +389,27 @@ class TestSimulationConfigPortfolioFields:
         )
         assert cfg.rebalance.frequency == "monthly"
         assert cfg.rebalance.threshold_pct == 10.0
+
+    def test_mc_seed_default_none(self):
+        """mc_seed defaults to None (non-deterministic)."""
+        cfg = SimulationConfig(stocks=["AAPL"])
+        assert cfg.mc_seed is None
+
+    def test_mc_seed_explicit_value(self):
+        """mc_seed accepts an explicit integer seed."""
+        cfg = SimulationConfig(stocks=["AAPL"], mc_seed=42)
+        assert cfg.mc_seed == 42
+
+    def test_mc_seed_explicit_none(self):
+        """mc_seed accepts explicit None."""
+        cfg = SimulationConfig(stocks=["AAPL"], mc_seed=None)
+        assert cfg.mc_seed is None
+
+    def test_mc_seed_frozen(self):
+        """mc_seed cannot be mutated on a frozen config."""
+        cfg = SimulationConfig(stocks=["AAPL"], mc_seed=42)
+        with pytest.raises(ValidationError):
+            cfg.mc_seed = 99
 
 
 # ---------------------------------------------------------------------------
