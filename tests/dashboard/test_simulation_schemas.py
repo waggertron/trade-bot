@@ -57,3 +57,23 @@ def test_simulation_request_mc_seed_accepts_integer():
     """mc_seed accepts an explicit integer."""
     req = SimulationRequest(stocks=["AAPL"], mc_seed=42)
     assert req.mc_seed == 42
+
+
+def test_simulation_request_max_position_pct_defaults_none():
+    """max_position_pct defaults to None when omitted."""
+    req = SimulationRequest(stocks=["AAPL"])
+    assert req.max_position_pct is None
+
+
+def test_simulation_request_max_position_pct_accepts_value():
+    """max_position_pct accepts a valid float."""
+    req = SimulationRequest(stocks=["AAPL"], max_position_pct=5.0)
+    assert req.max_position_pct == 5.0
+
+
+def test_simulation_request_max_position_pct_validation():
+    """max_position_pct must be 0.1-100."""
+    with pytest.raises(ValidationError):
+        SimulationRequest(stocks=["AAPL"], max_position_pct=0.05)
+    with pytest.raises(ValidationError):
+        SimulationRequest(stocks=["AAPL"], max_position_pct=101.0)

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.core.config import RiskLevel
+from src.core.config import RiskLevel, RiskSettings
 from src.data.providers.base import OHLCBar
 from src.simulation.engine import SimulationEngine
 from src.simulation.models import SimulationConfig
@@ -89,6 +89,53 @@ async def test_engine_multiple_risk_levels():
 
     assert "conservative" in report.risk_level_results
     assert "aggressive" in report.risk_level_results
+
+
+@pytest.mark.asyncio
+async def test_engine_applies_max_position_pct_override():
+    """When max_position_pct is set, it overrides the risk level preset."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.CONSERVATIVE],
+        mc_simulations=20,
+        max_position_pct=7.5,
+    )
+    engine = SimulationEngine(config)
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        with patch("src.simulation.engine.RiskSettings.from_risk_level", wraps=RiskSettings.from_risk_level) as mock_frl:
+            report = await engine.run()
+
+    assert report.status == "completed"
+    # Verify from_risk_level was called with the override
+    mock_frl.assert_called_once_with(RiskLevel.CONSERVATIVE, max_position_pct=7.5)
+
+
+@pytest.mark.asyncio
+async def test_engine_no_override_when_max_position_pct_is_none():
+    """When max_position_pct is None, from_risk_level is called without overrides."""
+    config = SimulationConfig(
+        stocks=["AAPL"],
+        initial_balance=10000.0,
+        train_days=60,
+        test_days=30,
+        risk_levels=[RiskLevel.MODERATE],
+        mc_simulations=20,
+    )
+    engine = SimulationEngine(config)
+    bars = _make_bars(90)
+
+    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+        with patch("src.simulation.engine.RiskSettings.from_risk_level", wraps=RiskSettings.from_risk_level) as mock_frl:
+            report = await engine.run()
+
+    assert report.status == "completed"
+    # Called with just the risk level, no keyword overrides
+    mock_frl.assert_called_once_with(RiskLevel.MODERATE)
 
 
 @pytest.mark.asyncio

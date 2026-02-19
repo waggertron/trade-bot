@@ -18,6 +18,20 @@ def test_simulation_config_defaults():
     assert cfg.test_days == 30
     assert cfg.risk_levels == list(RiskLevel)
     assert cfg.mc_simulations == 1000
+    assert cfg.max_position_pct is None
+
+
+def test_simulation_config_max_position_pct_override():
+    cfg = SimulationConfig(stocks=["AAPL"], max_position_pct=2.5)
+    assert cfg.max_position_pct == 2.5
+
+
+def test_simulation_config_max_position_pct_validation():
+    import pytest
+    with pytest.raises(Exception):
+        SimulationConfig(stocks=["AAPL"], max_position_pct=0.05)  # below 0.1
+    with pytest.raises(Exception):
+        SimulationConfig(stocks=["AAPL"], max_position_pct=101.0)  # above 100
 
 
 def test_stock_sim_result_return_pct():

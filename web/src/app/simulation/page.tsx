@@ -144,6 +144,7 @@ export default function SimulationPage() {
     rebalance_frequency: "none" as string,
     rebalance_threshold_pct: 5.0,
     mc_seed: null as number | null,
+    max_position_pct: null as number | null,
   });
 
   const [report, setReport] = useState<SimReport | null>(null);
@@ -154,6 +155,7 @@ export default function SimulationPage() {
       runSimulation({
         ...config,
         ...(config.mc_seed != null ? { mc_seed: config.mc_seed } : {}),
+        ...(config.max_position_pct != null ? { max_position_pct: config.max_position_pct } : {}),
         ...(config.portfolio_mode
           ? {
               portfolio_mode: true,
@@ -256,6 +258,27 @@ export default function SimulationPage() {
                   })
                 }
                 placeholder="Leave empty for random"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+            <div>
+              <label htmlFor="sim-max-position-pct" className="mb-1 block text-xs text-muted">
+                Max Position Size (%) <span className="text-muted/60">optional</span>
+              </label>
+              <input
+                id="sim-max-position-pct"
+                type="number"
+                min={0.1}
+                max={100}
+                step={0.1}
+                value={config.max_position_pct ?? ""}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    max_position_pct: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="Per risk level default"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
               />
             </div>

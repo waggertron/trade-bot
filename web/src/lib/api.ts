@@ -304,6 +304,7 @@ export const runSimulation = (config: {
   risk_levels: string[];
   mc_simulations: number;
   mc_seed?: number | null;
+  max_position_pct?: number | null;
   portfolio_mode?: boolean;
   allocation_mode?: string;
   custom_weights?: Record<string, number>;

@@ -95,3 +95,45 @@ def test_simulation_run_forwards_mc_seed(client):
     call_args = mock_run.call_args
     req_arg = call_args[0][0]
     assert req_arg.mc_seed == 42
+
+
+def test_simulation_run_forwards_max_position_pct(client):
+    """max_position_pct from request body is forwarded to SimulationConfig."""
+    mock_report = {
+        "id": "pos-test",
+        "status": "completed",
+        "config": {
+            "stocks": ["AAPL"],
+            "initial_balance": 10000.0,
+            "train_days": 60,
+            "test_days": 30,
+            "risk_levels": ["moderate"],
+            "mc_simulations": 50,
+            "max_position_pct": 5.0,
+        },
+        "risk_level_results": {},
+        "recommendation": None,
+        "started_at": "2026-01-01T00:00:00",
+        "completed_at": "2026-01-01T00:01:00",
+        "error": None,
+    }
+
+    with patch(
+        "src.dashboard.routers.simulation._run_async",
+        new_callable=AsyncMock,
+        return_value=mock_report,
+    ) as mock_run:
+        resp = client.post("/api/simulation/run", json={
+            "stocks": ["AAPL"],
+            "initial_balance": 10000.0,
+            "train_days": 60,
+            "test_days": 30,
+            "risk_levels": ["moderate"],
+            "mc_simulations": 50,
+            "max_position_pct": 5.0,
+        })
+
+    assert resp.status_code == 200
+    call_args = mock_run.call_args
+    req_arg = call_args[0][0]
+    assert req_arg.max_position_pct == 5.0

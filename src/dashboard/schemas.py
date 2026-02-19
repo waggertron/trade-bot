@@ -91,6 +91,7 @@ class SimulationRequest(StrictBase):
     ])
     mc_simulations: int = Field(default=1000, gt=0)
     mc_seed: int | None = Field(default=None, description="Monte Carlo random seed")
+    max_position_pct: float | None = Field(default=None, ge=0.1, le=100.0, description="Override max position size %")
     # Portfolio simulation fields
     portfolio_mode: bool = False
     allocation_mode: str = Field(default="equal_weight", pattern=r"^(equal_weight|custom)$")

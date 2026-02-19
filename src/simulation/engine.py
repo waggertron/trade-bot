@@ -61,7 +61,10 @@ class SimulationEngine:
 
     async def _run_risk_level(self, risk_level: RiskLevel) -> RiskLevelResult:
         """Run simulation for one risk level across all stocks."""
-        risk_settings = RiskSettings.from_risk_level(risk_level)
+        overrides: dict[str, float] = {}
+        if self._config.max_position_pct is not None:
+            overrides["max_position_pct"] = self._config.max_position_pct
+        risk_settings = RiskSettings.from_risk_level(risk_level, **overrides)
         stock_results: list[StockSimResult] = []
         mc_projections: list[MonteCarloProjection] = []
 

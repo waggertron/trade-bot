@@ -45,6 +45,7 @@ def _run_simulation(
     rebalance_freq: str = "none",
     seed: int | None = None,
     rebalance_threshold: float = 5.0,
+    max_position_pct: float | None = None,
 ) -> dict:
     """Run the simulation engine and return the report as a dict."""
     from src.simulation.engine import SimulationEngine
@@ -64,6 +65,7 @@ def _run_simulation(
         risk_levels=risk_levels,
         mc_simulations=mc_sims,
         mc_seed=seed,
+        max_position_pct=max_position_pct,
         portfolio_mode=portfolio_mode,
         allocation=allocation,
         rebalance=rebalance,
@@ -91,6 +93,7 @@ def run(
     ),
     seed: int | None = typer.Option(None, "--seed", help="Monte Carlo random seed (default: random)"),
     rebalance_threshold: float = typer.Option(5.0, "--rebalance-threshold", help="Rebalance drift threshold %"),
+    max_position_pct: float | None = typer.Option(None, "--max-position-pct", help="Override max position size %"),
 ) -> None:
     """Run a full simulation across stocks and risk levels."""
     stock_list = stocks or ALL_STOCKS
@@ -105,6 +108,8 @@ def run(
     )
     if seed is not None:
         console.print(f"Seed: {seed}")
+    if max_position_pct is not None:
+        console.print(f"Max Position Size: {max_position_pct}%")
     if portfolio:
         console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebalance}")
     console.print()
@@ -117,6 +122,7 @@ def run(
             rebalance_freq=rebalance,
             seed=seed,
             rebalance_threshold=rebalance_threshold,
+            max_position_pct=max_position_pct,
         )
 
     if output_json:

@@ -51,6 +51,7 @@ class SimulationConfig(StrictBase):
     risk_levels: list[RiskLevel] = Field(default_factory=lambda: list(RiskLevel))
     mc_simulations: int = Field(default=1000, gt=0)
     mc_seed: int | None = Field(default=None, description="Monte Carlo random seed (None = random)")
+    max_position_pct: float | None = Field(default=None, ge=0.1, le=100.0, description="Override max position size % (None = use risk level default)")
     portfolio_mode: bool = False
     allocation: AllocationWeights = Field(default_factory=AllocationWeights)
     rebalance: RebalanceConfig = Field(default_factory=RebalanceConfig)
