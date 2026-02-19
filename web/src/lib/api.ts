@@ -136,3 +136,21 @@ export const getSystemStatus = () => fetchAPI<Record<string, unknown>>("/api/sys
 export const killSwitch = () => fetchAPI<Record<string, unknown>>("/api/kill", { method: "POST" });
 export const pauseTrading = () => fetchAPI<{ status: string }>("/api/pause", { method: "POST" });
 export const resumeTrading = () => fetchAPI<{ status: string }>("/api/resume", { method: "POST" });
+
+// Simulation
+export const runSimulation = (config: {
+  stocks: string[];
+  initial_balance: number;
+  train_days: number;
+  test_days: number;
+  risk_levels: string[];
+  mc_simulations: number;
+}) =>
+  fetchAPI<Record<string, unknown>>("/api/simulation/run", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+export const getSimulationRuns = () =>
+  fetchAPI<Record<string, unknown>[]>("/api/simulation/runs");
+export const getSimulationRun = (id: string) =>
+  fetchAPI<Record<string, unknown>>(`/api/simulation/runs/${id}`);

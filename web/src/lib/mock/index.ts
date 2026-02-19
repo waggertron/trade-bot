@@ -16,4 +16,5 @@ if (MOCK_ENABLED) {
   import("./data/ml");
   import("./data/config");
   import("./data/system");
+  import("./data/simulation");
 }

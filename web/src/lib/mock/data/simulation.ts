@@ -1,0 +1,105 @@
+import { registerRoute } from "../router";
+
+const MOCK_SIMULATION = {
+  id: "sim-demo",
+  status: "completed",
+  config: {
+    stocks: ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL"],
+    initial_balance: 10000,
+    train_days: 60,
+    test_days: 30,
+    risk_levels: ["conservative", "moderate", "aggressive", "very_aggressive"],
+    mc_simulations: 1000,
+  },
+  risk_level_results: {
+    conservative: {
+      risk_level: "conservative",
+      total_return_pct: 2.4,
+      avg_sharpe: 0.85,
+      avg_max_drawdown: 3.2,
+      total_trades: 45,
+      stock_results: [
+        { symbol: "AAPL", return_pct: 3.1, sharpe_ratio: 1.1, max_drawdown: 2.5, win_rate: 0.62, total_trades: 12, initial_balance: 10000, final_value: 10310, total_pnl: 310, winning_trades: 7, losing_trades: 5, equity_curve: [] },
+        { symbol: "MSFT", return_pct: 2.8, sharpe_ratio: 0.9, max_drawdown: 3.0, win_rate: 0.58, total_trades: 10, initial_balance: 10000, final_value: 10280, total_pnl: 280, winning_trades: 6, losing_trades: 4, equity_curve: [] },
+        { symbol: "NVDA", return_pct: 4.2, sharpe_ratio: 1.2, max_drawdown: 4.5, win_rate: 0.65, total_trades: 8, initial_balance: 10000, final_value: 10420, total_pnl: 420, winning_trades: 5, losing_trades: 3, equity_curve: [] },
+        { symbol: "TSLA", return_pct: -1.3, sharpe_ratio: 0.3, max_drawdown: 5.8, win_rate: 0.45, total_trades: 9, initial_balance: 10000, final_value: 9870, total_pnl: -130, winning_trades: 4, losing_trades: 5, equity_curve: [] },
+        { symbol: "GOOGL", return_pct: 3.2, sharpe_ratio: 0.8, max_drawdown: 2.8, win_rate: 0.55, total_trades: 6, initial_balance: 10000, final_value: 10320, total_pnl: 320, winning_trades: 3, losing_trades: 3, equity_curve: [] },
+      ],
+      monte_carlo_projections: [
+        { symbol: "AAPL", median_final: 10350, p5_final: 9500, p95_final: 11200, median_return_pct: 3.5, p5_return_pct: -5.0, p95_return_pct: 12.0, worst_drawdown_p95: 8.5, n_paths: 1000 },
+        { symbol: "MSFT", median_final: 10280, p5_final: 9400, p95_final: 11100, median_return_pct: 2.8, p5_return_pct: -6.0, p95_return_pct: 11.0, worst_drawdown_p95: 9.0, n_paths: 1000 },
+        { symbol: "NVDA", median_final: 10500, p5_final: 8800, p95_final: 12500, median_return_pct: 5.0, p5_return_pct: -12.0, p95_return_pct: 25.0, worst_drawdown_p95: 15.0, n_paths: 1000 },
+        { symbol: "TSLA", median_final: 10100, p5_final: 8200, p95_final: 12800, median_return_pct: 1.0, p5_return_pct: -18.0, p95_return_pct: 28.0, worst_drawdown_p95: 22.0, n_paths: 1000 },
+        { symbol: "GOOGL", median_final: 10320, p5_final: 9450, p95_final: 11200, median_return_pct: 3.2, p5_return_pct: -5.5, p95_return_pct: 12.0, worst_drawdown_p95: 8.0, n_paths: 1000 },
+      ],
+      strategy_assessments: [],
+    },
+    moderate: {
+      risk_level: "moderate",
+      total_return_pct: 4.8,
+      avg_sharpe: 1.05,
+      avg_max_drawdown: 5.1,
+      total_trades: 78,
+      stock_results: [
+        { symbol: "AAPL", return_pct: 5.8, sharpe_ratio: 1.3, max_drawdown: 4.2, win_rate: 0.60, total_trades: 18, initial_balance: 10000, final_value: 10580, total_pnl: 580, winning_trades: 11, losing_trades: 7, equity_curve: [] },
+        { symbol: "MSFT", return_pct: 4.5, sharpe_ratio: 1.0, max_drawdown: 4.8, win_rate: 0.56, total_trades: 16, initial_balance: 10000, final_value: 10450, total_pnl: 450, winning_trades: 9, losing_trades: 7, equity_curve: [] },
+        { symbol: "NVDA", return_pct: 8.2, sharpe_ratio: 1.4, max_drawdown: 7.0, win_rate: 0.63, total_trades: 14, initial_balance: 10000, final_value: 10820, total_pnl: 820, winning_trades: 9, losing_trades: 5, equity_curve: [] },
+        { symbol: "TSLA", return_pct: -2.5, sharpe_ratio: 0.2, max_drawdown: 9.5, win_rate: 0.42, total_trades: 18, initial_balance: 10000, final_value: 9750, total_pnl: -250, winning_trades: 8, losing_trades: 10, equity_curve: [] },
+        { symbol: "GOOGL", return_pct: 8.0, sharpe_ratio: 1.35, max_drawdown: 5.0, win_rate: 0.58, total_trades: 12, initial_balance: 10000, final_value: 10800, total_pnl: 800, winning_trades: 7, losing_trades: 5, equity_curve: [] },
+      ],
+      monte_carlo_projections: [
+        { symbol: "AAPL", median_final: 10600, p5_final: 9200, p95_final: 12000, median_return_pct: 6.0, p5_return_pct: -8.0, p95_return_pct: 20.0, worst_drawdown_p95: 12.0, n_paths: 1000 },
+        { symbol: "MSFT", median_final: 10450, p5_final: 9100, p95_final: 11800, median_return_pct: 4.5, p5_return_pct: -9.0, p95_return_pct: 18.0, worst_drawdown_p95: 13.0, n_paths: 1000 },
+        { symbol: "NVDA", median_final: 10900, p5_final: 8400, p95_final: 13800, median_return_pct: 9.0, p5_return_pct: -16.0, p95_return_pct: 38.0, worst_drawdown_p95: 20.0, n_paths: 1000 },
+        { symbol: "TSLA", median_final: 10050, p5_final: 7800, p95_final: 13500, median_return_pct: 0.5, p5_return_pct: -22.0, p95_return_pct: 35.0, worst_drawdown_p95: 28.0, n_paths: 1000 },
+        { symbol: "GOOGL", median_final: 10500, p5_final: 9200, p95_final: 11800, median_return_pct: 5.0, p5_return_pct: -8.0, p95_return_pct: 18.0, worst_drawdown_p95: 11.0, n_paths: 1000 },
+      ],
+      strategy_assessments: [],
+    },
+    aggressive: {
+      risk_level: "aggressive",
+      total_return_pct: 6.5,
+      avg_sharpe: 0.90,
+      avg_max_drawdown: 8.8,
+      total_trades: 120,
+      stock_results: [
+        { symbol: "AAPL", return_pct: 8.2, sharpe_ratio: 1.1, max_drawdown: 7.0, win_rate: 0.55, total_trades: 28, initial_balance: 10000, final_value: 10820, total_pnl: 820, winning_trades: 15, losing_trades: 13, equity_curve: [] },
+        { symbol: "MSFT", return_pct: 6.5, sharpe_ratio: 0.9, max_drawdown: 8.0, win_rate: 0.52, total_trades: 24, initial_balance: 10000, final_value: 10650, total_pnl: 650, winning_trades: 13, losing_trades: 11, equity_curve: [] },
+        { symbol: "NVDA", return_pct: 14.0, sharpe_ratio: 1.3, max_drawdown: 12.0, win_rate: 0.60, total_trades: 22, initial_balance: 10000, final_value: 11400, total_pnl: 1400, winning_trades: 13, losing_trades: 9, equity_curve: [] },
+        { symbol: "TSLA", return_pct: -5.2, sharpe_ratio: -0.1, max_drawdown: 15.0, win_rate: 0.38, total_trades: 26, initial_balance: 10000, final_value: 9480, total_pnl: -520, winning_trades: 10, losing_trades: 16, equity_curve: [] },
+        { symbol: "GOOGL", return_pct: 9.0, sharpe_ratio: 1.3, max_drawdown: 6.0, win_rate: 0.60, total_trades: 20, initial_balance: 10000, final_value: 10900, total_pnl: 900, winning_trades: 12, losing_trades: 8, equity_curve: [] },
+      ],
+      monte_carlo_projections: [],
+      strategy_assessments: [],
+    },
+    very_aggressive: {
+      risk_level: "very_aggressive",
+      total_return_pct: 5.0,
+      avg_sharpe: 0.55,
+      avg_max_drawdown: 14.2,
+      total_trades: 180,
+      stock_results: [
+        { symbol: "AAPL", return_pct: 10.0, sharpe_ratio: 0.8, max_drawdown: 12.0, win_rate: 0.50, total_trades: 40, initial_balance: 10000, final_value: 11000, total_pnl: 1000, winning_trades: 20, losing_trades: 20, equity_curve: [] },
+        { symbol: "MSFT", return_pct: 7.5, sharpe_ratio: 0.6, max_drawdown: 13.0, win_rate: 0.48, total_trades: 38, initial_balance: 10000, final_value: 10750, total_pnl: 750, winning_trades: 18, losing_trades: 20, equity_curve: [] },
+        { symbol: "NVDA", return_pct: 18.0, sharpe_ratio: 1.0, max_drawdown: 18.0, win_rate: 0.55, total_trades: 34, initial_balance: 10000, final_value: 11800, total_pnl: 1800, winning_trades: 19, losing_trades: 15, equity_curve: [] },
+        { symbol: "TSLA", return_pct: -12.0, sharpe_ratio: -0.5, max_drawdown: 25.0, win_rate: 0.32, total_trades: 38, initial_balance: 10000, final_value: 8800, total_pnl: -1200, winning_trades: 12, losing_trades: 26, equity_curve: [] },
+        { symbol: "GOOGL", return_pct: 1.5, sharpe_ratio: 0.35, max_drawdown: 10.0, win_rate: 0.50, total_trades: 30, initial_balance: 10000, final_value: 10150, total_pnl: 150, winning_trades: 15, losing_trades: 15, equity_curve: [] },
+      ],
+      monte_carlo_projections: [],
+      strategy_assessments: [],
+    },
+  },
+  recommendation: {
+    optimal_risk_level: "moderate",
+    reasoning: "'moderate' achieved the best risk-adjusted score (3.42): avg return 4.80%, avg Sharpe 1.050, avg max drawdown 5.10%.",
+    suggested_weights: { momentum: 0.55, quantitative: 0.45 },
+    confidence: 0.72,
+  },
+  started_at: "2026-02-18T10:00:00Z",
+  completed_at: "2026-02-18T10:02:30Z",
+  error: null,
+};
+
+registerRoute("POST", /^\/api\/simulation\/run$/, () => MOCK_SIMULATION);
+registerRoute("GET", /^\/api\/simulation\/runs$/, () => [MOCK_SIMULATION]);
+registerRoute("GET", /^\/api\/simulation\/runs\/[^/]+$/, () => MOCK_SIMULATION);
