@@ -156,17 +156,17 @@ class Orchestrator:
         if not signals:
             return None
 
-        directions = [s.direction for s in signals if s.direction != SignalDirection.HOLD]
-        if not directions:
+        non_hold = [s for s in signals if s.direction != SignalDirection.HOLD]
+        if not non_hold:
             return None
 
-        counts = Counter(directions)
+        counts = Counter(s.direction for s in non_hold)
         most_common, count = counts.most_common(1)[0]
 
-        # Need majority agreement
-        if count <= len(directions) / 2:
-            return None
+        # Clear majority: use the majority direction
+        if count > len(non_hold) / 2:
+            agreeing = [s for s in non_hold if s.direction == most_common]
+            return max(agreeing, key=lambda s: s.confidence)
 
-        agreeing = [s for s in signals if s.direction == most_common]
-        best = max(agreeing, key=lambda s: s.confidence)
-        return best
+        # Tie between directions: break by highest confidence signal
+        return max(non_hold, key=lambda s: s.confidence)

@@ -87,12 +87,15 @@ class SimulationEngine:
                 # Adapt SMA windows to fit available test data
                 n_ticks = len(ticks)
                 long_window = min(20, n_ticks // 2) if n_ticks < 50 else 50
-                short_window = min(5, long_window // 2) if long_window < 14 else 14
+                short_window = max(3, long_window // 3)
+                # Lower z-threshold so quant strategy fires on daily data
+                quant_z = 1.0 if n_ticks < 100 else 2.0
                 bt_result = await run_backtest(
                     ticks,
                     initial_cash=Decimal(str(self._config.initial_balance)),
                     short_window=short_window,
                     long_window=long_window,
+                    quant_z_threshold=quant_z,
                     risk_settings=risk_settings,
                 )
                 stock_results.append(self._to_stock_result(symbol, bt_result))
@@ -150,8 +153,10 @@ class SimulationEngine:
         from src.data.providers import yfinance_provider
         from src.data.providers.base import Interval
 
-        total_days = self._config.train_days + self._config.test_days + 10
-        since_ts = int((datetime.now(UTC) - timedelta(days=total_days)).timestamp())
+        # Convert trading days to calendar days (~1.5x for weekends/holidays)
+        total_trading_days = self._config.train_days + self._config.test_days
+        total_calendar_days = int(total_trading_days * 1.5) + 20
+        since_ts = int((datetime.now(UTC) - timedelta(days=total_calendar_days)).timestamp())
         return await yfinance_provider.download(
             symbol, interval=Interval.D1, since=since_ts,
         )

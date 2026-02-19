@@ -13,13 +13,14 @@ from src.agents.strategies.momentum import MomentumStrategy
 from src.agents.strategies.quantitative import QuantitativeStrategy
 from src.core.config import RiskSettings
 from src.core.event_bus import EventBus
+from src.core.models import Fill, OrderSide
 from src.core.orchestrator import Orchestrator
 from src.data.downloader import bars_to_ticks, load_csv
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from src.core.models import Fill, MarketTick
+    from src.core.models import MarketTick
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,7 @@ async def run_backtest(
     initial_cash: Decimal = Decimal("100000"),
     short_window: int = 14,
     long_window: int = 50,
+    quant_z_threshold: float = 2.0,
     risk_settings: RiskSettings | None = None,
 ) -> BacktestResult:
     """Run a backtest replaying ticks through the orchestrator.
@@ -155,7 +157,7 @@ async def run_backtest(
 
     strategies = [
         MomentumStrategy(short_window=short_window, long_window=long_window),
-        QuantitativeStrategy(),
+        QuantitativeStrategy(z_threshold=quant_z_threshold),
     ]
 
     orchestrator = Orchestrator(
@@ -190,6 +192,27 @@ async def run_backtest(
                     len(all_fills), tick.timestamp, f.side.value.upper(),
                     f.symbol, f.quantity, f.fill_price,
                 )
+
+    # Close out all remaining positions at the last tick price (standard practice)
+    snapshot = await portfolio.get_snapshot()
+    if snapshot.positions:
+        last_tick = ticks[-1]
+        for pos in snapshot.positions:
+            close_fill = Fill(
+                order_id="backtest-closeout",
+                symbol=pos.symbol,
+                side=OrderSide.SELL,
+                quantity=pos.quantity,
+                fill_price=pos.current_price,
+                timestamp=last_tick.timestamp,
+                commission=Decimal("0"),
+            )
+            await portfolio.record_fill(close_fill)
+            all_fills.append(close_fill)
+
+        # Update final equity after close-out
+        snapshot = await portfolio.get_snapshot()
+        equity_curve.append(float(snapshot.total_value))
 
     result = _compute_metrics(equity_curve, all_fills, float(initial_cash))
     result.total_ticks = len(ticks)

@@ -112,10 +112,10 @@ async def test_risk_veto_prevents_trade(bus):
     assert len(fills) == 0
 
 
-async def test_conflicting_signals_no_trade(bus):
+async def test_conflicting_signals_tie_break_by_confidence(bus):
     strategies = [
-        MockStrategy("momentum", direction=SignalDirection.BUY),
-        MockStrategy("sentiment", direction=SignalDirection.SELL),
+        MockStrategy("momentum", direction=SignalDirection.BUY, confidence=0.9),
+        MockStrategy("sentiment", direction=SignalDirection.SELL, confidence=0.6),
     ]
     orchestrator = Orchestrator(
         strategies=strategies,
@@ -129,8 +129,9 @@ async def test_conflicting_signals_no_trade(bus):
         timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
     )
     fills = await orchestrator.process_tick(tick)
-    # Conflicting signals with no arbitrator = no trade
-    assert len(fills) == 0
+    # Conflicting signals resolved by highest confidence (BUY @ 0.9)
+    assert len(fills) == 1
+    assert fills[0].side == OrderSide.BUY
 
 
 async def test_pause_and_resume(bus):
