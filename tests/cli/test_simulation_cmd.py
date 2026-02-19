@@ -469,7 +469,7 @@ def test_run_help_shows_charts_flag():
 
 
 def test_charts_none_skips_all_charts():
-    """--charts none should produce output with no chart panels."""
+    """--charts none should produce compact output: no charts, no per-stock tables."""
     report = _mock_report_with_stocks()
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
         result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
@@ -477,6 +477,11 @@ def test_charts_none_skips_all_charts():
     # No chart-related content
     assert "Equity Curve" not in result.output
     assert "Charts" not in result.output
+    # Per-stock detail tables should be skipped
+    assert "Per-Stock Details" not in result.output
+    assert "Per-Stock Results" not in result.output
+    # Portfolio metrics should still show
+    assert "Risk Level Comparison" in result.output
 
 
 def test_charts_summary_skips_per_stock_equity_curves():

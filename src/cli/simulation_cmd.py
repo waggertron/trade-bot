@@ -241,65 +241,66 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
         console.print(bench_table)
 
         # Benchmark equity curve overlay chart
-        try:
-            bench_series: dict[str, list[float]] = {}
-            for _key, bm in benchmarks.items():
-                curve = bm.get("equity_curve", [])
-                if len(curve) >= 2:
-                    bench_series[bm["name"]] = curve
+        if charts_mode != "none":
+            try:
+                bench_series: dict[str, list[float]] = {}
+                for _key, bm in benchmarks.items():
+                    curve = bm.get("equity_curve", [])
+                    if len(curve) >= 2:
+                        bench_series[bm["name"]] = curve
 
-            # Add best risk level equity curve
-            if rl_results:
-                best = max(
-                    rl_results.values(),
-                    key=lambda x: x.get("total_return_pct", 0),
-                )
-                pm = best.get("portfolio_metrics")
-                if pm and len(pm.get("equity_curve", [])) >= 2:
-                    bench_series["Best Strategy"] = pm["equity_curve"]
+                # Add best risk level equity curve
+                if rl_results:
+                    best = max(
+                        rl_results.values(),
+                        key=lambda x: x.get("total_return_pct", 0),
+                    )
+                    pm = best.get("portfolio_metrics")
+                    if pm and len(pm.get("equity_curve", [])) >= 2:
+                        bench_series["Best Strategy"] = pm["equity_curve"]
 
-            if bench_series:
-                chart = plotext_multi_line(
-                    bench_series,
-                    title="Benchmark vs Strategy Equity Curves",
-                )
-                console.print()
-                console.print(Panel(chart, expand=False))
-        except Exception:
-            pass  # chart rendering is best-effort
-
-    console.print()
-    console.print(Rule("[bold]Per-Stock Details[/bold]"))
+                if bench_series:
+                    chart = plotext_multi_line(
+                        bench_series,
+                        title="Benchmark vs Strategy Equity Curves",
+                    )
+                    console.print()
+                    console.print(Panel(chart, expand=False))
+            except Exception:
+                pass  # chart rendering is best-effort
 
     # Per-stock details for each risk level
+    if charts_mode != "none":
+        console.print()
+        console.print(Rule("[bold]Per-Stock Details[/bold]"))
+
     for level_name, result in report.get("risk_level_results", {}).items():
-        if not result.get("stock_results"):
-            continue
+        # Per-stock table (skip in none mode — too verbose with 16 stocks × 4 levels)
+        if charts_mode != "none" and result.get("stock_results"):
+            stock_table = Table(title=f"\n{level_name.upper()} — Per-Stock Results")
+            stock_table.add_column("Symbol", style="bold")
+            stock_table.add_column("Return %", justify="right")
+            stock_table.add_column("Sharpe", justify="right")
+            stock_table.add_column("Max DD %", justify="right")
+            stock_table.add_column("Win Rate", justify="right")
+            stock_table.add_column("Trades", justify="right")
 
-        stock_table = Table(title=f"\n{level_name.upper()} — Per-Stock Results")
-        stock_table.add_column("Symbol", style="bold")
-        stock_table.add_column("Return %", justify="right")
-        stock_table.add_column("Sharpe", justify="right")
-        stock_table.add_column("Max DD %", justify="right")
-        stock_table.add_column("Win Rate", justify="right")
-        stock_table.add_column("Trades", justify="right")
+            for sr in result["stock_results"]:
+                ret_style = "green" if sr["return_pct"] >= 0 else "red"
+                stock_table.add_row(
+                    sr["symbol"],
+                    f"[{ret_style}]{sr['return_pct']:.2f}%[/{ret_style}]",
+                    f"{sr['sharpe_ratio']:.3f}",
+                    f"{sr['max_drawdown']:.2f}%",
+                    f"{sr['win_rate']:.1%}",
+                    str(sr["total_trades"]),
+                )
 
-        for sr in result["stock_results"]:
-            ret_style = "green" if sr["return_pct"] >= 0 else "red"
-            stock_table.add_row(
-                sr["symbol"],
-                f"[{ret_style}]{sr['return_pct']:.2f}%[/{ret_style}]",
-                f"{sr['sharpe_ratio']:.3f}",
-                f"{sr['max_drawdown']:.2f}%",
-                f"{sr['win_rate']:.1%}",
-                str(sr["total_trades"]),
-            )
-
-        console.print(stock_table)
+            console.print(stock_table)
 
         # --- Portfolio Equity Curve chart ---
         pm = result.get("portfolio_metrics")
-        if pm and charts_mode != "none":
+        if pm and charts_mode not in ("none", "summary"):
             curve = pm.get("equity_curve", [])
             if len(curve) >= 2:
                 try:
@@ -356,8 +357,8 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             pmc_table.add_row("Worst DD (P95)", f"{pmc['worst_drawdown_p95']:.2f}%")
             console.print(pmc_table)
 
-        # --- Correlation matrix ---
-        if pmc and pmc.get("correlation_matrix"):
+        # --- Correlation matrix (skip in none mode — 16×16 is very wide) ---
+        if charts_mode != "none" and pmc and pmc.get("correlation_matrix"):
             corr = pmc["correlation_matrix"]
             corr_table = Table(title="Return Correlation Matrix")
             corr_table.add_column("")
@@ -369,35 +370,36 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
                 corr_table.add_row(label, *[f"{v:.3f}" for v in row])
             console.print(corr_table)
 
-    # Monte Carlo projections
-    console.print()
-    console.print(Rule("[bold]Monte Carlo Projections[/bold]"))
-    for level_name, result in report.get("risk_level_results", {}).items():
-        if not result.get("monte_carlo_projections"):
-            continue
+    # Per-stock Monte Carlo projections (skip in none mode)
+    if charts_mode != "none":
+        console.print()
+        console.print(Rule("[bold]Monte Carlo Projections[/bold]"))
+        for level_name, result in report.get("risk_level_results", {}).items():
+            if not result.get("monte_carlo_projections"):
+                continue
 
-        test_d = report['config']['test_days']
-        mc_table = Table(
-            title=f"\n{level_name.upper()} — MC Projections ({test_d}d forward)",
-        )
-        mc_table.add_column("Symbol", style="bold")
-        mc_table.add_column("Median Final", justify="right")
-        mc_table.add_column("P5 Final", justify="right")
-        mc_table.add_column("P95 Final", justify="right")
-        mc_table.add_column("Median Return %", justify="right")
-        mc_table.add_column("Worst DD (P95) %", justify="right")
-
-        for mc in result["monte_carlo_projections"]:
-            mc_table.add_row(
-                mc["symbol"],
-                f"${mc['median_final']:,.2f}",
-                f"${mc['p5_final']:,.2f}",
-                f"${mc['p95_final']:,.2f}",
-                f"{mc['median_return_pct']:.2f}%",
-                f"{mc['worst_drawdown_p95']:.2f}%",
+            test_d = report['config']['test_days']
+            mc_table = Table(
+                title=f"\n{level_name.upper()} — MC Projections ({test_d}d forward)",
             )
+            mc_table.add_column("Symbol", style="bold")
+            mc_table.add_column("Median Final", justify="right")
+            mc_table.add_column("P5 Final", justify="right")
+            mc_table.add_column("P95 Final", justify="right")
+            mc_table.add_column("Median Return %", justify="right")
+            mc_table.add_column("Worst DD (P95) %", justify="right")
 
-        console.print(mc_table)
+            for mc in result["monte_carlo_projections"]:
+                mc_table.add_row(
+                    mc["symbol"],
+                    f"${mc['median_final']:,.2f}",
+                    f"${mc['p5_final']:,.2f}",
+                    f"${mc['p95_final']:,.2f}",
+                    f"{mc['median_return_pct']:.2f}%",
+                    f"{mc['worst_drawdown_p95']:.2f}%",
+                )
+
+            console.print(mc_table)
 
     if charts_mode != "none":
         console.print()
