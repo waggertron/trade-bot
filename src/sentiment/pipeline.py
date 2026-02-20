@@ -11,7 +11,9 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from src.db.models import ArticleRecord, SentimentScoreRecord
+from src.db.models import ArticleRecord
+from src.processing.processors.sentiment import SentimentScoringProcessor
+from src.processing.worker_pool import AsyncWorkerPool
 from src.sentiment.aggregator import SentimentAggregator
 from src.sentiment.article_buffer import ArticleBuffer
 from src.sentiment.models import Article, SentimentResult
@@ -131,42 +133,37 @@ class SentimentPipeline:
         return new_count
 
     async def _score_db(self, symbols: list[str]) -> int:
-        """Score articles that haven't been scored by the current analyzer."""
-        analyzer_name = getattr(self._analyzer, "name", "unknown")
-        total_scored = 0
+        """Score articles that haven't been scored by the current analyzer.
 
+        Uses AsyncWorkerPool for concurrent processing (workers=1 by default,
+        increase to scale when running multiple Ollama instances or switching
+        to an API-backed analyzer).
+        """
+        analyzer_name = getattr(self._analyzer, "name", "unknown")
+
+        # Collect unique unscored articles across all symbols
+        seen_ids: set[str] = set()
+        to_score: list[ArticleRecord] = []
         for symbol in symbols:
             unscored = await self._db.get_unscored_articles(symbol, analyzer_name)
-            if not unscored:
-                continue
-
-            scores = []
             for article_rec in unscored:
-                text = f"{article_rec.title}. {article_rec.body}"
-                result = await self._analyzer.score(text)
-                score_rec = SentimentScoreRecord(
-                    article_id=article_rec.id,
-                    score=result.score,
-                    magnitude=result.magnitude,
-                    reasoning=result.reasoning,
-                    analyzer=analyzer_name,
-                )
-                await self._db.save_score(score_rec)
+                if article_rec.id not in seen_ids:
+                    seen_ids.add(article_rec.id)
+                    to_score.append(article_rec)
 
-                linked = SentimentResult(
-                    score=result.score,
-                    magnitude=result.magnitude,
-                    timestamp=result.timestamp,
-                    reasoning=result.reasoning,
-                    article_id=article_rec.id,
-                    analyzer=analyzer_name,
-                )
-                scores.append(linked)
+        if not to_score:
+            return 0
 
-            self.aggregator.add_scores(symbol, scores)
-            total_scored += len(scores)
+        processor = SentimentScoringProcessor(
+            analyzer=self._analyzer,
+            db=self._db,
+            aggregator=self.aggregator,
+        )
+        async with AsyncWorkerPool(processor, workers=1) as pool:
+            for article_rec in to_score:
+                await pool.submit(article_rec)
 
-        return total_scored
+        return pool.processed_count
 
     # -- Legacy in-memory implementations -------------------------------------
 
