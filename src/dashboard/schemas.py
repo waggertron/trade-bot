@@ -25,6 +25,7 @@ def _validate_password_strength(password: str) -> str:
         raise ValueError(msg)
     return password
 
+
 # -- Auth ---------------------------------------------------------------------
 
 

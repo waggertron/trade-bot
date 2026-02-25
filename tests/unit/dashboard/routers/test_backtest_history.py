@@ -120,9 +120,7 @@ class TestBacktestHistory:
         runs = list_resp.json()
         assert len(runs) >= 1
 
-    async def test_run_retrievable_by_id(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_run_retrievable_by_id(self, client: AsyncClient, auth_headers: dict):
         run_resp = await client.post(
             "/api/backtest/run",
             headers=auth_headers,
@@ -136,8 +134,6 @@ class TestBacktestHistory:
         )
         run_id = run_resp.json()["id"]
 
-        get_resp = await client.get(
-            f"/api/backtest/runs/{run_id}", headers=auth_headers
-        )
+        get_resp = await client.get(f"/api/backtest/runs/{run_id}", headers=auth_headers)
         assert get_resp.status_code == 200
         assert get_resp.json()["id"] == run_id

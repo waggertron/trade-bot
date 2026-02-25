@@ -74,9 +74,7 @@ async def client(db, settings):
 
 
 class TestRequestLoggingMiddleware:
-    async def test_logs_method_and_path(
-        self, client: AsyncClient, auth_headers: dict, caplog
-    ):
+    async def test_logs_method_and_path(self, client: AsyncClient, auth_headers: dict, caplog):
         """Each request should produce a log entry with method and path."""
         with caplog.at_level(logging.INFO, logger="src.dashboard.request_logging"):
             await client.get("/api/strategies/", headers=auth_headers)
@@ -85,27 +83,23 @@ class TestRequestLoggingMiddleware:
             "GET" in r.message and "/api/strategies/" in r.message for r in caplog.records
         ), f"Expected log with 'GET /api/strategies/', got: {[r.message for r in caplog.records]}"
 
-    async def test_logs_status_code(
-        self, client: AsyncClient, auth_headers: dict, caplog
-    ):
+    async def test_logs_status_code(self, client: AsyncClient, auth_headers: dict, caplog):
         """Log entry should include the response status code."""
         with caplog.at_level(logging.INFO, logger="src.dashboard.request_logging"):
             await client.get("/api/strategies/", headers=auth_headers)
 
-        assert any(
-            "200" in r.message for r in caplog.records
-        ), f"Expected log with status 200, got: {[r.message for r in caplog.records]}"
+        assert any("200" in r.message for r in caplog.records), (
+            f"Expected log with status 200, got: {[r.message for r in caplog.records]}"
+        )
 
-    async def test_logs_duration(
-        self, client: AsyncClient, auth_headers: dict, caplog
-    ):
+    async def test_logs_duration(self, client: AsyncClient, auth_headers: dict, caplog):
         """Log entry should include response duration in milliseconds."""
         with caplog.at_level(logging.INFO, logger="src.dashboard.request_logging"):
             await client.get("/api/strategies/", headers=auth_headers)
 
-        assert any(
-            "ms" in r.message for r in caplog.records
-        ), f"Expected log with duration (ms), got: {[r.message for r in caplog.records]}"
+        assert any("ms" in r.message for r in caplog.records), (
+            f"Expected log with duration (ms), got: {[r.message for r in caplog.records]}"
+        )
 
     async def test_logs_4xx_as_warning(self, client: AsyncClient, caplog):
         """4xx responses should log at WARNING level."""
@@ -113,9 +107,7 @@ class TestRequestLoggingMiddleware:
             await client.get("/api/strategies/")  # No auth → 401
 
         warning_records = [
-            r
-            for r in caplog.records
-            if r.levelno >= logging.WARNING and "401" in r.message
+            r for r in caplog.records if r.levelno >= logging.WARNING and "401" in r.message
         ]
         assert len(warning_records) >= 1, (
             f"Expected WARNING log with 401, got: {[r.message for r in caplog.records]}"

@@ -275,9 +275,7 @@ class Database:
         async with self._engine.connect() as conn:
             row = (
                 await conn.execute(
-                    revoked_tokens_table.select().where(
-                        revoked_tokens_table.c.jti == jti
-                    )
+                    revoked_tokens_table.select().where(revoked_tokens_table.c.jti == jti)
                 )
             ).first()
         return row is not None

@@ -61,9 +61,7 @@ async def client(db, settings):
 
 
 class TestOAuthLinkingRequiresVerification:
-    async def test_unverified_user_blocks_oauth_linking(
-        self, client: AsyncClient, db: Database
-    ):
+    async def test_unverified_user_blocks_oauth_linking(self, client: AsyncClient, db: Database):
         """If an existing user has unverified email, OAuth should reject with 409
         and instruct user to verify email first."""
         # Register a user (is_verified defaults to False)
@@ -99,9 +97,7 @@ class TestOAuthLinkingRequiresVerification:
         assert resp.status_code == 409
         assert "verify" in resp.json()["detail"].lower()
 
-    async def test_verified_user_gets_linked(
-        self, client: AsyncClient, db: Database
-    ):
+    async def test_verified_user_gets_linked(self, client: AsyncClient, db: Database):
         """If an existing user has verified email, OAuth should link to them."""
         # Create and verify a user
         user = UserRecord(

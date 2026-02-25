@@ -74,23 +74,43 @@ async def seed_trades(db: Database):
     """Insert trade records for attribution."""
     trades = [
         TradeRecord(
-            symbol="AAPL", side="buy", quantity="10", price="150.00",
-            commission="1.00", strategy="momentum", paper=True,
+            symbol="AAPL",
+            side="buy",
+            quantity="10",
+            price="150.00",
+            commission="1.00",
+            strategy="momentum",
+            paper=True,
             timestamp=datetime(2026, 2, 20, 10, 0, 0, tzinfo=UTC),
         ),
         TradeRecord(
-            symbol="AAPL", side="sell", quantity="10", price="155.00",
-            commission="1.00", strategy="momentum", paper=True,
+            symbol="AAPL",
+            side="sell",
+            quantity="10",
+            price="155.00",
+            commission="1.00",
+            strategy="momentum",
+            paper=True,
             timestamp=datetime(2026, 2, 21, 10, 0, 0, tzinfo=UTC),
         ),
         TradeRecord(
-            symbol="GOOGL", side="buy", quantity="5", price="140.00",
-            commission="1.00", strategy="mean_reversion", paper=True,
+            symbol="GOOGL",
+            side="buy",
+            quantity="5",
+            price="140.00",
+            commission="1.00",
+            strategy="mean_reversion",
+            paper=True,
             timestamp=datetime(2026, 2, 20, 11, 0, 0, tzinfo=UTC),
         ),
         TradeRecord(
-            symbol="GOOGL", side="sell", quantity="5", price="138.00",
-            commission="1.00", strategy="mean_reversion", paper=True,
+            symbol="GOOGL",
+            side="sell",
+            quantity="5",
+            price="138.00",
+            commission="1.00",
+            strategy="mean_reversion",
+            paper=True,
             timestamp=datetime(2026, 2, 21, 11, 0, 0, tzinfo=UTC),
         ),
     ]
@@ -111,9 +131,7 @@ class TestAnalyticsLive:
         assert "momentum" in data["strategies"]
         assert data["strategies"]["momentum"]["total_trades"] >= 1
 
-    async def test_attribution_empty_when_no_trades(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_attribution_empty_when_no_trades(self, client: AsyncClient, auth_headers: dict):
         """Attribution with no trades returns empty strategies."""
         resp = await client.get("/api/analytics/attribution", headers=auth_headers)
         assert resp.status_code == 200

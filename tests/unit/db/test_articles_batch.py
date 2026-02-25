@@ -60,9 +60,7 @@ class TestArticlesBatch:
         """
         from unittest.mock import AsyncMock, patch
 
-        with patch.object(
-            seeded_db, "_get_article_symbols", new_callable=AsyncMock
-        ) as mock_get:
+        with patch.object(seeded_db, "_get_article_symbols", new_callable=AsyncMock) as mock_get:
             articles = await seeded_db.get_articles_for_symbol("AAPL", limit=100)
 
         # With N+1, this would be called 5 times (once per article)
@@ -77,9 +75,7 @@ class TestArticlesBatch:
         """list_articles should also use batch loading, not N+1."""
         from unittest.mock import AsyncMock, patch
 
-        with patch.object(
-            seeded_db, "_get_article_symbols", new_callable=AsyncMock
-        ) as mock_get:
+        with patch.object(seeded_db, "_get_article_symbols", new_callable=AsyncMock) as mock_get:
             articles = await seeded_db.list_articles(limit=100)
 
         assert mock_get.call_count == 0, (

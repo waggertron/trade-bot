@@ -64,9 +64,7 @@ class TestTokenRevocationDB:
 
 
 class TestRevokedTokenRejected:
-    async def test_revoked_access_token_raises_401(
-        self, db: Database, user: UserRecord
-    ):
+    async def test_revoked_access_token_raises_401(self, db: Database, user: UserRecord):
         token = create_access_token(user_id=user.id, secret=TEST_SECRET)
         payload = decode_token(token, secret=TEST_SECRET)
 

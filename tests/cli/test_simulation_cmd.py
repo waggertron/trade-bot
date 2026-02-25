@@ -11,14 +11,18 @@ from src.cli.simulation_cmd import app
 runner = CliRunner()
 
 
-def test_simulation_run_help():
+def test_simulation_run_help(monkeypatch):
+    monkeypatch.setenv("COLUMNS", "200")
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "balance" in result.output.lower()
 
 
-def test_simulation_run_help_shows_portfolio_flags():
+def test_simulation_run_help_shows_portfolio_flags(monkeypatch):
     """Help text should include the new portfolio-mode flags."""
+    # Rich truncates long option names in narrow terminals (e.g. --portfo…).
+    # Force a wide terminal so the full names are printed.
+    monkeypatch.setenv("COLUMNS", "200")
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--portfolio" in result.output
@@ -333,8 +337,9 @@ def test_print_report_with_portfolio_metrics():
     _print_report(report)
 
 
-def test_simulation_run_help_shows_seed_and_rebalance_threshold_flags():
+def test_simulation_run_help_shows_seed_and_rebalance_threshold_flags(monkeypatch):
     """Help text should include --seed and --rebalance-threshold flags."""
+    monkeypatch.setenv("COLUMNS", "200")
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--seed" in result.output
@@ -541,8 +546,9 @@ def _mock_report_with_stocks(*, num_stocks: int = 2) -> dict:
     return report
 
 
-def test_run_help_shows_charts_flag():
+def test_run_help_shows_charts_flag(monkeypatch):
     """Help text should include the --charts flag."""
+    monkeypatch.setenv("COLUMNS", "200")
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--charts" in result.output
@@ -803,8 +809,9 @@ def test_single_rebalance_no_comparison_table():
 # ---------------------------------------------------------------------------
 
 
-def test_run_help_shows_no_cache_flag():
+def test_run_help_shows_no_cache_flag(monkeypatch):
     """Help text should include the --no-cache flag."""
+    monkeypatch.setenv("COLUMNS", "200")
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--no-cache" in result.output

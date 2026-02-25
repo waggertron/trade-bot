@@ -22,9 +22,7 @@ class TestOllamaClientReuse:
         """Multiple score() calls should NOT create a new httpx.AsyncClient each time."""
         response_data = {
             "message": {
-                "content": json.dumps(
-                    {"score": 0.5, "magnitude": 0.8, "reasoning": "positive"}
-                )
+                "content": json.dumps({"score": 0.5, "magnitude": 0.8, "reasoning": "positive"})
             }
         }
 
@@ -60,9 +58,7 @@ class TestOllamaClientReuse:
         """Calling close() should dispose the shared httpx client."""
         response_data = {
             "message": {
-                "content": json.dumps(
-                    {"score": 0.0, "magnitude": 0.5, "reasoning": "neutral"}
-                )
+                "content": json.dumps({"score": 0.0, "magnitude": 0.5, "reasoning": "neutral"})
             }
         }
 

@@ -83,12 +83,16 @@ class TestCSRFProtection:
         assert resp.status_code == 200
 
         # POST without CSRF token should fail
-        resp = await client.post("/api/trading/order", cookies=cookies, json={
-            "symbol": "AAPL",
-            "side": "buy",
-            "order_type": "market",
-            "quantity": 1.0,
-        })
+        resp = await client.post(
+            "/api/trading/order",
+            cookies=cookies,
+            json={
+                "symbol": "AAPL",
+                "side": "buy",
+                "order_type": "market",
+                "quantity": 1.0,
+            },
+        )
         assert resp.status_code == 403
         assert "CSRF" in resp.json()["detail"]
 

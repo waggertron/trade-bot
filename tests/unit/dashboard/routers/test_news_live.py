@@ -119,9 +119,7 @@ class TestNewsRouterLive:
     async def test_articles_returns_articles_for_symbol(
         self, client: AsyncClient, auth_headers: dict, seed_data, db
     ):
-        resp = await client.get(
-            "/api/news/articles?symbol=SPY", headers=auth_headers
-        )
+        resp = await client.get("/api/news/articles?symbol=SPY", headers=auth_headers)
         assert resp.status_code == 200
         articles = resp.json()
         assert len(articles) >= 1

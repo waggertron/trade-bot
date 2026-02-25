@@ -66,12 +66,23 @@ async def auth_headers(db: Database, settings):
 def mock_model():
     model = AsyncMock()
     model.name = "test_lstm"
-    model.predict = AsyncMock(return_value=Prediction(
-        direction="buy", confidence=0.85, model="test_lstm",
-    ))
-    model.evaluate = AsyncMock(return_value=EvalMetrics(
-        model="test_lstm", accuracy=0.72, precision=0.68, recall=0.75, sharpe=1.2, test_samples=100,
-    ))
+    model.predict = AsyncMock(
+        return_value=Prediction(
+            direction="buy",
+            confidence=0.85,
+            model="test_lstm",
+        )
+    )
+    model.evaluate = AsyncMock(
+        return_value=EvalMetrics(
+            model="test_lstm",
+            accuracy=0.72,
+            precision=0.68,
+            recall=0.75,
+            sharpe=1.2,
+            test_samples=100,
+        )
+    )
     return model
 
 
@@ -85,18 +96,14 @@ async def client(db, settings, mock_model):
 
 
 class TestMLRouterLive:
-    async def test_models_list_returns_model_info(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_models_list_returns_model_info(self, client: AsyncClient, auth_headers: dict):
         resp = await client.get("/api/ml/models", headers=auth_headers)
         assert resp.status_code == 200
         models = resp.json()
         assert len(models) >= 1
         assert models[0]["name"] == "test_lstm"
 
-    async def test_models_empty_when_no_model(
-        self, db, settings, auth_headers
-    ):
+    async def test_models_empty_when_no_model(self, db, settings, auth_headers):
         """Without ml_model in state, returns empty list."""
         dependencies.state.ml_model = None
         app = create_app(db=db, settings=settings)
@@ -106,17 +113,13 @@ class TestMLRouterLive:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    async def test_predictions_returns_data(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_predictions_returns_data(self, client: AsyncClient, auth_headers: dict):
         resp = await client.get("/api/ml/predictions", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert "status" in data
 
-    async def test_train_triggers_training(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_train_triggers_training(self, client: AsyncClient, auth_headers: dict):
         resp = await client.post("/api/ml/train", headers=auth_headers)
         assert resp.status_code == 200
         assert resp.json()["status"] == "training_started"

@@ -95,14 +95,10 @@ class TestSystemEndpointsRequireAuth:
         resp = await client.get("/api/health")
         assert resp.status_code == 200
 
-    async def test_kill_with_auth_succeeds(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_kill_with_auth_succeeds(self, client: AsyncClient, auth_headers: dict):
         resp = await client.post("/api/kill", headers=auth_headers)
         assert resp.status_code == 200
 
-    async def test_system_status_with_auth_succeeds(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_system_status_with_auth_succeeds(self, client: AsyncClient, auth_headers: dict):
         resp = await client.get("/api/system/status", headers=auth_headers)
         assert resp.status_code == 200

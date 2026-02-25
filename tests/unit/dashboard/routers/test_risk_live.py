@@ -84,7 +84,8 @@ def mock_portfolio():
 @pytest.fixture
 async def client(db, settings, mock_risk_manager, mock_portfolio):
     app = create_app(
-        db=db, settings=settings,
+        db=db,
+        settings=settings,
         risk_manager=mock_risk_manager,
         portfolio_manager=mock_portfolio,
     )
