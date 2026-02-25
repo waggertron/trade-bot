@@ -30,8 +30,8 @@ users_table = sa.Table(
     sa.Column("name", sa.String, nullable=False, server_default=""),
     sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.true()),
     sa.Column("is_verified", sa.Boolean, nullable=False, server_default=sa.false()),
-    sa.Column("created_at", sa.DateTime, nullable=False),
-    sa.Column("updated_at", sa.DateTime, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
 )
 
 oauth_accounts_table = sa.Table(
@@ -42,7 +42,7 @@ oauth_accounts_table = sa.Table(
     sa.Column("provider", sa.String, nullable=False),
     sa.Column("provider_user_id", sa.String, nullable=False),
     sa.Column("email", sa.String, nullable=False, server_default=""),
-    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     sa.UniqueConstraint("provider", "provider_user_id"),
 )
 
@@ -62,8 +62,8 @@ user_settings_table = sa.Table(
     sa.Column("risk_preset", sa.String, nullable=False, server_default=""),
     sa.Column("symbols_config", sa.String, nullable=False, server_default=""),
     sa.Column("strategy_weights", sa.String, nullable=False, server_default=""),
-    sa.Column("created_at", sa.DateTime, nullable=False),
-    sa.Column("updated_at", sa.DateTime, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
 )
 
 trades_table = sa.Table(
@@ -78,7 +78,7 @@ trades_table = sa.Table(
     sa.Column("commission", sa.String, nullable=False),
     sa.Column("strategy", sa.String, nullable=False),
     sa.Column("paper", sa.Boolean, nullable=False),
-    sa.Column("timestamp", sa.DateTime, nullable=False),
+    sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
 )
 
 signals_table = sa.Table(
@@ -91,7 +91,7 @@ signals_table = sa.Table(
     sa.Column("confidence", sa.Float, nullable=False),
     sa.Column("strategy", sa.String, nullable=False),
     sa.Column("reasoning", sa.String, nullable=False),
-    sa.Column("timestamp", sa.DateTime, nullable=False),
+    sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
 )
 
 ohlc_bars_table = sa.Table(
@@ -121,8 +121,8 @@ feeds_table = sa.Table(
     sa.Column("auth_type", sa.String, nullable=False, server_default="free"),
     sa.Column("rate_limit_rpm", sa.Integer, server_default="60"),
     sa.Column("enabled", sa.Boolean, server_default=sa.true()),
-    sa.Column("last_fetched_at", sa.DateTime, nullable=True),
-    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("last_fetched_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
 )
 
 articles_table = sa.Table(
@@ -134,10 +134,10 @@ articles_table = sa.Table(
     sa.Column("body", sa.String, server_default=""),
     sa.Column("source", sa.String, nullable=False),
     sa.Column("url", sa.String, server_default=""),
-    sa.Column("published_at", sa.DateTime, nullable=False),
-    sa.Column("fetched_at", sa.DateTime, nullable=False),
+    sa.Column("published_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
     sa.Column("feed_id", sa.String, sa.ForeignKey("feeds.id"), nullable=True),
-    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
 )
 
 article_symbols_table = sa.Table(
@@ -157,7 +157,7 @@ sentiment_scores_table = sa.Table(
     sa.Column("magnitude", sa.Float, nullable=False),
     sa.Column("reasoning", sa.String, nullable=True),
     sa.Column("analyzer", sa.String, nullable=False),
-    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     sa.UniqueConstraint("article_id", "analyzer"),
 )
 
@@ -165,7 +165,7 @@ revoked_tokens_table = sa.Table(
     "revoked_tokens",
     metadata,
     sa.Column("jti", sa.String, primary_key=True),
-    sa.Column("revoked_at", sa.DateTime, nullable=False),
+    sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=False),
 )
 
 backtest_runs_table = sa.Table(
@@ -175,8 +175,8 @@ backtest_runs_table = sa.Table(
     sa.Column("status", sa.String, nullable=False),
     sa.Column("config", sa.String, nullable=False),  # JSON
     sa.Column("result", sa.String, nullable=True),  # JSON
-    sa.Column("started_at", sa.DateTime, nullable=False),
-    sa.Column("completed_at", sa.DateTime, nullable=True),
+    sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
 )
 
 
