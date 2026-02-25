@@ -6,6 +6,7 @@ from collections import Counter
 from decimal import Decimal
 
 from src.core.event_bus import Event, EventBus
+from src.core.event_types import FillEvent
 from src.core.models import (
     Fill, MarketTick, Order, OrderSide, OrderType, ResearchReport, Signal,
     SignalDirection,
@@ -108,8 +109,10 @@ class Orchestrator:
         fill = await self._executor.submit_order(order)
         await self._portfolio.record_fill(fill)
 
-        # Publish fill event
-        await self._event_bus.publish(Event(event_type="fill"))
+        # Publish fill event with payload
+        await self._event_bus.publish(
+            FillEvent(fill=fill, strategy="consensus")
+        )
 
         return [fill]
 

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 
@@ -16,6 +17,7 @@ async def get_ohlc(
     start: int | None = None,
     end: int | None = None,
     limit: int = 500,
+    current_user: UserRecord = Depends(require_user),
 ):
     """OHLC bars for charting."""
     if state.db is None:
@@ -45,7 +47,7 @@ async def get_ohlc(
 
 
 @router.get("/prices")
-async def get_current_prices():
+async def get_current_prices(current_user: UserRecord = Depends(require_user)):
     """Current prices for all symbols from executor."""
     if state.executor is None:
         return {}
@@ -56,7 +58,7 @@ async def get_current_prices():
 
 
 @router.get("/sparklines")
-async def get_sparklines(points: int = 24):
+async def get_sparklines(points: int = 24, current_user: UserRecord = Depends(require_user)):
     """Mini price arrays for watchlist sparklines."""
     if state.db is None:
         return {}

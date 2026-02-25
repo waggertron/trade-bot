@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tradebot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tradebot}
+      POSTGRES_DB: ${POSTGRES_DB:-tradebot}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tradebot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -9,15 +25,18 @@ services:
       - path: .env
         required: false
     volumes:
-      - db-data:/app/data
       - ./config:/app/config:ro
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///data/trade_bot.db
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tradebot}:${POSTGRES_PASSWORD:-tradebot}@postgres:5432/${POSTGRES_DB:-tradebot}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
       interval: 10s
       timeout: 5s
       retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -41,13 +60,14 @@ services:
       - path: .env
         required: false
     volumes:
-      - db-data:/app/data
       - ./config:/app/config:ro
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///data/trade_bot.db
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tradebot}:${POSTGRES_PASSWORD:-tradebot}@postgres:5432/${POSTGRES_DB:-tradebot}
     depends_on:
+      postgres:
+        condition: service_healthy
       backend:
         condition: service_healthy
 
 volumes:
-  db-data:
+  pg-data:

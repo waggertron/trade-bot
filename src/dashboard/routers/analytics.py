@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -26,7 +27,7 @@ def _build_attributed_fills():
 
 
 @router.get("/attribution")
-async def get_attribution():
+async def get_attribution(current_user: UserRecord = Depends(require_user)):
     """Full strategy attribution report."""
     from src.analytics.attribution import StrategyAttribution
 
@@ -80,7 +81,7 @@ async def get_attribution():
 
 
 @router.get("/monte-carlo")
-async def get_monte_carlo():
+async def get_monte_carlo(current_user: UserRecord = Depends(require_user)):
     """Monte Carlo simulation results with percentile curves."""
     from src.analytics.attribution import StrategyAttribution
     from src.analytics.monte_carlo import MonteCarloSimulator
@@ -130,7 +131,7 @@ async def get_monte_carlo():
 
 
 @router.get("/drawdown")
-async def get_drawdown():
+async def get_drawdown(current_user: UserRecord = Depends(require_user)):
     """Drawdown curve data."""
     if state.portfolio is None:
         return {"points": []}
@@ -168,7 +169,7 @@ async def get_drawdown():
 
 
 @router.get("/correlation")
-async def get_correlation():
+async def get_correlation(current_user: UserRecord = Depends(require_user)):
     """Correlation matrix between symbols."""
     if state.db is None:
         return {"symbols": [], "matrix": []}

@@ -10,6 +10,43 @@ from pydantic import ConfigDict, Field
 from src.core.base import StrictBase
 
 
+class UserRecord(StrictBase):
+    model_config = ConfigDict(frozen=True)
+
+    email: str
+    hashed_password: str | None = None
+    name: str = ""
+    is_active: bool = True
+    is_verified: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: str = Field(default_factory=lambda: str(uuid4()))
+
+
+class OAuthAccountRecord(StrictBase):
+    model_config = ConfigDict(frozen=True)
+
+    user_id: str
+    provider: str  # google, github
+    provider_user_id: str
+    email: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: str = Field(default_factory=lambda: str(uuid4()))
+
+
+class UserSettingsRecord(StrictBase):
+    model_config = ConfigDict(frozen=True)
+
+    user_id: str
+    mode: str = "paper"
+    risk_preset: str = ""
+    symbols_config: str = ""
+    strategy_weights: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: str = Field(default_factory=lambda: str(uuid4()))
+
+
 class TradeRecord(StrictBase):
     model_config = ConfigDict(frozen=True)
 
@@ -21,6 +58,7 @@ class TradeRecord(StrictBase):
     strategy: str
     paper: bool
     timestamp: datetime
+    user_id: str | None = None
     id: str = Field(default_factory=lambda: str(uuid4()))
 
 
@@ -33,6 +71,7 @@ class SignalRecord(StrictBase):
     strategy: str
     reasoning: str
     timestamp: datetime
+    user_id: str | None = None
     id: str = Field(default_factory=lambda: str(uuid4()))
 
 

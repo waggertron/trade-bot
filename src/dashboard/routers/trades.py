@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/trades", tags=["trades"])
 
@@ -15,11 +16,12 @@ async def list_trades(
     symbol: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    current_user: UserRecord = Depends(require_user),
 ):
     """Trade history with filters."""
     if state.db is None:
         return []
-    trades = await state.db.list_trades(strategy=strategy, limit=limit + offset)
+    trades = await state.db.list_trades(strategy=strategy, limit=limit + offset, user_id=current_user.id)
     # Apply symbol filter and offset in memory (DB doesn't support these directly)
     if symbol:
         trades = [t for t in trades if t.symbol == symbol]
@@ -41,7 +43,7 @@ async def list_trades(
 
 
 @router.get("/{trade_id}")
-async def get_trade(trade_id: str):
+async def get_trade(trade_id: str, current_user: UserRecord = Depends(require_user)):
     """Single trade detail."""
     if state.db is None:
         raise HTTPException(status_code=503, detail="Database not available")

@@ -6,6 +6,28 @@ from pydantic import Field
 
 from src.core.base import StrictBase
 
+# -- Auth ---------------------------------------------------------------------
+
+class RegisterRequest(StrictBase):
+    email: str
+    password: str = Field(min_length=6)
+    name: str = ""
+
+
+class LoginRequest(StrictBase):
+    email: str
+    password: str
+
+
+class RefreshRequest(StrictBase):
+    refresh_token: str
+
+
+class UpdateProfileRequest(StrictBase):
+    name: str | None = None
+    password: str | None = Field(default=None, min_length=6)
+
+
 # -- Trading ------------------------------------------------------------------
 
 class PlaceOrderRequest(StrictBase):

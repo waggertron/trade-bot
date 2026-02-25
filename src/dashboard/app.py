@@ -7,14 +7,21 @@ from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import os
+
 from src.dashboard import dependencies
+from src.dashboard.rate_limit import RateLimitMiddleware
+from src.dashboard.request_id import RequestIDMiddleware
+from src.dashboard.security_headers import SecurityHeadersMiddleware
 from src.dashboard.routers import (
     analytics,
+    auth,
     backtest,
     config,
     market,
     ml,
     news,
+    oauth,
     portfolio,
     risk,
     signals,
@@ -39,10 +46,22 @@ def create_app(
     """Create and configure the FastAPI application."""
     app = FastAPI(title="Trade Bot Dashboard", version="2.0.0")
 
-    # CORS — allow Next.js dev server
+    # Security headers
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # Request ID tracking
+    app.add_middleware(RequestIDMiddleware)
+
+    # Rate limiting (100 reads/min, 10 writes/min per user)
+    app.add_middleware(RateLimitMiddleware, read_limit=100, write_limit=10)
+
+    # CORS — configurable via ALLOWED_ORIGINS env var
+    allowed_origins = os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=[o.strip() for o in allowed_origins],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -60,6 +79,8 @@ def create_app(
     dependencies.state.start_time = datetime.now(timezone.utc)
 
     # Register routers
+    app.include_router(auth.router)
+    app.include_router(oauth.router)
     app.include_router(portfolio.router)
     app.include_router(trading.router)
     app.include_router(trades.router)
@@ -78,7 +99,16 @@ def create_app(
     # System endpoints (kept inline)
     @app.get("/api/health")
     async def health():
-        return {"status": "ok"}
+        db_status = "not configured"
+        status = "ok"
+        if dependencies.state.db is not None:
+            try:
+                await dependencies.state.db.check_health()
+                db_status = "connected"
+            except Exception:
+                db_status = "disconnected"
+                status = "degraded"
+        return {"status": status, "database": db_status}
 
     @app.post("/api/kill")
     async def kill_switch():

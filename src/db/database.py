@@ -3,22 +3,63 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from src.db.models import (
     ArticleRecord,
     FeedRecord,
+    OAuthAccountRecord,
     OHLCRecord,
     SentimentScoreRecord,
     SignalRecord,
     TradeRecord,
+    UserRecord,
+    UserSettingsRecord,
 )
 
 metadata = sa.MetaData()
 
+users_table = sa.Table(
+    "users", metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("email", sa.String, nullable=False, unique=True, index=True),
+    sa.Column("hashed_password", sa.String, nullable=True),
+    sa.Column("name", sa.String, nullable=False, server_default=""),
+    sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.true()),
+    sa.Column("is_verified", sa.Boolean, nullable=False, server_default=sa.false()),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("updated_at", sa.DateTime, nullable=False),
+)
+
+oauth_accounts_table = sa.Table(
+    "oauth_accounts", metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=False, index=True),
+    sa.Column("provider", sa.String, nullable=False),
+    sa.Column("provider_user_id", sa.String, nullable=False),
+    sa.Column("email", sa.String, nullable=False, server_default=""),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.UniqueConstraint("provider", "provider_user_id"),
+)
+
+user_settings_table = sa.Table(
+    "user_settings", metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=False, unique=True, index=True),
+    sa.Column("mode", sa.String, nullable=False, server_default="paper"),
+    sa.Column("risk_preset", sa.String, nullable=False, server_default=""),
+    sa.Column("symbols_config", sa.String, nullable=False, server_default=""),
+    sa.Column("strategy_weights", sa.String, nullable=False, server_default=""),
+    sa.Column("created_at", sa.DateTime, nullable=False),
+    sa.Column("updated_at", sa.DateTime, nullable=False),
+)
+
 trades_table = sa.Table(
     "trades", metadata,
     sa.Column("id", sa.String, primary_key=True),
+    sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=True, index=True),
     sa.Column("symbol", sa.String, nullable=False),
     sa.Column("side", sa.String, nullable=False),
     sa.Column("quantity", sa.String, nullable=False),
@@ -32,6 +73,7 @@ trades_table = sa.Table(
 signals_table = sa.Table(
     "signals", metadata,
     sa.Column("id", sa.String, primary_key=True),
+    sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=True, index=True),
     sa.Column("symbol", sa.String, nullable=False),
     sa.Column("direction", sa.String, nullable=False),
     sa.Column("confidence", sa.Float, nullable=False),
@@ -64,7 +106,7 @@ feeds_table = sa.Table(
     sa.Column("category", sa.String, nullable=False),
     sa.Column("auth_type", sa.String, nullable=False, server_default="free"),
     sa.Column("rate_limit_rpm", sa.Integer, server_default="60"),
-    sa.Column("enabled", sa.Boolean, server_default=sa.text("1")),
+    sa.Column("enabled", sa.Boolean, server_default=sa.true()),
     sa.Column("last_fetched_at", sa.DateTime, nullable=True),
     sa.Column("created_at", sa.DateTime, nullable=False),
 )
@@ -108,18 +150,126 @@ class Database:
         self._engine = create_async_engine(url)
         self._session_factory = async_sessionmaker(self._engine, expire_on_commit=False)
 
-    async def initialize(self) -> None:
-        async with self._engine.begin() as conn:
-            await conn.run_sync(metadata.create_all)
+    async def initialize(self, *, create_all: bool = True) -> None:
+        """Initialize database. Use create_all=True for tests, False when Alembic manages schema."""
+        if create_all:
+            async with self._engine.begin() as conn:
+                await conn.run_sync(metadata.create_all)
 
     async def close(self) -> None:
         await self._engine.dispose()
 
+    async def check_health(self) -> bool:
+        """Check database connectivity by executing a simple query."""
+        async with self._engine.connect() as conn:
+            await conn.execute(sa.text("SELECT 1"))
+        return True
+
+    # -- User CRUD -------------------------------------------------------------
+
+    async def create_user(self, user: UserRecord) -> str:
+        async with self._engine.begin() as conn:
+            await conn.execute(users_table.insert().values(
+                id=user.id, email=user.email, hashed_password=user.hashed_password,
+                name=user.name, is_active=user.is_active, is_verified=user.is_verified,
+                created_at=user.created_at, updated_at=user.updated_at,
+            ))
+        return user.id
+
+    async def get_user_by_email(self, email: str) -> UserRecord | None:
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(
+                users_table.select().where(users_table.c.email == email)
+            )).first()
+        if row is None:
+            return None
+        return UserRecord(**row._asdict())
+
+    async def get_user_by_id(self, user_id: str) -> UserRecord | None:
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(
+                users_table.select().where(users_table.c.id == user_id)
+            )).first()
+        if row is None:
+            return None
+        return UserRecord(**row._asdict())
+
+    async def update_user(self, user_id: str, **fields: object) -> None:
+        if not fields:
+            return
+        fields["updated_at"] = datetime.now(timezone.utc)
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                users_table.update()
+                .where(users_table.c.id == user_id)
+                .values(**fields)
+            )
+
+    # -- OAuth Account CRUD ----------------------------------------------------
+
+    async def link_oauth_account(self, account: OAuthAccountRecord) -> str:
+        async with self._engine.begin() as conn:
+            await conn.execute(oauth_accounts_table.insert().values(
+                id=account.id, user_id=account.user_id, provider=account.provider,
+                provider_user_id=account.provider_user_id, email=account.email,
+                created_at=account.created_at,
+            ))
+        return account.id
+
+    async def get_user_by_oauth(
+        self, provider: str, provider_user_id: str,
+    ) -> UserRecord | None:
+        query = (
+            sa.select(users_table)
+            .join(oauth_accounts_table, users_table.c.id == oauth_accounts_table.c.user_id)
+            .where(oauth_accounts_table.c.provider == provider)
+            .where(oauth_accounts_table.c.provider_user_id == provider_user_id)
+        )
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(query)).first()
+        if row is None:
+            return None
+        return UserRecord(**row._asdict())
+
+    # -- User Settings CRUD ----------------------------------------------------
+
+    async def save_user_settings(self, settings: UserSettingsRecord) -> str:
+        async with self._engine.begin() as conn:
+            await conn.execute(user_settings_table.insert().values(
+                id=settings.id, user_id=settings.user_id, mode=settings.mode,
+                risk_preset=settings.risk_preset, symbols_config=settings.symbols_config,
+                strategy_weights=settings.strategy_weights,
+                created_at=settings.created_at, updated_at=settings.updated_at,
+            ))
+        return settings.id
+
+    async def get_user_settings(self, user_id: str) -> UserSettingsRecord | None:
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(
+                user_settings_table.select().where(user_settings_table.c.user_id == user_id)
+            )).first()
+        if row is None:
+            return None
+        return UserSettingsRecord(**row._asdict())
+
+    async def update_user_settings(self, user_id: str, **fields: object) -> None:
+        if not fields:
+            return
+        fields["updated_at"] = datetime.now(timezone.utc)
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                user_settings_table.update()
+                .where(user_settings_table.c.user_id == user_id)
+                .values(**fields)
+            )
+
+    # -- Trade CRUD ------------------------------------------------------------
+
     async def save_trade(self, trade: TradeRecord) -> str:
         async with self._engine.begin() as conn:
             await conn.execute(trades_table.insert().values(
-                id=trade.id, symbol=trade.symbol, side=trade.side,
-                quantity=trade.quantity, price=trade.price,
+                id=trade.id, user_id=trade.user_id, symbol=trade.symbol,
+                side=trade.side, quantity=trade.quantity, price=trade.price,
                 commission=trade.commission, strategy=trade.strategy,
                 paper=trade.paper, timestamp=trade.timestamp,
             ))
@@ -136,8 +286,11 @@ class Database:
 
     async def list_trades(
         self, strategy: str | None = None, limit: int = 100,
+        user_id: str | None = None,
     ) -> list[TradeRecord]:
         query = trades_table.select().order_by(trades_table.c.timestamp.desc()).limit(limit)
+        if user_id is not None:
+            query = query.where(trades_table.c.user_id == user_id)
         if strategy:
             query = query.where(trades_table.c.strategy == strategy)
         async with self._engine.connect() as conn:
@@ -147,49 +300,59 @@ class Database:
     async def save_signal(self, signal: SignalRecord) -> str:
         async with self._engine.begin() as conn:
             await conn.execute(signals_table.insert().values(
-                id=signal.id, symbol=signal.symbol, direction=signal.direction,
-                confidence=signal.confidence, strategy=signal.strategy,
-                reasoning=signal.reasoning, timestamp=signal.timestamp,
+                id=signal.id, user_id=signal.user_id, symbol=signal.symbol,
+                direction=signal.direction, confidence=signal.confidence,
+                strategy=signal.strategy, reasoning=signal.reasoning,
+                timestamp=signal.timestamp,
             ))
         return signal.id
 
-    async def list_signals(self, limit: int = 100) -> list[SignalRecord]:
+    async def list_signals(
+        self, limit: int = 100, user_id: str | None = None,
+    ) -> list[SignalRecord]:
+        query = signals_table.select().order_by(signals_table.c.timestamp.desc()).limit(limit)
+        if user_id is not None:
+            query = query.where(signals_table.c.user_id == user_id)
         async with self._engine.connect() as conn:
-            rows = (await conn.execute(
-                signals_table.select().order_by(signals_table.c.timestamp.desc()).limit(limit)
-            )).fetchall()
+            rows = (await conn.execute(query)).fetchall()
         return [SignalRecord(**r._asdict()) for r in rows]
 
     async def load_ohlc_bars(self, records: list[OHLCRecord]) -> int:
-        """Bulk INSERT OR REPLACE OHLC records in batches of 1000."""
+        """Bulk upsert OHLC records in batches of 1000."""
         if not records:
             return 0
         batch_size = 1000
         total = 0
+        is_pg = self._engine.dialect.name == "postgresql"
         async with self._engine.begin() as conn:
             for i in range(0, len(records), batch_size):
                 batch = records[i : i + batch_size]
-                # Use SQLite dialect INSERT OR REPLACE via raw text
                 for rec in batch:
-                    await conn.execute(
-                        sa.text(
-                            "INSERT OR REPLACE INTO ohlc_bars "
-                            "(symbol, interval, timestamp, open, high, low, close, volume, source) "
-                            "VALUES (:symbol, :interval, :timestamp, :open, :high, :low, "
-                            ":close, :volume, :source)"
-                        ),
-                        {
-                            "symbol": rec.symbol,
-                            "interval": rec.interval,
-                            "timestamp": rec.timestamp,
-                            "open": rec.open,
-                            "high": rec.high,
-                            "low": rec.low,
-                            "close": rec.close,
-                            "volume": rec.volume,
-                            "source": rec.source,
-                        },
-                    )
+                    values = {
+                        "symbol": rec.symbol,
+                        "interval": rec.interval,
+                        "timestamp": rec.timestamp,
+                        "open": rec.open,
+                        "high": rec.high,
+                        "low": rec.low,
+                        "close": rec.close,
+                        "volume": rec.volume,
+                        "source": rec.source,
+                    }
+                    if is_pg:
+                        stmt = pg_insert(ohlc_bars_table).values(**values)
+                        stmt = stmt.on_conflict_do_update(
+                            constraint=ohlc_bars_table.primary_key,
+                            set_={k: v for k, v in values.items()
+                                  if k not in ("symbol", "interval", "timestamp")},
+                        )
+                    else:
+                        stmt = sqlite_insert(ohlc_bars_table).values(**values)
+                        stmt = stmt.on_conflict_do_update(
+                            set_={k: v for k, v in values.items()
+                                  if k not in ("symbol", "interval", "timestamp")},
+                        )
+                    await conn.execute(stmt)
                 total += len(batch)
         return total
 
@@ -279,24 +442,23 @@ class Database:
     async def seed_feeds(self, records: list[FeedRecord]) -> int:
         """Bulk insert feeds, ignoring duplicates (by URL)."""
         inserted = 0
+        is_pg = self._engine.dialect.name == "postgresql"
         async with self._engine.begin() as conn:
             for rec in records:
-                await conn.execute(
-                    sa.text(
-                        "INSERT OR IGNORE INTO feeds "
-                        "(id, name, url, feed_type, category, auth_type, "
-                        "rate_limit_rpm, enabled, last_fetched_at, created_at) "
-                        "VALUES (:id, :name, :url, :feed_type, :category, :auth_type, "
-                        ":rate_limit_rpm, :enabled, :last_fetched_at, :created_at)"
-                    ),
-                    {
-                        "id": rec.id, "name": rec.name, "url": rec.url,
-                        "feed_type": rec.feed_type, "category": rec.category,
-                        "auth_type": rec.auth_type, "rate_limit_rpm": rec.rate_limit_rpm,
-                        "enabled": rec.enabled, "last_fetched_at": rec.last_fetched_at,
-                        "created_at": rec.created_at,
-                    },
-                )
+                values = {
+                    "id": rec.id, "name": rec.name, "url": rec.url,
+                    "feed_type": rec.feed_type, "category": rec.category,
+                    "auth_type": rec.auth_type, "rate_limit_rpm": rec.rate_limit_rpm,
+                    "enabled": rec.enabled, "last_fetched_at": rec.last_fetched_at,
+                    "created_at": rec.created_at,
+                }
+                if is_pg:
+                    stmt = pg_insert(feeds_table).values(**values)
+                    stmt = stmt.on_conflict_do_nothing(index_elements=["url"])
+                else:
+                    stmt = sqlite_insert(feeds_table).values(**values)
+                    stmt = stmt.on_conflict_do_nothing(index_elements=["url"])
+                await conn.execute(stmt)
                 inserted += 1
         return inserted
 
@@ -433,6 +595,54 @@ class Database:
         async with self._engine.connect() as conn:
             result = await conn.execute(query)
             return int(result.scalar() or 0) > 0
+
+    async def get_scores_as_of(
+        self,
+        symbols: list[str],
+        as_of_dt: datetime,
+        analyzer: str | None = None,
+    ) -> list[tuple[str, float, float, datetime]]:
+        """Return (symbol, score, magnitude, published_at) for articles published ≤ as_of_dt.
+
+        Used exclusively for lookahead-free backtesting.
+        """
+        placeholders = ", ".join(f":sym{i}" for i in range(len(symbols)))
+        params: dict = {f"sym{i}": s for i, s in enumerate(symbols)}
+        params["as_of_dt"] = as_of_dt
+
+        sql = f"""
+            SELECT DISTINCT asym.symbol, ss.score, ss.magnitude, a.published_at
+            FROM sentiment_scores ss
+            JOIN articles a ON ss.article_id = a.id
+            JOIN article_symbols asym ON a.id = asym.article_id
+            WHERE asym.symbol IN ({placeholders})
+              AND a.published_at <= :as_of_dt
+            ORDER BY a.published_at ASC
+        """
+
+        if analyzer is not None:
+            sql = f"""
+                SELECT DISTINCT asym.symbol, ss.score, ss.magnitude, a.published_at
+                FROM sentiment_scores ss
+                JOIN articles a ON ss.article_id = a.id
+                JOIN article_symbols asym ON a.id = asym.article_id
+                WHERE asym.symbol IN ({placeholders})
+                  AND a.published_at <= :as_of_dt
+                  AND ss.analyzer = :analyzer
+                ORDER BY a.published_at ASC
+            """
+            params["analyzer"] = analyzer
+
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(sa.text(sql), params)).fetchall()
+
+        def _as_dt(val: object) -> datetime:
+            if isinstance(val, datetime):
+                return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+            dt = datetime.fromisoformat(str(val))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+        return [(r[0], float(r[1]), float(r[2]), _as_dt(r[3])) for r in rows]
 
     async def load_recent_scores(
         self, hours: int = 48,

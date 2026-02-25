@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
+
+from src.core.event_bus import EventBus
+from src.core.event_types import CircuitBreakerEvent
 
 
 class DrawdownCircuitBreaker:
@@ -23,6 +27,11 @@ class DrawdownCircuitBreaker:
         self._cooldown: timedelta = timedelta(hours=cooldown_hours)
         self._peak_value: Decimal = Decimal("0")
         self._tripped_at: datetime | None = None
+        self._event_bus: EventBus | None = None
+
+    def set_event_bus(self, event_bus: EventBus) -> None:
+        """Attach an event bus for publishing circuit breaker events."""
+        self._event_bus = event_bus
 
     # -- mutators -------------------------------------------------------------
 
@@ -61,9 +70,26 @@ class DrawdownCircuitBreaker:
         drawdown = float((self._peak_value - portfolio_value) / self._peak_value)
         if drawdown >= self._max_drawdown:
             self._tripped_at = now
+            self._publish_tripped(drawdown * 100, portfolio_value)
             return True
 
         return False
+
+    def _publish_tripped(self, drawdown_pct: float, current_value: Decimal) -> None:
+        """Fire-and-forget event publish when the breaker trips."""
+        if self._event_bus is None:
+            return
+        event = CircuitBreakerEvent(
+            drawdown_pct=drawdown_pct,
+            peak_value=self._peak_value,
+            current_value=current_value,
+        )
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._event_bus.publish(event))
+        except RuntimeError:
+            # No running loop — skip event publishing
+            pass
 
     # -- properties -----------------------------------------------------------
 

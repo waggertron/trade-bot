@@ -5,10 +5,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
 from src.dashboard.schemas import BacktestRequest
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
@@ -17,7 +18,7 @@ _backtest_runs: dict[str, dict] = {}
 
 
 @router.post("/run")
-async def run_backtest(req: BacktestRequest):
+async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(require_user)):
     """Start a backtest run."""
     run_id = str(uuid.uuid4())[:8]
 
@@ -83,13 +84,13 @@ async def run_backtest(req: BacktestRequest):
 
 
 @router.get("/runs")
-async def list_runs():
+async def list_runs(current_user: UserRecord = Depends(require_user)):
     """List previous backtest runs."""
     return list(_backtest_runs.values())
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: str):
+async def get_run(run_id: str, current_user: UserRecord = Depends(require_user)):
     """Get specific backtest run results."""
     if run_id not in _backtest_runs:
         raise HTTPException(status_code=404, detail="Run not found")

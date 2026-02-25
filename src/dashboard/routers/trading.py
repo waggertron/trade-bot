@@ -4,18 +4,22 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.models import AssetType, Order, OrderSide, OrderType
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
 from src.dashboard.schemas import PlaceOrderRequest
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
 
 
 @router.post("/order")
-async def place_order(req: PlaceOrderRequest):
+async def place_order(req: PlaceOrderRequest, current_user: UserRecord = Depends(require_user)):
     """Place a paper trading order."""
+    if not current_user.is_verified:
+        raise HTTPException(status_code=403, detail="Email not verified. Please verify your email before trading.")
+
     if state.executor is None or state.portfolio is None:
         raise HTTPException(status_code=503, detail="Trading not available")
 
@@ -64,7 +68,7 @@ async def place_order(req: PlaceOrderRequest):
 
 
 @router.get("/orders")
-async def get_orders():
+async def get_orders(current_user: UserRecord = Depends(require_user)):
     """Get active/pending orders."""
     if state.executor is None:
         return []
@@ -82,7 +86,7 @@ async def get_orders():
 
 
 @router.delete("/orders/{order_id}")
-async def cancel_order(order_id: str):
+async def cancel_order(order_id: str, current_user: UserRecord = Depends(require_user)):
     """Cancel a specific order."""
     if state.executor is None:
         raise HTTPException(status_code=503, detail="Trading not available")
@@ -91,7 +95,7 @@ async def cancel_order(order_id: str):
 
 
 @router.post("/cancel-all")
-async def cancel_all():
+async def cancel_all(current_user: UserRecord = Depends(require_user)):
     """Cancel all open orders."""
     if state.executor is None:
         raise HTTPException(status_code=503, detail="Trading not available")
@@ -100,7 +104,7 @@ async def cancel_all():
 
 
 @router.get("/prices")
-async def get_prices():
+async def get_prices(current_user: UserRecord = Depends(require_user)):
     """Current prices for all watched symbols."""
     if state.executor is None:
         return {}

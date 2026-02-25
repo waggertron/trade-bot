@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
 from src.dashboard.schemas import UpdateEnabledRequest, UpdateWeightRequest
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
 
@@ -22,13 +23,13 @@ def _strategy_info(s) -> dict:
 
 
 @router.get("/")
-async def list_strategies():
+async def list_strategies(current_user: UserRecord = Depends(require_user)):
     """All strategies with type, weight, enabled, features."""
     return [_strategy_info(s) for s in state.strategies]
 
 
 @router.get("/status")
-async def strategy_status():
+async def strategy_status(current_user: UserRecord = Depends(require_user)):
     """Strategy module summary."""
     total = len(state.strategies)
     enabled = sum(1 for s in state.strategies if getattr(s, "enabled", True))
@@ -47,7 +48,7 @@ async def strategy_status():
 
 
 @router.get("/consensus")
-async def get_consensus():
+async def get_consensus(current_user: UserRecord = Depends(require_user)):
     """Current consensus state — latest signals grouped by symbol."""
     if state.db is None:
         return {"symbols": {}}
@@ -70,7 +71,7 @@ async def get_consensus():
 
 
 @router.get("/{name}")
-async def get_strategy(name: str):
+async def get_strategy(name: str, current_user: UserRecord = Depends(require_user)):
     """Single strategy detail + performance."""
     for s in state.strategies:
         sname = getattr(s, "name", s.__class__.__name__)
@@ -94,7 +95,7 @@ async def get_strategy(name: str):
 
 
 @router.put("/{name}/weight")
-async def update_weight(name: str, req: UpdateWeightRequest):
+async def update_weight(name: str, req: UpdateWeightRequest, current_user: UserRecord = Depends(require_user)):
     """Update strategy weight."""
     for s in state.strategies:
         sname = getattr(s, "name", s.__class__.__name__)
@@ -105,7 +106,7 @@ async def update_weight(name: str, req: UpdateWeightRequest):
 
 
 @router.put("/{name}/enabled")
-async def update_enabled(name: str, req: UpdateEnabledRequest):
+async def update_enabled(name: str, req: UpdateEnabledRequest, current_user: UserRecord = Depends(require_user)):
     """Toggle strategy enabled/disabled."""
     for s in state.strategies:
         sname = getattr(s, "name", s.__class__.__name__)
@@ -116,7 +117,7 @@ async def update_enabled(name: str, req: UpdateEnabledRequest):
 
 
 @router.get("/{name}/signals")
-async def get_strategy_signals(name: str, limit: int = 50):
+async def get_strategy_signals(name: str, limit: int = 50, current_user: UserRecord = Depends(require_user)):
     """Signal history for a specific strategy."""
     if state.db is None:
         return []
@@ -136,7 +137,7 @@ async def get_strategy_signals(name: str, limit: int = 50):
 
 
 @router.get("/{name}/performance")
-async def get_strategy_performance(name: str):
+async def get_strategy_performance(name: str, current_user: UserRecord = Depends(require_user)):
     """Strategy performance stats from trade history."""
     if state.db is None:
         return {"name": name, "total_trades": 0, "win_rate": 0, "total_pnl": 0}

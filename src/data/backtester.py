@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -141,11 +143,14 @@ async def run_backtest(
     long_window: int = 50,
     quant_z_threshold: float = 2.0,
     risk_settings: RiskSettings | None = None,
+    extra_strategies: list | None = None,
+    research_at: Callable[[datetime], list] | None = None,
 ) -> BacktestResult:
     """Run a backtest replaying ticks through the orchestrator.
 
-    Uses MomentumStrategy and QuantitativeStrategy (sentiment is skipped
-    because there's no historical research data).
+    Uses MomentumStrategy and QuantitativeStrategy by default.
+    Pass ``extra_strategies`` (e.g. SentimentStrategy) to augment the strategy
+    set. Pass ``research_at`` to inject lookahead-free ResearchReports per tick.
     """
     if risk_settings is None:
         risk_settings = RiskSettings()
@@ -158,6 +163,7 @@ async def run_backtest(
     strategies = [
         MomentumStrategy(short_window=short_window, long_window=long_window),
         QuantitativeStrategy(z_threshold=quant_z_threshold),
+        *(extra_strategies or []),
     ]
 
     orchestrator = Orchestrator(
@@ -177,6 +183,9 @@ async def run_backtest(
         executor.set_current_price(tick.symbol, tick.price)
         # Update portfolio's current price for unrealized P&L
         portfolio.update_price(tick.symbol, tick.price)
+
+        if research_at is not None:
+            orchestrator.set_research(research_at(tick.timestamp))
 
         fills = await orchestrator.process_tick(tick)
         all_fills.extend(fills)

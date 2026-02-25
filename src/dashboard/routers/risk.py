@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.config import RISK_LEVEL_PRESETS, RiskLevel, RiskSettings
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
+from src.db.models import UserRecord
 from src.dashboard.schemas import RiskPresetRequest, RiskSettingsUpdate
 from src.risk.models import VolatilityRegime
 
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/api/risk", tags=["risk"])
 
 
 @router.get("/status")
-async def get_risk_status():
+async def get_risk_status(current_user: UserRecord = Depends(require_user)):
     """Current risk settings."""
     if state.risk_manager is None:
         return {"error": "Risk manager not available"}
@@ -32,7 +33,7 @@ async def get_risk_status():
 
 
 @router.get("/limits")
-async def get_regime_limits(regime: str = "medium"):
+async def get_regime_limits(regime: str = "medium", current_user: UserRecord = Depends(require_user)):
     """Regime-specific limits."""
     from src.agents.risk_manager import REGIME_LIMITS
 
@@ -50,7 +51,7 @@ async def get_regime_limits(regime: str = "medium"):
 
 
 @router.get("/limits/all")
-async def get_all_regime_limits():
+async def get_all_regime_limits(current_user: UserRecord = Depends(require_user)):
     """All regime limits."""
     from src.agents.risk_manager import REGIME_LIMITS
 
@@ -61,7 +62,7 @@ async def get_all_regime_limits():
 
 
 @router.put("/settings")
-async def update_risk_settings(req: RiskSettingsUpdate):
+async def update_risk_settings(req: RiskSettingsUpdate, current_user: UserRecord = Depends(require_user)):
     """Update risk parameters (partial update)."""
     if state.risk_manager is None:
         raise HTTPException(status_code=503, detail="Risk manager not available")
@@ -79,7 +80,7 @@ async def update_risk_settings(req: RiskSettingsUpdate):
 
 
 @router.put("/preset")
-async def apply_preset(req: RiskPresetRequest):
+async def apply_preset(req: RiskPresetRequest, current_user: UserRecord = Depends(require_user)):
     """Apply a risk preset level."""
     if state.risk_manager is None:
         raise HTTPException(status_code=503, detail="Risk manager not available")
@@ -90,7 +91,7 @@ async def apply_preset(req: RiskPresetRequest):
 
 
 @router.get("/presets")
-async def get_presets():
+async def get_presets(current_user: UserRecord = Depends(require_user)):
     """Available risk presets."""
     return {
         level.value: params
@@ -99,13 +100,13 @@ async def get_presets():
 
 
 @router.get("/regime")
-async def get_current_regime():
+async def get_current_regime(current_user: UserRecord = Depends(require_user)):
     """Current volatility regime."""
     return {"regime": "medium", "description": "Normal market conditions"}
 
 
 @router.get("/drawdown")
-async def get_drawdown_status():
+async def get_drawdown_status(current_user: UserRecord = Depends(require_user)):
     """Daily/weekly drawdown progress."""
     if state.risk_manager is None or state.portfolio is None:
         return {"daily_pct": 0, "weekly_pct": 0, "positions_used": 0}
@@ -128,7 +129,7 @@ async def get_drawdown_status():
 
 
 @router.get("/circuit-breaker")
-async def get_circuit_breaker():
+async def get_circuit_breaker(current_user: UserRecord = Depends(require_user)):
     """Circuit breaker status."""
     if state.risk_manager is None:
         return {"tripped": False, "cooldown_remaining": 0}
@@ -145,7 +146,7 @@ async def get_circuit_breaker():
 
 
 @router.post("/circuit-breaker/reset")
-async def reset_circuit_breaker():
+async def reset_circuit_breaker(current_user: UserRecord = Depends(require_user)):
     """Manual circuit breaker reset."""
     if state.risk_manager is None:
         raise HTTPException(status_code=503, detail="Risk manager not available")
@@ -157,7 +158,7 @@ async def reset_circuit_breaker():
 
 
 @router.get("/decisions")
-async def get_risk_decisions():
+async def get_risk_decisions(current_user: UserRecord = Depends(require_user)):
     """Risk decision log. Uses event bus history if available."""
     if state.event_bus is None:
         return []

@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from src.core.models import Fill, Order, OrderSide, OrderType
+from src.core.models import AssetType, Fill, Order, OrderSide, OrderType
 
 
 class PaperExecutionAgent:
@@ -57,3 +57,48 @@ class PaperExecutionAgent:
         count = len(self._open_orders)
         self._open_orders.clear()
         return count
+
+
+class LiveExecutionAgent:
+    """Routes orders to real brokers based on asset type.
+
+    Requires explicit ``enable()`` before any orders are submitted.
+    Cancel operations always work regardless of enabled state for safety.
+    """
+
+    def __init__(self, stock_executor, crypto_executor) -> None:
+        self._stock_executor = stock_executor
+        self._crypto_executor = crypto_executor
+        self._enabled = False
+
+    def enable(self) -> None:
+        self._enabled = True
+
+    def disable(self) -> None:
+        self._enabled = False
+
+    def set_current_price(self, symbol: str, price: Decimal) -> None:
+        """No-op for live execution — prices come from the market."""
+
+    async def submit_order(self, order: Order) -> Fill:
+        if not self._enabled:
+            raise RuntimeError("Live execution is not enabled")
+
+        executor = self._executor_for(order.asset_type)
+        return await executor.submit_order(order)
+
+    async def cancel_order(self, order_id: str) -> bool:
+        """Try both executors — returns True if either cancelled."""
+        stock_ok = await self._stock_executor.cancel_order(order_id)
+        crypto_ok = await self._crypto_executor.cancel_order(order_id)
+        return stock_ok or crypto_ok
+
+    async def cancel_all(self) -> int:
+        stock_count = await self._stock_executor.cancel_all()
+        crypto_count = await self._crypto_executor.cancel_all()
+        return stock_count + crypto_count
+
+    def _executor_for(self, asset_type: AssetType):
+        if asset_type == AssetType.CRYPTO:
+            return self._crypto_executor
+        return self._stock_executor

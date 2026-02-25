@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -119,6 +120,17 @@ class DashboardSettings(StrictBase):
     port: int = Field(8080, gt=0, le=65535)
 
 
+class AuthSettings(StrictBase):
+    model_config = ConfigDict(frozen=True)
+
+    jwt_secret_key: str = Field(
+        default_factory=lambda: os.environ.get("JWT_SECRET_KEY", ""),
+    )
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = Field(30, gt=0)
+    refresh_token_expire_days: int = Field(7, gt=0)
+
+
 class MockSettings(StrictBase):
     model_config = ConfigDict(frozen=True)
 
@@ -138,6 +150,7 @@ class Settings(StrictBase):
     sentiment: SentimentSettings = Field(default_factory=SentimentSettings)
     ai: AISettings = Field(default_factory=AISettings)
     dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     use_mocks: MockSettings = Field(default_factory=MockSettings)
 
     @property
@@ -156,6 +169,31 @@ class Settings(StrictBase):
         known_fields = cls.model_fields.keys()
         filtered = {k: v for k, v in data.items() if k in known_fields}
         return cls.model_validate(filtered)
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        """Create Settings entirely from environment variables.
+
+        Env vars:
+          TRADE_BOT_MODE           - paper|live (default: paper)
+          TRADE_BOT_CRYPTO_SYMBOLS - comma-separated (default: BTC/USD)
+          TRADE_BOT_STOCK_SYMBOLS  - comma-separated (default: empty)
+          TRADE_BOT_DASHBOARD_PORT - int (default: 8080)
+          JWT_SECRET_KEY           - JWT signing secret
+        """
+        mode = os.getenv("TRADE_BOT_MODE", "paper")
+        crypto_raw = os.getenv("TRADE_BOT_CRYPTO_SYMBOLS", "BTC/USD")
+        stock_raw = os.getenv("TRADE_BOT_STOCK_SYMBOLS", "")
+        port_str = os.getenv("TRADE_BOT_DASHBOARD_PORT", "8080")
+
+        crypto_symbols = [s.strip() for s in crypto_raw.split(",") if s.strip()]
+        stock_symbols = [s.strip() for s in stock_raw.split(",") if s.strip()]
+
+        return cls.model_validate({
+            "mode": mode,
+            "trading": {"symbols": {"stocks": stock_symbols, "crypto": crypto_symbols}},
+            "dashboard": {"port": int(port_str)},
+        })
 
     @classmethod
     def for_testing(cls, **overrides: Any) -> Settings:

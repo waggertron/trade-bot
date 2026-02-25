@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api", tags=["ml"])
 
 
 @router.get("/features/catalog")
-async def feature_catalog():
+async def feature_catalog(current_user: UserRecord = Depends(require_user)):
     """Feature catalog by category."""
     return {
         "technical": [
@@ -32,30 +33,30 @@ async def feature_catalog():
 
 
 @router.get("/features/status")
-async def feature_status():
+async def feature_status(current_user: UserRecord = Depends(require_user)):
     """Feature engine status."""
     return {"status": "idle", "last_update": None, "features_available": 0}
 
 
 @router.get("/ml/models")
-async def list_models():
+async def list_models(current_user: UserRecord = Depends(require_user)):
     """Trained models with metrics."""
     return []
 
 
 @router.get("/ml/models/{name}/importance")
-async def model_importance(name: str):
+async def model_importance(name: str, current_user: UserRecord = Depends(require_user)):
     """Feature importance for a specific model."""
     return {"model": name, "features": []}
 
 
 @router.post("/ml/train")
-async def trigger_training():
+async def trigger_training(current_user: UserRecord = Depends(require_user)):
     """Trigger model training."""
     return {"status": "training_started"}
 
 
 @router.get("/ml/predictions")
-async def get_predictions():
+async def get_predictions(current_user: UserRecord = Depends(require_user)):
     """Latest predictions by symbol."""
     return {}

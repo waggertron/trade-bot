@@ -28,8 +28,10 @@ from src.providers.ollama_sentiment import OllamaSentimentAnalyzer
 from src.sentiment.bridge import SentimentBridge
 from src.sentiment.pipeline import SentimentPipeline
 
+from src.core.event_types import DailyPnLEvent
 from src.core.models import Fill
 from src.db.models import TradeRecord
+from src.discord_bot.alerts import DiscordAlertHandler
 from src.feeds.null_feed import NullStockFeed
 from src.integrations.ibkr import IBKRFeed
 from src.agents.strategies.ml_ensemble import MLEnsembleStrategy
@@ -106,17 +108,20 @@ def build_stock_feed(settings: Settings) -> tuple:
     return IBKRFeed(), settings.trading.symbols.stocks
 
 
-def build_circuit_breaker(settings: Settings) -> DrawdownCircuitBreaker:
+def build_circuit_breaker(settings: Settings, event_bus: EventBus | None = None) -> DrawdownCircuitBreaker:
     """Build a circuit breaker from risk settings."""
-    return DrawdownCircuitBreaker(
+    cb = DrawdownCircuitBreaker(
         max_drawdown_pct=settings.risk.weekly_drawdown_limit_pct,
         cooldown_hours=24.0,
     )
+    if event_bus is not None:
+        cb.set_event_bus(event_bus)
+    return cb
 
 
-def build_risk_manager(settings: Settings) -> RiskManager:
+def build_risk_manager(settings: Settings, event_bus: EventBus | None = None) -> RiskManager:
     """Build RiskManager with circuit breaker wired in."""
-    circuit_breaker = build_circuit_breaker(settings)
+    circuit_breaker = build_circuit_breaker(settings, event_bus=event_bus)
     return RiskManager(settings.risk, circuit_breaker=circuit_breaker)
 
 
@@ -240,7 +245,11 @@ async def main():
     load_dotenv()
 
     config_path = Path("config/settings.yaml")
-    settings = Settings.from_yaml(config_path)
+    if config_path.exists():
+        settings = Settings.from_yaml(config_path)
+    else:
+        settings = Settings.from_env()
+        logger.info("No settings.yaml found, using environment variables")
     logger.info("Starting trade bot in %s mode", settings.mode)
 
     # Database
@@ -254,7 +263,7 @@ async def main():
 
     # Agents
     portfolio = PortfolioManager(initial_cash=Decimal("100000"))
-    risk_manager = build_risk_manager(settings)
+    risk_manager = build_risk_manager(settings, event_bus=event_bus)
     executor = PaperExecutionAgent(slippage_pct=Decimal("0.05"))
     position_sizer = build_position_sizer(settings)
 
@@ -287,6 +296,20 @@ async def main():
         db=db,
         position_sizer=position_sizer,
     )
+
+    # Discord alerts (optional — requires DISCORD_TOKEN + DISCORD_CHANNEL_ID)
+    discord_bot = None
+    discord_token = os.getenv("DISCORD_TOKEN")
+    discord_channel_id = os.getenv("DISCORD_CHANNEL_ID")
+    if discord_token and discord_channel_id:
+        from src.discord_bot.bot import TradeBot
+
+        discord_bot = TradeBot(token=discord_token, channel_id=int(discord_channel_id))
+        alert_handler = DiscordAlertHandler(send_fn=discord_bot.send_alert)
+        alert_handler.subscribe(event_bus)
+        logger.info("Discord alerts enabled (channel %s)", discord_channel_id)
+    else:
+        logger.info("Discord alerts disabled (set DISCORD_TOKEN + DISCORD_CHANNEL_ID to enable)")
 
     # Sentiment pipeline
     sentiment_task = None
@@ -376,6 +399,8 @@ async def main():
 
     poll_interval = 30  # seconds between market data fetches
     tick_count = 0
+    daily_trade_count = 0
+    last_pnl_date = None
     pnl_tracker = DailyPnLTracker()
 
     try:
@@ -397,6 +422,7 @@ async def main():
                     fills = await orchestrator.process_tick(tick)
 
                     for fill in fills:
+                        daily_trade_count += 1
                         logger.info(
                             "TRADE EXECUTED: %s %s qty=%s @ $%s",
                             fill.side.value.upper(),
@@ -416,6 +442,17 @@ async def main():
                 risk_manager.update_circuit_breaker(snapshot.total_value, now)
                 daily_pnl = pnl_tracker.update(snapshot.total_value, now)
                 risk_manager.record_daily_pnl(daily_pnl)
+
+                # Publish daily P&L event on date change
+                today = now.date()
+                if last_pnl_date is not None and today != last_pnl_date:
+                    await event_bus.publish(DailyPnLEvent(
+                        daily_pnl=daily_pnl,
+                        portfolio_value=snapshot.total_value,
+                        trade_count=daily_trade_count,
+                    ))
+                    daily_trade_count = 0
+                last_pnl_date = today
 
                 # Log portfolio summary every 5 ticks
                 if tick_count % 5 == 0:
@@ -445,6 +482,8 @@ async def main():
     finally:
         if sentiment_task is not None:
             sentiment_task.cancel()
+        if discord_bot is not None:
+            await discord_bot.stop()
         await market_data.disconnect()
         await db.close()
 

@@ -9,9 +9,12 @@ from httpx import ASGITransport, AsyncClient
 
 from src.dashboard import dependencies
 from src.dashboard.app import create_app
+from src.dashboard.dependencies import require_user
 from src.core.config import RiskSettings, Settings
 from src.core.models import PortfolioSnapshot, Position, AssetType
-from src.db.models import TradeRecord
+from src.db.models import TradeRecord, UserRecord
+
+_test_user = UserRecord(email="test@example.com", hashed_password="h", name="Test", is_verified=True)
 
 
 @pytest.fixture(autouse=True)
@@ -79,6 +82,7 @@ def mock_db():
     db.list_signals.return_value = []
     db.get_trade.return_value = None
     db.query_ohlc_bars.return_value = []
+    db.get_user_settings.return_value = None
     return db
 
 
@@ -145,6 +149,7 @@ async def client(
         settings=mock_settings,
         strategy_list=mock_strategies,
     )
+    app.dependency_overrides[require_user] = lambda: _test_user
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

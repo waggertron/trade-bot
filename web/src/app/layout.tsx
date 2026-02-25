@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/layout/Header";
 import Providers from "@/components/layout/Providers";
-import Sidebar from "@/components/layout/Sidebar";
-import WebSocketProvider from "@/components/layout/WebSocketProvider";
-import NotificationProvider from "@/components/notifications/NotificationProvider";
+import AuthLayout from "@/components/layout/AuthLayout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,13 +28,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-          <Sidebar />
-          <div className="pl-56 transition-all duration-200">
-            <Header />
-            <main className="p-8">{children}</main>
-          </div>
-          <WebSocketProvider />
-          <NotificationProvider />
+          <AuthLayout>{children}</AuthLayout>
         </Providers>
       </body>
     </html>

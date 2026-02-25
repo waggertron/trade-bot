@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getMockResponse, MOCK_ENABLED } from "./mock";
 import {
   AllocationSchema,
+  AuthResponseSchema,
   AttributionSchema,
   BacktestRunSchema,
   CancelAllResultSchema,
@@ -17,6 +18,7 @@ import {
   FeatureImportanceSchema,
   FeatureStatusSchema,
   HealthStatusSchema,
+  LoginResponseSchema,
   MarketPricesSchema,
   MLModelSchema,
   MonteCarloSchema,
@@ -29,6 +31,7 @@ import {
   PortfolioSchema,
   PositionSchema,
   PredictionsSchema,
+  RefreshResponseSchema,
   RiskDecisionSchema,
   RiskPresetsSchema,
   RiskSettingsSchema,
@@ -46,9 +49,18 @@ import {
   TradeModeSchema,
   TradeSchema,
   TradingPricesSchema,
+  UserSchema,
 } from "./schemas";
 
 const API_BASE = "";
+const TOKEN_KEY = "trade_bot_access_token";
+const REFRESH_KEY = "trade_bot_refresh_token";
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   if (MOCK_ENABLED) return getMockResponse<T>(path, options);
@@ -57,13 +69,61 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
       ...options?.headers,
     },
   });
+
+  // Auto-refresh on 401
+  if (res.status === 401 && !path.startsWith("/api/auth/")) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      // Retry with new token
+      const retry = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+          ...options?.headers,
+        },
+      });
+      if (!retry.ok) {
+        throw new Error(`API error ${retry.status}: ${retry.statusText}`);
+      }
+      return retry.json();
+    }
+    // Refresh failed — redirect to login
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_KEY);
+      localStorage.removeItem("trade_bot_user");
+      window.location.href = "/login";
+    }
+    throw new Error("Session expired");
+  }
+
   if (!res.ok) {
     throw new Error(`API error ${res.status}: ${res.statusText}`);
   }
   return res.json();
+}
+
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = localStorage.getItem(REFRESH_KEY);
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return false;
+    const data = RefreshResponseSchema.parse(await res.json());
+    localStorage.setItem(TOKEN_KEY, data.access_token);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function fetchAndParse<T>(
@@ -74,6 +134,29 @@ async function fetchAndParse<T>(
   const data = await fetchAPI<unknown>(path, options);
   return schema.parse(data);
 }
+
+// ---------------------------------------------------------------------------
+// Auth (no auth header needed for these — they create/validate tokens)
+// ---------------------------------------------------------------------------
+export const authRegister = (input: { email: string; password: string; name: string }) =>
+  fetchAndParse("/api/auth/register", AuthResponseSchema, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+export const authLogin = (input: { email: string; password: string }) =>
+  fetchAndParse("/api/auth/login", LoginResponseSchema, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+export const authRefresh = (refreshToken: string) =>
+  fetchAndParse("/api/auth/refresh", RefreshResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+export const authMe = () => fetchAndParse("/api/auth/me", UserSchema);
 
 // ---------------------------------------------------------------------------
 // Inline schemas for endpoints that don't fit a named domain schema exactly

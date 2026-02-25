@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from src.dashboard.dependencies import state
+from src.dashboard.dependencies import require_user, state
+from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
@@ -14,11 +15,12 @@ async def list_signals(
     limit: int = 100,
     strategy: str | None = None,
     symbol: str | None = None,
+    current_user: UserRecord = Depends(require_user),
 ):
     """Recent signals with optional filters."""
     if state.db is None:
         return []
-    signals = await state.db.list_signals(limit=limit)
+    signals = await state.db.list_signals(limit=limit, user_id=current_user.id)
     # Apply filters in memory
     if strategy:
         signals = [s for s in signals if s.strategy == strategy]
@@ -39,11 +41,11 @@ async def list_signals(
 
 
 @router.get("/latest")
-async def latest_signals():
+async def latest_signals(current_user: UserRecord = Depends(require_user)):
     """Latest signal per strategy per symbol."""
     if state.db is None:
         return []
-    signals = await state.db.list_signals(limit=500)
+    signals = await state.db.list_signals(limit=500, user_id=current_user.id)
     # Group by (strategy, symbol), keep first (most recent)
     seen: set[tuple[str, str]] = set()
     latest = []

@@ -1,47 +1,72 @@
-"""Configuration endpoints: settings CRUD, mode, symbols."""
+"""Configuration endpoints: per-user settings via DB, with global fallback."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import json
 
-from src.dashboard.dependencies import state
+from fastapi import APIRouter, Depends, HTTPException
+
+from src.dashboard.dependencies import require_user, state
 from src.dashboard.schemas import UpdateModeRequest, UpdateSymbolsRequest
+from src.db.models import UserRecord, UserSettingsRecord
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
 
 @router.get("/")
-async def get_config():
-    """Full settings."""
+async def get_config(current_user: UserRecord = Depends(require_user)):
+    """Full settings — per-user from DB, falling back to global."""
+    if state.db is not None:
+        user_settings = await state.db.get_user_settings(current_user.id)
+        if user_settings is not None:
+            symbols = json.loads(user_settings.symbols_config) if user_settings.symbols_config else {"stocks": [], "crypto": []}
+            weights = json.loads(user_settings.strategy_weights) if user_settings.strategy_weights else {}
+            return {
+                "mode": user_settings.mode,
+                "risk_preset": user_settings.risk_preset,
+                "symbols": symbols,
+                "strategy_weights": weights,
+            }
     if state.settings is None:
         return {"error": "Settings not available"}
     return state.settings.model_dump()
 
 
 @router.get("/mode")
-async def get_mode():
-    """Current mode (paper/live)."""
+async def get_mode(current_user: UserRecord = Depends(require_user)):
+    """Current mode (paper/live) — per-user."""
+    if state.db is not None:
+        user_settings = await state.db.get_user_settings(current_user.id)
+        if user_settings is not None:
+            return {"mode": user_settings.mode}
     if state.settings is None:
         return {"mode": "paper"}
     return {"mode": state.settings.mode}
 
 
 @router.put("/mode")
-async def set_mode(req: UpdateModeRequest):
-    """Switch paper/live mode."""
-    if state.settings is None:
-        raise HTTPException(status_code=503, detail="Settings not available")
-    # Settings are frozen, so we rebuild
-    data = state.settings.model_dump()
-    data["mode"] = req.mode
-    from src.core.config import Settings
-    state.settings = Settings.model_validate(data)
+async def set_mode(req: UpdateModeRequest, current_user: UserRecord = Depends(require_user)):
+    """Switch paper/live mode — persisted to DB per-user."""
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    user_settings = await state.db.get_user_settings(current_user.id)
+    if user_settings is None:
+        await state.db.save_user_settings(
+            UserSettingsRecord(user_id=current_user.id, mode=req.mode)
+        )
+    else:
+        await state.db.update_user_settings(current_user.id, mode=req.mode)
     return {"mode": req.mode}
 
 
 @router.get("/symbols")
-async def get_symbols():
-    """Current watchlist."""
+async def get_symbols(current_user: UserRecord = Depends(require_user)):
+    """Current watchlist — per-user."""
+    if state.db is not None:
+        user_settings = await state.db.get_user_settings(current_user.id)
+        if user_settings is not None and user_settings.symbols_config:
+            config = json.loads(user_settings.symbols_config)
+            return {"stocks": config.get("stocks", []), "crypto": config.get("crypto", [])}
     if state.settings is None:
         return {"stocks": [], "crypto": []}
     return {
@@ -51,13 +76,16 @@ async def get_symbols():
 
 
 @router.put("/symbols")
-async def update_symbols(req: UpdateSymbolsRequest):
-    """Update watchlist."""
-    if state.settings is None:
-        raise HTTPException(status_code=503, detail="Settings not available")
-    data = state.settings.model_dump()
-    data["trading"]["symbols"]["stocks"] = req.stocks
-    data["trading"]["symbols"]["crypto"] = req.crypto
-    from src.core.config import Settings
-    state.settings = Settings.model_validate(data)
+async def update_symbols(req: UpdateSymbolsRequest, current_user: UserRecord = Depends(require_user)):
+    """Update watchlist — persisted to DB per-user."""
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    symbols_json = json.dumps({"stocks": req.stocks, "crypto": req.crypto})
+    user_settings = await state.db.get_user_settings(current_user.id)
+    if user_settings is None:
+        await state.db.save_user_settings(
+            UserSettingsRecord(user_id=current_user.id, symbols_config=symbols_json)
+        )
+    else:
+        await state.db.update_user_settings(current_user.id, symbols_config=symbols_json)
     return {"stocks": req.stocks, "crypto": req.crypto}
