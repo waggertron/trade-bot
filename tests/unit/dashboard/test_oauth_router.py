@@ -8,10 +8,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-oauth-router-tests")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-oauth-router-test!")
 
 from src.dashboard import dependencies
 from src.dashboard.app import create_app
+from src.dashboard.routers.oauth import _generate_state_token
 from src.db.database import Database
 
 
@@ -80,6 +81,7 @@ class TestOAuthCallback:
         client: AsyncClient,
         db: Database,
     ):
+        valid_state = _generate_state_token()
         with patch(
             "src.dashboard.routers.oauth._fetch_oauth_user_info",
             new_callable=AsyncMock,
@@ -90,6 +92,7 @@ class TestOAuthCallback:
                 json={
                     "code": "mock-auth-code",
                     "redirect_uri": "http://localhost:3000/auth/callback/google",
+                    "state": valid_state,
                 },
             )
         assert resp.status_code == 200
@@ -104,8 +107,8 @@ class TestOAuthCallback:
         client: AsyncClient,
         db: Database,
     ):
-        # Pre-register a user with email/password
-        await client.post(
+        # Pre-register a user with email/password and verify their email
+        reg = await client.post(
             "/api/auth/register",
             json={
                 "email": "existing@gmail.com",
@@ -113,6 +116,8 @@ class TestOAuthCallback:
                 "name": "Existing",
             },
         )
+        await db.update_user(reg.json()["user"]["id"], is_verified=True)
+        valid_state = _generate_state_token()
         with patch(
             "src.dashboard.routers.oauth._fetch_oauth_user_info",
             new_callable=AsyncMock,
@@ -123,6 +128,7 @@ class TestOAuthCallback:
                 json={
                     "code": "mock-code",
                     "redirect_uri": "http://localhost:3000/auth/callback/google",
+                    "state": valid_state,
                 },
             )
         assert resp.status_code == 200
@@ -135,6 +141,7 @@ class TestOAuthCallback:
         client: AsyncClient,
         db: Database,
     ):
+        valid_state = _generate_state_token()
         # First OAuth login creates user
         with patch(
             "src.dashboard.routers.oauth._fetch_oauth_user_info",
@@ -146,10 +153,12 @@ class TestOAuthCallback:
                 json={
                     "code": "code1",
                     "redirect_uri": "http://localhost:3000/auth/callback/github",
+                    "state": valid_state,
                 },
             )
         user_id_1 = resp1.json()["user"]["id"]
 
+        valid_state2 = _generate_state_token()
         # Second OAuth login returns same user
         with patch(
             "src.dashboard.routers.oauth._fetch_oauth_user_info",
@@ -161,6 +170,7 @@ class TestOAuthCallback:
                 json={
                     "code": "code2",
                     "redirect_uri": "http://localhost:3000/auth/callback/github",
+                    "state": valid_state2,
                 },
             )
         user_id_2 = resp2.json()["user"]["id"]

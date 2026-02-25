@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
-from src.dashboard.dependencies import require_user
+from src.dashboard.dependencies import require_user, state
 from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api", tags=["news"])
@@ -13,13 +13,32 @@ router = APIRouter(prefix="/api", tags=["news"])
 @router.get("/news/status")
 async def news_status(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """News providers + health."""
-    return {"providers": [], "healthy": True}
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    feed_count = await state.db.count_feeds()
+    return {"feed_count": feed_count, "healthy": True}
 
 
 @router.get("/news/feeds")
 async def news_feeds(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Configured RSS feeds."""
-    return {"feeds": []}
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    feeds = await state.db.list_feeds()
+    return {
+        "feeds": [
+            {
+                "id": f.id,
+                "name": f.name,
+                "url": f.url,
+                "feed_type": f.feed_type,
+                "category": f.category,
+                "enabled": f.enabled,
+                "last_fetched_at": f.last_fetched_at.isoformat() if f.last_fetched_at else None,
+            }
+            for f in feeds
+        ]
+    }
 
 
 @router.get("/news/articles")
@@ -30,7 +49,25 @@ async def news_articles(
     current_user: UserRecord = Depends(require_user),  # noqa: B008
 ):
     """Articles with optional filters."""
-    return []
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    if symbol:
+        articles = await state.db.get_articles_for_symbol(symbol, limit=limit)
+    else:
+        articles = await state.db.list_articles(source=source, limit=limit)
+
+    return [
+        {
+            "id": a.id,
+            "title": a.title,
+            "source": a.source,
+            "url": a.url,
+            "published_at": a.published_at.isoformat() if a.published_at else None,
+            "symbols": a.symbols,
+        }
+        for a in articles
+    ]
 
 
 @router.get("/sentiment/aggregate")

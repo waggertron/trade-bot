@@ -9,26 +9,15 @@ const mockUser = {
   is_verified: false,
 };
 
-// Mock localStorage
-const storage: Record<string, string> = {};
-vi.stubGlobal("localStorage", {
-  getItem: (key: string) => storage[key] ?? null,
-  setItem: (key: string, value: string) => {
-    storage[key] = value;
-  },
-  removeItem: (key: string) => {
-    delete storage[key];
-  },
-});
+// Mock fetch globally
+const mockFetch = vi.fn();
+vi.stubGlobal("fetch", mockFetch);
 
 describe("useAuthStore", () => {
   beforeEach(() => {
-    // Clear storage and reset store
-    for (const key of Object.keys(storage)) delete storage[key];
+    mockFetch.mockReset();
     useAuthStore.setState({
       user: null,
-      accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
       isLoading: true,
     });
@@ -41,69 +30,61 @@ describe("useAuthStore", () => {
     expect(state.isLoading).toBe(true);
   });
 
-  it("setAuth stores user and tokens", () => {
-    useAuthStore.getState().setAuth(mockUser, "access-123", "refresh-456");
+  it("setAuth stores user in memory", () => {
+    useAuthStore.getState().setAuth(mockUser);
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(true);
     expect(state.user?.email).toBe("test@example.com");
-    expect(state.accessToken).toBe("access-123");
-    expect(state.refreshToken).toBe("refresh-456");
     expect(state.isLoading).toBe(false);
   });
 
-  it("setAuth persists to localStorage", () => {
-    useAuthStore.getState().setAuth(mockUser, "access-123", "refresh-456");
-    expect(storage.trade_bot_access_token).toBe("access-123");
-    expect(storage.trade_bot_refresh_token).toBe("refresh-456");
-    expect(JSON.parse(storage.trade_bot_user).email).toBe("test@example.com");
-  });
-
-  it("logout clears state and localStorage", () => {
-    useAuthStore.getState().setAuth(mockUser, "access-123", "refresh-456");
-    useAuthStore.getState().logout();
+  it("logout clears state and calls logout API", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true });
+    useAuthStore.getState().setAuth(mockUser);
+    await useAuthStore.getState().logout();
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(false);
     expect(state.user).toBeNull();
-    expect(state.accessToken).toBeNull();
-    expect(storage.trade_bot_access_token).toBeUndefined();
-    expect(storage.trade_bot_refresh_token).toBeUndefined();
+    expect(mockFetch).toHaveBeenCalledWith("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
   });
 
-  it("loadFromStorage restores auth state", () => {
-    storage.trade_bot_access_token = "stored-access";
-    storage.trade_bot_refresh_token = "stored-refresh";
-    storage.trade_bot_user = JSON.stringify(mockUser);
+  it("logout clears state even if API call fails", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+    useAuthStore.getState().setAuth(mockUser);
+    await useAuthStore.getState().logout();
+    const state = useAuthStore.getState();
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.user).toBeNull();
+  });
 
-    useAuthStore.getState().loadFromStorage();
+  it("checkAuth sets authenticated when /me succeeds", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockUser),
+    });
+    await useAuthStore.getState().checkAuth();
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(true);
     expect(state.user?.id).toBe("user-1");
-    expect(state.accessToken).toBe("stored-access");
     expect(state.isLoading).toBe(false);
   });
 
-  it("loadFromStorage handles missing tokens", () => {
-    useAuthStore.getState().loadFromStorage();
+  it("checkAuth sets unauthenticated when /me fails", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401 });
+    await useAuthStore.getState().checkAuth();
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(false);
     expect(state.isLoading).toBe(false);
   });
 
-  it("loadFromStorage handles corrupted user JSON", () => {
-    storage.trade_bot_access_token = "token";
-    storage.trade_bot_refresh_token = "refresh";
-    storage.trade_bot_user = "not-json{{{";
-
-    useAuthStore.getState().loadFromStorage();
+  it("checkAuth handles network error gracefully", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+    await useAuthStore.getState().checkAuth();
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(false);
     expect(state.isLoading).toBe(false);
-  });
-
-  it("setAccessToken updates token in state and storage", () => {
-    useAuthStore.getState().setAuth(mockUser, "old-token", "refresh-456");
-    useAuthStore.getState().setAccessToken("new-token");
-    expect(useAuthStore.getState().accessToken).toBe("new-token");
-    expect(storage.trade_bot_access_token).toBe("new-token");
   });
 });

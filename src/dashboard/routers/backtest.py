@@ -13,16 +13,13 @@ from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
-# In-memory backtest run store
-_backtest_runs: dict[str, dict] = {}
-
 
 @router.post("/run")
 async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Start a backtest run."""
     run_id = str(uuid.uuid4())[:8]
 
-    _backtest_runs[run_id] = {
+    run_data = {
         "id": run_id,
         "status": "running",
         "config": req.model_dump(),
@@ -35,7 +32,6 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
         from src.data.backtester import run_backtest as _run_backtest
 
         if state.db:
-            # Get OHLC data for the requested symbols
             from decimal import Decimal
 
             from src.core.models import AssetType, MarketTick
@@ -56,7 +52,7 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
             if all_ticks:
                 all_ticks.sort(key=lambda t: t.timestamp)
                 result = await _run_backtest(all_ticks, initial_cash=req.initial_capital)
-                _backtest_runs[run_id]["result"] = {
+                run_data["result"] = {
                     "total_ticks": result.total_ticks,
                     "total_trades": result.total_trades,
                     "winning_trades": result.winning_trades,
@@ -69,29 +65,38 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
                         {"index": i, "value": v} for i, v in enumerate(result.equity_curve)
                     ],
                 }
-                _backtest_runs[run_id]["status"] = "completed"
+                run_data["status"] = "completed"
             else:
-                _backtest_runs[run_id]["status"] = "completed"
-                _backtest_runs[run_id]["result"] = {"error": "No market data available"}
+                run_data["status"] = "completed"
+                run_data["result"] = {"error": "No market data available"}
         else:
-            _backtest_runs[run_id]["status"] = "completed"
-            _backtest_runs[run_id]["result"] = {"error": "Database not available"}
+            run_data["status"] = "completed"
+            run_data["result"] = {"error": "Database not available"}
     except Exception as e:
-        _backtest_runs[run_id]["status"] = "failed"
-        _backtest_runs[run_id]["result"] = {"error": str(e)}
+        run_data["status"] = "failed"
+        run_data["result"] = {"error": str(e)}
 
-    return _backtest_runs[run_id]
+    # Persist to DB
+    if state.db:
+        await state.db.save_backtest_run(run_data)
+
+    return run_data
 
 
 @router.get("/runs")
 async def list_runs(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """List previous backtest runs."""
-    return list(_backtest_runs.values())
+    if state.db is None:
+        return []
+    return await state.db.list_backtest_runs()
 
 
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Get specific backtest run results."""
-    if run_id not in _backtest_runs:
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    run = await state.db.get_backtest_run(run_id)
+    if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
-    return _backtest_runs[run_id]
+    return run

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from jose import jwt
 
@@ -21,6 +22,7 @@ def create_access_token(
     payload = {
         "sub": user_id,
         "type": "access",
+        "jti": str(uuid4()),
         "iat": now,
         "exp": now + timedelta(minutes=expire_minutes),
     }
@@ -37,6 +39,7 @@ def create_refresh_token(
     payload = {
         "sub": user_id,
         "type": "refresh",
+        "jti": str(uuid4()),
         "iat": now,
         "exp": now + timedelta(days=expire_days),
     }

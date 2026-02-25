@@ -74,3 +74,21 @@ class TestGetCurrentUser:
                 secret=TEST_SECRET,
             )
         assert exc_info.value.status_code == 401
+
+    async def test_inactive_user_raises_403(self, db: Database):
+        inactive = UserRecord(
+            email="inactive@example.com",
+            hashed_password="hashed",
+            name="Inactive",
+            is_active=False,
+        )
+        await db.create_user(inactive)
+        token = create_access_token(user_id=inactive.id, secret=TEST_SECRET)
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(
+                token=token,
+                db=db,
+                secret=TEST_SECRET,
+            )
+        assert exc_info.value.status_code == 403
+        assert "deactivated" in exc_info.value.detail.lower()

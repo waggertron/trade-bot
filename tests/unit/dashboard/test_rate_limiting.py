@@ -50,8 +50,12 @@ class TestRateLimiting:
 
     def test_write_endpoint_has_stricter_limit(self, client):
         """Write endpoints should have a lower rate limit than reads."""
-        # Config set is a write endpoint
-        resp = client.put("/api/config/mode", json={"mode": "paper"})
+        # Config set is a write endpoint (Bearer header bypasses CSRF check)
+        resp = client.put(
+            "/api/config/mode",
+            json={"mode": "paper"},
+            headers={"Authorization": "Bearer fake-for-test"},
+        )
         assert resp.status_code == 200
         limit_header = None
         for key in resp.headers:

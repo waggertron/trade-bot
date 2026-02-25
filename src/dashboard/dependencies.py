@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from src.auth.dependencies import get_current_user
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from src.core.orchestrator import Orchestrator
     from src.db.database import Database
     from src.db.models import UserRecord
+    from src.ml.protocols import ModelProvider
 
 
 @dataclass
@@ -33,6 +34,7 @@ class DashboardState:
     risk_manager: RiskManager | None = None
     event_bus: EventBus | None = None
     settings: Settings | None = None
+    ml_model: ModelProvider | None = None
     strategies: list = field(default_factory=list)
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -49,8 +51,17 @@ def _jwt_secret() -> str:
     return state.settings.auth.jwt_secret_key
 
 
-async def require_user(token: str | None = Depends(oauth2_scheme)) -> UserRecord:
-    """FastAPI dependency: extracts and validates the current user from JWT."""
+async def require_user(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+) -> UserRecord:
+    """FastAPI dependency: extracts and validates the current user from JWT.
+
+    Checks Authorization header first, then falls back to access_token cookie.
+    """
+    # Fall back to cookie if no Authorization header token
+    if token is None:
+        token = request.cookies.get("access_token")
     if token is None:
         raise HTTPException(
             status_code=401,

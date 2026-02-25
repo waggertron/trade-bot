@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from src.dashboard.dependencies import require_user
+from src.dashboard.dependencies import require_user, state
 from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api", tags=["ml"])
@@ -48,13 +48,20 @@ async def feature_catalog(current_user: UserRecord = Depends(require_user)):  # 
 @router.get("/features/status")
 async def feature_status(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Feature engine status."""
-    return {"status": "idle", "last_update": None, "features_available": 0}
+    has_model = state.ml_model is not None
+    return {
+        "status": "ready" if has_model else "idle",
+        "last_update": None,
+        "features_available": 17 if has_model else 0,
+    }
 
 
 @router.get("/ml/models")
 async def list_models(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Trained models with metrics."""
-    return []
+    if state.ml_model is None:
+        return []
+    return [{"name": state.ml_model.name, "status": "loaded"}]
 
 
 @router.get("/ml/models/{name}/importance")
@@ -72,4 +79,6 @@ async def trigger_training(current_user: UserRecord = Depends(require_user)):  #
 @router.get("/ml/predictions")
 async def get_predictions(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Latest predictions by symbol."""
-    return {}
+    if state.ml_model is None:
+        return {"status": "no_model", "predictions": {}}
+    return {"status": "ready", "predictions": {}}

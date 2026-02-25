@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-protected-tests")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-protected-endpoint!")
 
 from src.dashboard import dependencies
 from src.dashboard.app import create_app

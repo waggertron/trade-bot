@@ -8,7 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 # Set JWT secret before any app imports
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-auth-router-tests")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-auth-router-tests!")
 
 from src.dashboard import dependencies
 from src.dashboard.app import create_app
@@ -219,6 +219,37 @@ class TestMe:
             "/api/auth/me",
             headers={"Authorization": "Bearer bad-token"},
         )
+        assert resp.status_code == 401
+
+
+class TestLogout:
+    async def test_logout_revokes_token(self, client: AsyncClient):
+        reg = await client.post(
+            "/api/auth/register",
+            json={
+                "email": "logout@example.com",
+                "password": "Logout1!",
+                "name": "Logout",
+            },
+        )
+        token = reg.json()["access_token"]
+
+        # Logout should succeed
+        resp = await client.post(
+            "/api/auth/logout",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
+        # Token should now be rejected
+        resp = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 401
+
+    async def test_logout_without_token_returns_401(self, client: AsyncClient):
+        resp = await client.post("/api/auth/logout")
         assert resp.status_code == 401
 
 

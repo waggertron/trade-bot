@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import secrets
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -17,6 +21,25 @@ def _jwt_secret() -> str:
     if state.settings is None or not state.settings.auth.jwt_secret_key:
         raise HTTPException(status_code=503, detail="Auth not configured")
     return state.settings.auth.jwt_secret_key
+
+
+def _generate_state_token() -> str:
+    """Generate a signed CSRF state token: nonce.signature."""
+    secret = _jwt_secret()
+    nonce = secrets.token_urlsafe(32)
+    sig = hmac.new(secret.encode(), nonce.encode(), hashlib.sha256).hexdigest()
+    return f"{nonce}.{sig}"
+
+
+def _verify_state_token(state_token: str) -> bool:
+    """Verify that a state token was signed by us."""
+    secret = _jwt_secret()
+    parts = state_token.split(".", 1)
+    if len(parts) != 2:
+        return False
+    nonce, sig = parts
+    expected_sig = hmac.new(secret.encode(), nonce.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, expected_sig)
 
 
 def _user_response(user: UserRecord) -> dict:
@@ -39,6 +62,8 @@ async def oauth_redirect(provider: str, redirect_uri: str):
     if client is None:
         raise HTTPException(status_code=503, detail=f"Provider {provider} not configured")
 
+    state_token = _generate_state_token()
+
     # Build the authorization URL
     if provider == "google":
         metadata = await client.load_server_metadata()
@@ -48,6 +73,7 @@ async def oauth_redirect(provider: str, redirect_uri: str):
             "redirect_uri": redirect_uri,
             "scope": "openid email profile",
             "response_type": "code",
+            "state": state_token,
         }
     else:
         authorize_url = "https://github.com/login/oauth/authorize"
@@ -55,17 +81,19 @@ async def oauth_redirect(provider: str, redirect_uri: str):
             "client_id": client.client_id,
             "redirect_uri": redirect_uri,
             "scope": "user:email",
+            "state": state_token,
         }
 
     # Build full URL with params
     param_str = "&".join(f"{k}={v}" for k, v in params.items())
     full_url = f"{authorize_url}?{param_str}"
-    return {"authorize_url": full_url}
+    return {"authorize_url": full_url, "state": state_token}
 
 
 class OAuthCallbackRequest(BaseModel):
     code: str
     redirect_uri: str
+    state: str | None = None
 
 
 async def _fetch_oauth_user_info(
@@ -114,6 +142,12 @@ async def oauth_callback(provider: str, req: OAuthCallbackRequest):
     if state.db is None:
         raise HTTPException(status_code=503, detail="Database not available")
 
+    # Verify CSRF state token
+    if not req.state:
+        raise HTTPException(status_code=400, detail="Missing OAuth state parameter")
+    if not _verify_state_token(req.state):
+        raise HTTPException(status_code=400, detail="Invalid OAuth state parameter")
+
     provider_user_id, email, name = await _fetch_oauth_user_info(
         provider,
         req.code,
@@ -132,10 +166,21 @@ async def oauth_callback(provider: str, req: OAuthCallbackRequest):
     user = await state.db.get_user_by_oauth(provider, provider_user_id)
 
     if user is None:
-        # Check if user with this email exists (link account)
-        user = await state.db.get_user_by_email(email)
+        # Check if user with this email exists (link only if email is verified)
+        existing = await state.db.get_user_by_email(email)
 
-        if user is None:
+        if existing is not None and not existing.is_verified:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "An account with this email exists but is not verified. "
+                    "Please verify your email first before linking OAuth."
+                ),
+            )
+
+        if existing is not None and existing.is_verified:
+            user = existing
+        else:
             # Create new user
             user = UserRecord(
                 email=email,

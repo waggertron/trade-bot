@@ -2,13 +2,39 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.dashboard.dependencies import require_user, state
 from src.dashboard.schemas import UpdateEnabledRequest, UpdateWeightRequest  # noqa: TC001
-from src.db.models import UserRecord  # noqa: TC001
+from src.db.models import UserRecord, UserSettingsRecord
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
+
+
+async def _persist_strategy_config(user_id: str, name: str, **updates: object) -> None:
+    """Persist strategy weight/enabled changes to UserSettingsRecord."""
+    if state.db is None:
+        return
+
+    existing = await state.db.get_user_settings(user_id)
+    if existing is not None:
+        weights = json.loads(existing.strategy_weights) if existing.strategy_weights else {}
+    else:
+        weights = {}
+
+    if name not in weights:
+        weights[name] = {}
+    weights[name].update(updates)
+
+    new_weights_json = json.dumps(weights)
+
+    if existing is None:
+        settings = UserSettingsRecord(user_id=user_id, strategy_weights=new_weights_json)
+        await state.db.save_user_settings(settings)
+    else:
+        await state.db.update_user_settings(user_id, strategy_weights=new_weights_json)
 
 
 def _strategy_info(s) -> dict:
@@ -105,6 +131,7 @@ async def update_weight(
         sname = getattr(s, "name", s.__class__.__name__)
         if sname == name:
             s.weight = req.weight
+            await _persist_strategy_config(current_user.id, name, weight=req.weight)
             return {"name": name, "weight": req.weight}
     raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
 
@@ -120,6 +147,7 @@ async def update_enabled(
         sname = getattr(s, "name", s.__class__.__name__)
         if sname == name:
             s.enabled = req.enabled
+            await _persist_strategy_config(current_user.id, name, enabled=req.enabled)
             return {"name": name, "enabled": req.enabled}
     raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
 

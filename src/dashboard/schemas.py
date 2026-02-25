@@ -2,17 +2,41 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+import re
+
+from pydantic import Field, field_validator
 
 from src.core.base import StrictBase
+
+
+def _validate_password_strength(password: str) -> str:
+    """Validate password meets minimum complexity requirements."""
+    if len(password) < 8:
+        msg = "Password must be at least 8 characters"
+        raise ValueError(msg)
+    if not re.search(r"[A-Z]", password):
+        msg = "Password must contain at least one uppercase letter"
+        raise ValueError(msg)
+    if not re.search(r"[a-z]", password):
+        msg = "Password must contain at least one lowercase letter"
+        raise ValueError(msg)
+    if not re.search(r"\d", password):
+        msg = "Password must contain at least one digit"
+        raise ValueError(msg)
+    return password
 
 # -- Auth ---------------------------------------------------------------------
 
 
 class RegisterRequest(StrictBase):
     email: str
-    password: str = Field(min_length=6)
+    password: str = Field(min_length=8)
     name: str = ""
+
+    @field_validator("password")
+    @classmethod
+    def password_strong_enough(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class LoginRequest(StrictBase):
@@ -26,7 +50,14 @@ class RefreshRequest(StrictBase):
 
 class UpdateProfileRequest(StrictBase):
     name: str | None = None
-    password: str | None = Field(default=None, min_length=6)
+    password: str | None = Field(default=None, min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def password_strong_enough(cls, v: str | None) -> str | None:
+        if v is not None:
+            return _validate_password_strength(v)
+        return v
 
 
 # -- Trading ------------------------------------------------------------------

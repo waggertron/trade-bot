@@ -53,13 +53,18 @@ import {
 } from "./schemas";
 
 const API_BASE = "";
-const TOKEN_KEY = "trade_bot_access_token";
-const REFRESH_KEY = "trade_bot_refresh_token";
 
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = localStorage.getItem(TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function getCsrfToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function csrfHeaders(method?: string): Record<string, string> {
+  // Only include CSRF token for state-changing requests
+  if (!method || method === "GET" || method === "HEAD" || method === "OPTIONS") return {};
+  const token = getCsrfToken();
+  return token ? { "X-CSRF-Token": token } : {};
 }
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
@@ -67,9 +72,10 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
+      ...csrfHeaders(options?.method),
       ...options?.headers,
     },
   });
@@ -78,12 +84,13 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   if (res.status === 401 && !path.startsWith("/api/auth/")) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
-      // Retry with new token
+      // Retry — cookie is now refreshed
       const retry = await fetch(url, {
         ...options,
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeaders(),
+          ...csrfHeaders(options?.method),
           ...options?.headers,
         },
       });
@@ -94,9 +101,6 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
     }
     // Refresh failed — redirect to login
     if (typeof window !== "undefined") {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_KEY);
-      localStorage.removeItem("trade_bot_user");
       window.location.href = "/login";
     }
     throw new Error("Session expired");
@@ -109,18 +113,13 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 async function tryRefreshToken(): Promise<boolean> {
-  const refreshToken = localStorage.getItem(REFRESH_KEY);
-  if (!refreshToken) return false;
   try {
     const res = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (!res.ok) return false;
-    const data = RefreshResponseSchema.parse(await res.json());
-    localStorage.setItem(TOKEN_KEY, data.access_token);
-    return true;
+    return res.ok;
   } catch {
     return false;
   }
@@ -150,11 +149,13 @@ export const authLogin = (input: { email: string; password: string }) =>
     body: JSON.stringify(input),
   });
 
-export const authRefresh = (refreshToken: string) =>
+export const authRefresh = () =>
   fetchAndParse("/api/auth/refresh", RefreshResponseSchema, {
     method: "POST",
-    body: JSON.stringify({ refresh_token: refreshToken }),
   });
+
+export const authLogout = () =>
+  fetchAPI<{ detail: string }>("/api/auth/logout", { method: "POST" });
 
 export const authMe = () => fetchAndParse("/api/auth/me", UserSchema);
 

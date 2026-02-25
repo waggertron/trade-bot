@@ -161,10 +161,43 @@ sentiment_scores_table = sa.Table(
     sa.UniqueConstraint("article_id", "analyzer"),
 )
 
+revoked_tokens_table = sa.Table(
+    "revoked_tokens",
+    metadata,
+    sa.Column("jti", sa.String, primary_key=True),
+    sa.Column("revoked_at", sa.DateTime, nullable=False),
+)
+
+backtest_runs_table = sa.Table(
+    "backtest_runs",
+    metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("status", sa.String, nullable=False),
+    sa.Column("config", sa.String, nullable=False),  # JSON
+    sa.Column("result", sa.String, nullable=True),  # JSON
+    sa.Column("started_at", sa.DateTime, nullable=False),
+    sa.Column("completed_at", sa.DateTime, nullable=True),
+)
+
 
 class Database:
-    def __init__(self, url: str) -> None:
-        self._engine = create_async_engine(url)
+    def __init__(
+        self,
+        url: str,
+        pool_size: int | None = None,
+        max_overflow: int | None = None,
+        pool_recycle: int | None = None,
+    ) -> None:
+        engine_kwargs: dict[str, object] = {}
+        # Pool settings only apply to connection-pooled backends (not SQLite)
+        if "sqlite" not in url:
+            if pool_size is not None:
+                engine_kwargs["pool_size"] = pool_size
+            if max_overflow is not None:
+                engine_kwargs["max_overflow"] = max_overflow
+            if pool_recycle is not None:
+                engine_kwargs["pool_recycle"] = pool_recycle
+        self._engine = create_async_engine(url, **engine_kwargs)
         self._session_factory = async_sessionmaker(self._engine, expire_on_commit=False)
 
     async def initialize(self, *, create_all: bool = True) -> None:
@@ -226,6 +259,28 @@ class Database:
             await conn.execute(
                 users_table.update().where(users_table.c.id == user_id).values(**fields)
             )
+
+    # -- Token Revocation ------------------------------------------------------
+
+    async def revoke_token(self, jti: str) -> None:
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                revoked_tokens_table.insert().values(
+                    jti=jti,
+                    revoked_at=datetime.now(UTC),
+                )
+            )
+
+    async def is_token_revoked(self, jti: str) -> bool:
+        async with self._engine.connect() as conn:
+            row = (
+                await conn.execute(
+                    revoked_tokens_table.select().where(
+                        revoked_tokens_table.c.jti == jti
+                    )
+                )
+            ).first()
+        return row is not None
 
     # -- OAuth Account CRUD ----------------------------------------------------
 
@@ -590,25 +645,7 @@ class Database:
         )
         async with self._engine.connect() as conn:
             rows = (await conn.execute(query)).fetchall()
-            results = []
-            for r in rows:
-                syms = await self._get_article_symbols(conn, r.id)
-                results.append(
-                    ArticleRecord(
-                        id=r.id,
-                        content_hash=r.content_hash,
-                        title=r.title,
-                        body=r.body,
-                        source=r.source,
-                        url=r.url,
-                        published_at=r.published_at,
-                        fetched_at=r.fetched_at,
-                        feed_id=r.feed_id,
-                        created_at=r.created_at,
-                        symbols=syms,
-                    )
-                )
-        return results
+            return await self._rows_to_articles(conn, rows)
 
     async def get_articles_for_symbol_by_id(
         self,
@@ -647,6 +684,58 @@ class Database:
             )
         ).fetchall()
         return [r.symbol for r in rows]
+
+    async def _batch_load_symbols(self, conn, article_ids: list[str]) -> dict[str, list[str]]:
+        """Load symbols for multiple articles in a single query."""
+        if not article_ids:
+            return {}
+        rows = (
+            await conn.execute(
+                article_symbols_table.select().where(
+                    article_symbols_table.c.article_id.in_(article_ids)
+                )
+            )
+        ).fetchall()
+        result: dict[str, list[str]] = {aid: [] for aid in article_ids}
+        for r in rows:
+            result[r.article_id].append(r.symbol)
+        return result
+
+    async def _rows_to_articles(self, conn, rows) -> list[ArticleRecord]:
+        """Convert article rows to ArticleRecords with batch-loaded symbols."""
+        if not rows:
+            return []
+        article_ids = [r.id for r in rows]
+        symbols_map = await self._batch_load_symbols(conn, article_ids)
+        return [
+            ArticleRecord(
+                id=r.id,
+                content_hash=r.content_hash,
+                title=r.title,
+                body=r.body,
+                source=r.source,
+                url=r.url,
+                published_at=r.published_at,
+                fetched_at=r.fetched_at,
+                feed_id=r.feed_id,
+                created_at=r.created_at,
+                symbols=symbols_map.get(r.id, []),
+            )
+            for r in rows
+        ]
+
+    async def list_articles(
+        self,
+        source: str | None = None,
+        limit: int = 50,
+    ) -> list[ArticleRecord]:
+        """List recent articles, optionally filtered by source."""
+        query = articles_table.select().order_by(articles_table.c.published_at.desc()).limit(limit)
+        if source is not None:
+            query = query.where(articles_table.c.source == source)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+            return await self._rows_to_articles(conn, rows)
 
     async def get_unscored_articles(
         self,
@@ -790,5 +879,88 @@ class Database:
                 analyzer=r.analyzer,
                 created_at=r.created_at,
             )
+            for r in rows
+        ]
+
+    # -- Backtest Run CRUD -----------------------------------------------------
+
+    async def save_backtest_run(self, run: dict) -> str:
+        """Save a backtest run to the database."""
+        import json
+
+        started_at = run.get("started_at", datetime.now(UTC))
+        if isinstance(started_at, str):
+            started_at = datetime.fromisoformat(started_at)
+
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                backtest_runs_table.insert().values(
+                    id=run["id"],
+                    status=run["status"],
+                    config=json.dumps(run.get("config", {})),
+                    result=json.dumps(run.get("result")) if run.get("result") else None,
+                    started_at=started_at,
+                    completed_at=run.get("completed_at"),
+                )
+            )
+        return run["id"]
+
+    async def update_backtest_run(self, run_id: str, **fields: object) -> None:
+        import json
+
+        updates = {}
+        for k, v in fields.items():
+            if k in ("config", "result") and v is not None:
+                updates[k] = json.dumps(v)
+            else:
+                updates[k] = v
+        if not updates:
+            return
+        async with self._engine.begin() as conn:
+            await conn.execute(
+                backtest_runs_table.update()
+                .where(backtest_runs_table.c.id == run_id)
+                .values(**updates)
+            )
+
+    async def get_backtest_run(self, run_id: str) -> dict | None:
+        import json
+
+        async with self._engine.connect() as conn:
+            row = (
+                await conn.execute(
+                    backtest_runs_table.select().where(backtest_runs_table.c.id == run_id)
+                )
+            ).first()
+        if row is None:
+            return None
+        return {
+            "id": row.id,
+            "status": row.status,
+            "config": json.loads(row.config) if row.config else {},
+            "result": json.loads(row.result) if row.result else None,
+            "started_at": row.started_at.isoformat() if row.started_at else None,
+            "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+        }
+
+    async def list_backtest_runs(self, limit: int = 50) -> list[dict]:
+        import json
+
+        query = (
+            backtest_runs_table.select()
+            .order_by(backtest_runs_table.c.started_at.desc())
+            .limit(limit)
+        )
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(query)).fetchall()
+        return [
+            {
+                "id": r.id,
+                "status": r.status,
+                "config": json.loads(r.config) if r.config else {},
+                "result": json.loads(r.result) if r.result else None,
+                "started_at": r.started_at.isoformat() if r.started_at else None,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            }
             for r in rows
         ]

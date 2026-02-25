@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -36,12 +37,10 @@ class FeedManager:
         return await self._db.count_feeds() > 0
 
     async def fetch_all(self, symbols: list[str]) -> list[Article]:
-        """Fan out across all adapters, collect articles."""
+        """Fan out across all adapters, collect articles concurrently."""
         from src.providers.government import GovernmentFeedAdapter
         from src.providers.json_api import JSONAPIAdapter
         from src.providers.rss import RSSNewsProvider
-
-        all_articles: list[Article] = []
 
         adapter_map = {
             "rss": lambda feeds: RSSNewsProvider.from_feed_records(feeds),
@@ -49,16 +48,12 @@ class FeedManager:
             "government": lambda feeds: GovernmentFeedAdapter(feeds),
         }
 
-        for feed_type, feeds in self.feeds_by_type.items():
-            factory = adapter_map.get(feed_type)
-            if factory is None:
-                logger.warning("Unknown feed_type: %s", feed_type)
-                continue
-            adapter = factory(feeds)
-            for symbol in symbols:
+        sem = asyncio.Semaphore(10)
+
+        async def _fetch_one(adapter, symbol: str, feed_type: str) -> list[Article]:
+            async with sem:
                 try:
-                    articles = await adapter.fetch_articles(symbol)
-                    all_articles.extend(articles)
+                    return await adapter.fetch_articles(symbol)
                 except Exception:
                     logger.warning(
                         "Error fetching %s from %s adapter",
@@ -66,7 +61,23 @@ class FeedManager:
                         feed_type,
                         exc_info=True,
                     )
+                    return []
 
+        tasks = []
+        for feed_type, feeds in self.feeds_by_type.items():
+            factory = adapter_map.get(feed_type)
+            if factory is None:
+                logger.warning("Unknown feed_type: %s", feed_type)
+                continue
+            adapter = factory(feeds)
+            for symbol in symbols:
+                tasks.append(_fetch_one(adapter, symbol, feed_type))
+
+        results = await asyncio.gather(*tasks)
+
+        all_articles: list[Article] = []
+        for batch in results:
+            all_articles.extend(batch)
         return all_articles
 
     async def update_last_fetched(self, feed_id: str) -> None:

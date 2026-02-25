@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 
 from src.core.base import StrictBase
 
@@ -133,6 +133,14 @@ class AuthSettings(StrictBase):
     access_token_expire_minutes: int = Field(30, gt=0)
     refresh_token_expire_days: int = Field(7, gt=0)
 
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def jwt_secret_must_be_strong(cls, v: str) -> str:
+        if len(v) < 32:
+            msg = "JWT secret key must be at least 32 characters"
+            raise ValueError(msg)
+        return v
+
 
 class MockSettings(StrictBase):
     model_config = ConfigDict(frozen=True)
@@ -209,6 +217,9 @@ class Settings(StrictBase):
             "risk": {},
             "ai": {},
             "dashboard": {"port": 8080},
+            "auth": {
+                "jwt_secret_key": "test-secret-key-for-unit-tests!!",
+            },
         }
         defaults.update(overrides)
         return cls.model_validate(defaults)

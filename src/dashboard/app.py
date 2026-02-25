@@ -5,12 +5,15 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.dashboard import dependencies
+from src.dashboard.csrf import CSRFMiddleware
+from src.dashboard.dependencies import require_user
 from src.dashboard.rate_limit import RateLimitMiddleware
 from src.dashboard.request_id import RequestIDMiddleware
+from src.dashboard.request_logging import RequestLoggingMiddleware
 from src.dashboard.routers import (
     analytics,
     auth,
@@ -51,6 +54,9 @@ def create_app(
     # Request ID tracking
     app.add_middleware(RequestIDMiddleware)
 
+    # CSRF protection for cookie-based auth
+    app.add_middleware(CSRFMiddleware)
+
     # Rate limiting (100 reads/min, 10 writes/min per user)
     app.add_middleware(RateLimitMiddleware, read_limit=100, write_limit=10)
 
@@ -65,6 +71,9 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Request logging (outermost — captures full lifecycle)
+    app.add_middleware(RequestLoggingMiddleware)
 
     # Populate shared state
     dependencies.state.portfolio = portfolio_manager
@@ -110,26 +119,26 @@ def create_app(
         return {"status": status, "database": db_status}
 
     @app.post("/api/kill")
-    async def kill_switch():
+    async def kill_switch(_user=Depends(require_user)):  # noqa: B008
         if orchestrator:
             orchestrator.pause()
             await orchestrator._executor.cancel_all()
         return {"status": "killed", "message": "Trading halted, all orders cancelled"}
 
     @app.post("/api/pause")
-    async def pause():
+    async def pause(_user=Depends(require_user)):  # noqa: B008
         if orchestrator:
             orchestrator.pause()
         return {"status": "paused"}
 
     @app.post("/api/resume")
-    async def resume():
+    async def resume(_user=Depends(require_user)):  # noqa: B008
         if orchestrator:
             orchestrator.resume()
         return {"status": "resumed"}
 
     @app.get("/api/system/status")
-    async def system_status():
+    async def system_status(_user=Depends(require_user)):  # noqa: B008
         is_paused = orchestrator.is_paused if orchestrator else False
         mode = settings.mode if settings else "paper"
         uptime = (datetime.now(UTC) - dependencies.state.start_time).total_seconds()

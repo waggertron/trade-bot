@@ -20,46 +20,41 @@ def _build_attributed_fills():
     fills = state.portfolio._fills
     attributed = []
     for fill in fills:
-        # Try to determine strategy from DB records
         strategy = "unknown"
         attributed.append(AttributedFill(fill=fill, strategy=strategy))
     return attributed
 
 
-@router.get("/attribution")
-async def get_attribution(current_user: UserRecord = Depends(require_user)):  # noqa: B008
-    """Full strategy attribution report."""
-    from src.analytics.attribution import StrategyAttribution
+async def _build_fills_from_db() -> list:
+    """Build attributed fills from DB trade records (no portfolio required)."""
+    from decimal import Decimal
 
-    fills = _build_attributed_fills()
+    from src.analytics.models import AttributedFill
+    from src.core.models import Fill, OrderSide
 
-    # Try to get strategy info from DB
-    if state.db and fills:
-        trades = await state.db.list_trades(limit=1000)
-        # Build a map of (symbol, side, approximate_time) -> strategy
-        from src.analytics.models import AttributedFill
+    if state.db is None:
+        return []
 
-        strategy_map: dict[str, str] = {}
-        for t in trades:
-            strategy_map[t.id] = t.strategy
+    trades = await state.db.list_trades(limit=1000)
+    if not trades:
+        return []
 
-        # Re-attribute fills using trade records
-        attributed = []
-        trade_list = list(trades)
-        for fill in state.portfolio._fills:
-            strategy = "unknown"
-            # Match by symbol and side
-            for t in trade_list:
-                if t.symbol == fill.symbol and t.side == fill.side.value:
-                    strategy = t.strategy
-                    trade_list.remove(t)
-                    break
-            attributed.append(AttributedFill(fill=fill, strategy=strategy))
-        fills = attributed
+    fills = []
+    for t in trades:
+        fill = Fill(
+            order_id=t.id,
+            symbol=t.symbol,
+            side=OrderSide(t.side),
+            quantity=Decimal(t.quantity),
+            fill_price=Decimal(t.price),
+            timestamp=t.timestamp,
+            commission=Decimal(t.commission),
+        )
+        fills.append(AttributedFill(fill=fill, strategy=t.strategy))
+    return fills
 
-    analyzer = StrategyAttribution()
-    report = analyzer.analyze(fills)
 
+def _format_report(report) -> dict:
     return {
         "strategies": {
             name: {
@@ -78,6 +73,40 @@ async def get_attribution(current_user: UserRecord = Depends(require_user)):  # 
         "best_strategy": report.best_strategy,
         "worst_strategy": report.worst_strategy,
     }
+
+
+@router.get("/attribution")
+async def get_attribution(current_user: UserRecord = Depends(require_user)):  # noqa: B008
+    """Full strategy attribution report."""
+    from src.analytics.attribution import StrategyAttribution
+
+    # Prefer in-memory portfolio fills if available
+    fills = _build_attributed_fills()
+
+    # Re-attribute using DB trade records for strategy names
+    if state.db and fills and state.portfolio:
+        from src.analytics.models import AttributedFill
+
+        trades = await state.db.list_trades(limit=1000)
+        trade_list = list(trades)
+        attributed = []
+        for fill in state.portfolio._fills:
+            strategy = "unknown"
+            for t in trade_list:
+                if t.symbol == fill.symbol and t.side == fill.side.value:
+                    strategy = t.strategy
+                    trade_list.remove(t)
+                    break
+            attributed.append(AttributedFill(fill=fill, strategy=strategy))
+        fills = attributed
+
+    # Fallback: build from DB trade records directly
+    if not fills:
+        fills = await _build_fills_from_db()
+
+    analyzer = StrategyAttribution()
+    report = analyzer.analyze(fills)
+    return _format_report(report)
 
 
 @router.get("/monte-carlo")

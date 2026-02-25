@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 from collections import defaultdict
 from typing import TYPE_CHECKING
@@ -72,7 +73,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _get_key(self, request: Request) -> str:
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer ") and len(auth) > 10:
-            return f"user:{hash(auth)}"
+            digest = hashlib.sha256(auth.encode()).hexdigest()
+            return f"user:{digest}"
         client = request.client
         if client:
             return f"ip:{client.host}"

@@ -18,15 +18,16 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
     setLoading(true);
     try {
+      // Register sets HTTP-only cookies; then fetch user profile
       const data = await authRegister({ email, password, name });
-      setAuth(data.user, data.access_token, data.refresh_token);
+      setAuth(data.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -84,7 +85,7 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
             />
           </div>
 

@@ -41,6 +41,7 @@ class OllamaSentimentAnalyzer:
 
     def __init__(self, config: OllamaSentimentConfig) -> None:
         self._config = config
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def name(self) -> str:
@@ -81,17 +82,29 @@ class OllamaSentimentAnalyzer:
             results.append(await self.score(text))
         return results
 
+    def _get_client(self) -> httpx.AsyncClient:
+        """Return the shared httpx client, creating it lazily."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=self._config.timeout)
+        return self._client
+
+    async def close(self) -> None:
+        """Close the shared httpx client."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
     async def _call_ollama(self, prompt: str) -> dict:
         """Make an HTTP POST to the Ollama chat API."""
-        async with httpx.AsyncClient(timeout=self._config.timeout) as client:
-            resp = await client.post(
-                f"{self._config.base_url}/api/chat",
-                json={
-                    "model": self._config.model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": False,
-                    "format": "json",
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()
+        client = self._get_client()
+        resp = await client.post(
+            f"{self._config.base_url}/api/chat",
+            json={
+                "model": self._config.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "format": "json",
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()

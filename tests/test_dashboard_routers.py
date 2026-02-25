@@ -20,7 +20,6 @@ from src.core.models import (
 from src.dashboard import dependencies
 from src.dashboard.app import create_app
 from src.dashboard.dependencies import require_user
-from src.dashboard.routers import backtest as backtest_router
 from src.db.models import OHLCRecord, SignalRecord, TradeRecord, UserRecord
 
 _test_user = UserRecord(
@@ -38,16 +37,14 @@ _test_user = UserRecord(
 
 @pytest.fixture(autouse=True)
 def reset_state():
-    """Reset shared state + backtest in-memory store between tests.
+    """Reset shared state between tests.
 
     Must mutate the existing object (not replace it) because routers
     bind to it via ``from src.dashboard.dependencies import state``.
     """
     _clear_state()
-    backtest_router._backtest_runs.clear()
     yield
     _clear_state()
-    backtest_router._backtest_runs.clear()
 
 
 def _clear_state():
@@ -123,6 +120,28 @@ def mock_db():
     db.query_ohlc_bars.return_value = []
     db.save_trade = AsyncMock()
     db.get_user_settings.return_value = None
+
+    # Track backtest runs in-memory so the mock behaves like a real DB
+    _backtest_store: dict[str, dict] = {}
+
+    async def _save_run(data: dict) -> None:
+        _backtest_store[data["id"]] = data
+
+    async def _list_runs() -> list[dict]:
+        return list(_backtest_store.values())
+
+    async def _get_run(run_id: str) -> dict | None:
+        return _backtest_store.get(run_id)
+
+    db.save_backtest_run = AsyncMock(side_effect=_save_run)
+    db.list_backtest_runs = AsyncMock(side_effect=_list_runs)
+    db.get_backtest_run = AsyncMock(side_effect=_get_run)
+
+    # News router mock data
+    db.count_feeds.return_value = 0
+    db.list_feeds.return_value = []
+    db.list_articles.return_value = []
+    db.get_articles_for_symbol.return_value = []
     return db
 
 
@@ -670,7 +689,7 @@ class TestNewsRouter:
         assert resp.status_code == 200
         data = resp.json()
         assert data["healthy"] is True
-        assert data["providers"] == []
+        assert data["feed_count"] == 0
 
     async def test_news_feeds(self, client):
         resp = await client.get("/api/news/feeds")
@@ -734,7 +753,7 @@ class TestMLRouter:
     async def test_get_predictions(self, client):
         resp = await client.get("/api/ml/predictions")
         assert resp.status_code == 200
-        assert resp.json() == {}
+        assert resp.json()["status"] == "no_model"
 
 
 # ===========================================================================

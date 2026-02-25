@@ -19,12 +19,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const tokens = await authLogin({ email, password });
-      // Store tokens so authMe picks up the Bearer header
-      localStorage.setItem("trade_bot_access_token", tokens.access_token);
-      localStorage.setItem("trade_bot_refresh_token", tokens.refresh_token);
+      // Login sets HTTP-only cookies; then fetch user profile
+      await authLogin({ email, password });
       const user = await authMe();
-      setAuth(user, tokens.access_token, tokens.refresh_token);
+      setAuth(user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

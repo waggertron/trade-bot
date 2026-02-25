@@ -7,13 +7,13 @@ import { useAuthStore } from "@/stores/authStore";
 const PUBLIC_PATHS = ["/login", "/signup"];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, loadFromStorage } = useAuthStore();
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
+    checkAuth();
+  }, [checkAuth]);
 
   // Still loading — show spinner
   if (isLoading) {

@@ -7,7 +7,7 @@ import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-config-tests")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-config-tests-ok!!")
 
 from src.dashboard import dependencies
 from src.dashboard.app import create_app

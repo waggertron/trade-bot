@@ -14,7 +14,7 @@ from src.dashboard.app import create_app
 from src.dashboard.dependencies import require_user
 from src.db.models import UserRecord
 
-JWT_SECRET = "test-secret-key-for-verification"
+JWT_SECRET = "test-secret-key-for-verification!!"
 
 
 @pytest.fixture

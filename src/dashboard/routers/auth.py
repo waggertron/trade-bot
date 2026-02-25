@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 
 from src.auth.passwords import hash_password, verify_password
 from src.auth.tokens import (
@@ -10,6 +11,7 @@ from src.auth.tokens import (
     create_refresh_token,
     decode_token,
 )
+from src.dashboard import dependencies
 from src.dashboard.dependencies import _jwt_secret, require_user, state
 from src.dashboard.schemas import (  # noqa: TC001
     LoginRequest,
@@ -20,6 +22,40 @@ from src.dashboard.schemas import (  # noqa: TC001
 from src.db.models import UserRecord
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+def _set_token_cookies(response: JSONResponse, access_token: str, refresh_token: str) -> None:
+    """Set access and refresh tokens as HTTP-only cookies, plus CSRF token."""
+    import secrets
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=30 * 60,  # 30 minutes
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=7 * 24 * 60 * 60,  # 7 days
+        path="/api/auth/refresh",
+    )
+    # CSRF token: readable by JavaScript so it can be sent as a header
+    response.set_cookie(
+        key="csrf_token",
+        value=secrets.token_urlsafe(32),
+        httponly=False,
+        secure=True,
+        samesite="strict",
+        max_age=30 * 60,
+        path="/",
+    )
 
 
 def _user_response(user: UserRecord) -> dict:
@@ -50,12 +86,17 @@ async def register(req: RegisterRequest):
     await state.db.create_user(user)
 
     secret = _jwt_secret()
-    return {
+    access_token = create_access_token(user_id=user.id, secret=secret)
+    refresh_token = create_refresh_token(user_id=user.id, secret=secret)
+    body = {
         "user": _user_response(user),
-        "access_token": create_access_token(user_id=user.id, secret=secret),
-        "refresh_token": create_refresh_token(user_id=user.id, secret=secret),
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
     }
+    response = JSONResponse(content=body, status_code=201)
+    _set_token_cookies(response, access_token, refresh_token)
+    return response
 
 
 @router.post("/login")
@@ -71,21 +112,36 @@ async def login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     secret = _jwt_secret()
-    return {
-        "access_token": create_access_token(user_id=user.id, secret=secret),
-        "refresh_token": create_refresh_token(user_id=user.id, secret=secret),
+    access_token = create_access_token(user_id=user.id, secret=secret)
+    refresh_token = create_refresh_token(user_id=user.id, secret=secret)
+    body = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
     }
+    response = JSONResponse(content=body)
+    _set_token_cookies(response, access_token, refresh_token)
+    return response
 
 
 @router.post("/refresh")
-async def refresh(req: RefreshRequest):
+async def refresh(
+    request: Request,
+    req: RefreshRequest | None = None,
+):
     if state.db is None:
         raise HTTPException(status_code=503, detail="Database not available")
 
+    # Accept refresh token from body (API clients) or cookie (browser)
+    token = req.refresh_token if req and req.refresh_token else None
+    if not token:
+        token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="No refresh token provided")
+
     secret = _jwt_secret()
     try:
-        payload = decode_token(req.refresh_token, secret=secret)
+        payload = decode_token(token, secret=secret)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid refresh token") from None
 
@@ -100,10 +156,48 @@ async def refresh(req: RefreshRequest):
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    return {
-        "access_token": create_access_token(user_id=user.id, secret=secret),
-        "token_type": "bearer",
-    }
+    new_access = create_access_token(user_id=user.id, secret=secret)
+    body = {"access_token": new_access, "token_type": "bearer"}
+    response = JSONResponse(content=body)
+    # Update the access_token cookie
+    response.set_cookie(
+        key="access_token",
+        value=new_access,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=30 * 60,
+        path="/",
+    )
+    return response
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    current_user: UserRecord = Depends(require_user),  # noqa: B008
+    token: str | None = Depends(dependencies.oauth2_scheme),
+):
+    """Revoke the current access token and clear auth cookies."""
+    if state.db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    # Try header token first, then cookie
+    effective_token = token or request.cookies.get("access_token")
+    if effective_token:
+        secret = _jwt_secret()
+        try:
+            payload = decode_token(effective_token, secret=secret)
+            jti = payload.get("jti")
+            if jti:
+                await state.db.revoke_token(jti)
+        except Exception:
+            pass  # Token already invalid — still clear cookies
+
+    response = JSONResponse(content={"detail": "Logged out"})
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/api/auth/refresh")
+    return response
 
 
 @router.get("/me")
