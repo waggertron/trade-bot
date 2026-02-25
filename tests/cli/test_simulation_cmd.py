@@ -2,28 +2,41 @@
 
 from __future__ import annotations
 
+import re
 from unittest.mock import patch
 
 from typer.testing import CliRunner
 
 from src.cli.simulation_cmd import app
 
-runner = CliRunner()
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+class _Result:
+    """Thin wrapper around Click Result with ANSI codes stripped from output."""
+
+    def __init__(self, result):
+        self._result = result
+        self.output = _ANSI_RE.sub("", result.output)
+        self.exit_code = result.exit_code
+
+
+def _invoke(*args, **kwargs):
+    """Invoke the CLI and return a Result with ANSI codes stripped from output."""
+    return _Result(CliRunner().invoke(*args, **kwargs))
 
 
 def test_simulation_run_help(monkeypatch):
     monkeypatch.setenv("COLUMNS", "200")
-    result = runner.invoke(app, ["run", "--help"])
+    result = _invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "balance" in result.output.lower()
 
 
 def test_simulation_run_help_shows_portfolio_flags(monkeypatch):
     """Help text should include the new portfolio-mode flags."""
-    # Rich truncates long option names in narrow terminals (e.g. --portfo…).
-    # Force a wide terminal so the full names are printed.
     monkeypatch.setenv("COLUMNS", "200")
-    result = runner.invoke(app, ["run", "--help"])
+    result = _invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--portfolio" in result.output
     assert "--weights" in result.output
@@ -63,7 +76,7 @@ def _mock_report(*, portfolio_mode: bool = False, config_extras: dict | None = N
 def test_simulation_run_defaults():
     """Smoke test: ensure the command can be invoked (mocking the engine)."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -88,7 +101,7 @@ def test_run_passes_portfolio_flags_to_run_simulation():
         "src.cli.simulation_cmd._run_simulation",
         return_value=_mock_report(portfolio_mode=True),
     ) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -132,7 +145,7 @@ def test_run_portfolio_mode_status_message():
         "src.cli.simulation_cmd._run_simulation",
         return_value=_mock_report(portfolio_mode=True),
     ):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -340,7 +353,7 @@ def test_print_report_with_portfolio_metrics():
 def test_simulation_run_help_shows_seed_and_rebalance_threshold_flags(monkeypatch):
     """Help text should include --seed and --rebalance-threshold flags."""
     monkeypatch.setenv("COLUMNS", "200")
-    result = runner.invoke(app, ["run", "--help"])
+    result = _invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--seed" in result.output
     assert "--rebalance-threshold" in result.output
@@ -349,7 +362,7 @@ def test_simulation_run_help_shows_seed_and_rebalance_threshold_flags(monkeypatc
 def test_run_passes_seed_and_rebalance_threshold_to_run_simulation():
     """--seed and --rebalance-threshold should be forwarded to _run_simulation."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -379,7 +392,7 @@ def test_run_passes_seed_and_rebalance_threshold_to_run_simulation():
 def test_run_seed_default_is_none():
     """When --seed is not specified, seed should default to None."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -395,7 +408,7 @@ def test_run_seed_default_is_none():
 def test_run_rebalance_threshold_default_is_5():
     """When --rebalance-threshold is not specified, it should default to 5.0."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -411,7 +424,7 @@ def test_run_rebalance_threshold_default_is_5():
 def test_run_shows_seed_in_status_display():
     """When --seed is specified, the output should show the seed value."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -428,7 +441,7 @@ def test_run_shows_seed_in_status_display():
 def test_run_does_not_show_seed_when_not_specified():
     """When --seed is not specified, the output should not show a seed line."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -549,7 +562,7 @@ def _mock_report_with_stocks(*, num_stocks: int = 2) -> dict:
 def test_run_help_shows_charts_flag(monkeypatch):
     """Help text should include the --charts flag."""
     monkeypatch.setenv("COLUMNS", "200")
-    result = runner.invoke(app, ["run", "--help"])
+    result = _invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--charts" in result.output
 
@@ -558,7 +571,7 @@ def test_charts_none_skips_all_charts():
     """--charts none should produce compact output: no charts, no per-stock tables."""
     report = _mock_report_with_stocks()
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
+        result = _invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
     assert result.exit_code == 0, result.output
     # No chart-related content
     assert "Equity Curve" not in result.output
@@ -574,7 +587,7 @@ def test_charts_summary_skips_per_stock_equity_curves():
     """--charts summary should skip per-stock equity curves but show summary charts."""
     report = _mock_report_with_stocks(num_stocks=3)
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "summary"])
+        result = _invoke(app, ["run", "--stocks", "STK0", "--charts", "summary"])
     assert result.exit_code == 0, result.output
     # Per-stock equity curves should NOT appear
     assert "STK0 Equity Curve" not in result.output
@@ -587,7 +600,7 @@ def test_charts_full_includes_per_stock_equity_curves():
     """--charts full should include per-stock equity curves."""
     report = _mock_report_with_stocks(num_stocks=2)
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "full"])
+        result = _invoke(app, ["run", "--stocks", "STK0", "--charts", "full"])
     assert result.exit_code == 0, result.output
     # Per-stock equity curves should appear
     assert "STK0 Equity Curve" in result.output
@@ -598,7 +611,7 @@ def test_charts_default_is_summary():
     """When --charts is not specified, it should default to summary (no per-stock curves)."""
     report = _mock_report_with_stocks(num_stocks=2)
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0"])
+        result = _invoke(app, ["run", "--stocks", "STK0"])
     assert result.exit_code == 0, result.output
     # Per-stock equity curves should NOT appear (summary mode)
     assert "STK0 Equity Curve" not in result.output
@@ -650,7 +663,7 @@ def test_charts_full_shows_rendering_progress():
     """--charts full should show a chart rendering progress indicator."""
     report = _mock_report_with_stocks(num_stocks=3)
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "full"])
+        result = _invoke(app, ["run", "--stocks", "STK0", "--charts", "full"])
     assert result.exit_code == 0, result.output
     assert "Rendering charts" in result.output
 
@@ -659,7 +672,7 @@ def test_charts_summary_no_rendering_progress():
     """--charts summary should NOT show chart rendering progress."""
     report = _mock_report_with_stocks(num_stocks=3)
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "summary"])
+        result = _invoke(app, ["run", "--stocks", "STK0", "--charts", "summary"])
     assert result.exit_code == 0, result.output
     assert "Rendering charts" not in result.output
 
@@ -668,7 +681,7 @@ def test_charts_none_no_rendering_progress():
     """--charts none should NOT show chart rendering progress."""
     report = _mock_report_with_stocks(num_stocks=3)
     with patch("src.cli.simulation_cmd._run_simulation", return_value=report):
-        result = runner.invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
+        result = _invoke(app, ["run", "--stocks", "STK0", "--charts", "none"])
     assert result.exit_code == 0, result.output
     assert "Rendering charts" not in result.output
 
@@ -681,7 +694,7 @@ def test_charts_none_no_rendering_progress():
 def test_single_rebalance_backward_compatible():
     """--rebalance none still works as a single value (backward compatible)."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -702,7 +715,7 @@ def test_single_rebalance_backward_compatible():
 def test_multiple_rebalance_values_accepted():
     """--rebalance none --rebalance monthly should parse as two values."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -767,7 +780,7 @@ def test_multiple_rebalance_prints_comparison_table():
         return report_monthly
 
     with patch("src.cli.simulation_cmd._run_simulation", side_effect=side_effect):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -788,7 +801,7 @@ def test_multiple_rebalance_prints_comparison_table():
 def test_single_rebalance_no_comparison_table():
     """With a single rebalance mode, no comparison table should appear."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -812,7 +825,7 @@ def test_single_rebalance_no_comparison_table():
 def test_run_help_shows_no_cache_flag(monkeypatch):
     """Help text should include the --no-cache flag."""
     monkeypatch.setenv("COLUMNS", "200")
-    result = runner.invoke(app, ["run", "--help"])
+    result = _invoke(app, ["run", "--help"])
     assert result.exit_code == 0
     assert "--no-cache" in result.output
 
@@ -820,7 +833,7 @@ def test_run_help_shows_no_cache_flag(monkeypatch):
 def test_no_cache_flag_passed_to_run_simulation():
     """--no-cache should forward use_cache=False to _run_simulation."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -840,7 +853,7 @@ def test_no_cache_flag_passed_to_run_simulation():
 def test_cache_enabled_by_default():
     """When --no-cache is not specified, use_cache should default to True."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()) as mock_fn:
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
@@ -858,7 +871,7 @@ def test_cache_enabled_by_default():
 def test_no_cache_shows_status_message():
     """When --no-cache is set, the output should include 'Cache: DISABLED'."""
     with patch("src.cli.simulation_cmd._run_simulation", return_value=_mock_report()):
-        result = runner.invoke(
+        result = _invoke(
             app,
             [
                 "run",
