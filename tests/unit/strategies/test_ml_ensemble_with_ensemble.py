@@ -1,4 +1,5 @@
 """Tests verifying MLEnsembleStrategy works with EnsembleModel."""
+
 from __future__ import annotations
 
 import pytest

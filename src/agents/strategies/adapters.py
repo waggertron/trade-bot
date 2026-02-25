@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from src.core.models import Signal, SignalDirection
-from src.ml.models import FeatureVector
+
+if TYPE_CHECKING:
+    from src.ml.models import FeatureVector
 
 
 class MomentumAdapter:
@@ -14,7 +17,9 @@ class MomentumAdapter:
     name: str = "momentum"
 
     async def evaluate(
-        self, symbol: str, features: FeatureVector,
+        self,
+        symbol: str,
+        features: FeatureVector,
     ) -> Signal | None:
         sma_5 = features.features.get("sma_5")
         sma_14 = features.features.get("sma_14")
@@ -29,10 +34,7 @@ class MomentumAdapter:
         spread = abs(sma_5 - sma_14) / sma_14
         confidence = min(spread * 10, 1.0)
 
-        if sma_5 > sma_14:
-            direction = SignalDirection.BUY
-        else:
-            direction = SignalDirection.SELL
+        direction = SignalDirection.BUY if sma_5 > sma_14 else SignalDirection.SELL
 
         return Signal(
             symbol=symbol,
@@ -42,7 +44,7 @@ class MomentumAdapter:
             reasoning=f"SMA5 ({sma_5:.2f}) > SMA14 ({sma_14:.2f})"
             if direction == SignalDirection.BUY
             else f"SMA5 ({sma_5:.2f}) < SMA14 ({sma_14:.2f})",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     def required_features(self) -> list[str]:
@@ -63,7 +65,9 @@ class SentimentAdapter:
         self._sell_threshold = sell_threshold
 
     async def evaluate(
-        self, symbol: str, features: FeatureVector,
+        self,
+        symbol: str,
+        features: FeatureVector,
     ) -> Signal | None:
         sentiment = features.features.get("sentiment_avg_6h")
 
@@ -85,7 +89,7 @@ class SentimentAdapter:
             confidence=confidence,
             strategy_name="sentiment",
             reasoning=f"Sentiment ({sentiment:.2f}) triggered {direction.value}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     def required_features(self) -> list[str]:
@@ -101,7 +105,9 @@ class QuantitativeAdapter:
         self._z_threshold = z_threshold
 
     async def evaluate(
-        self, symbol: str, features: FeatureVector,
+        self,
+        symbol: str,
+        features: FeatureVector,
     ) -> Signal | None:
         zscore = features.features.get("price_zscore")
 
@@ -123,7 +129,7 @@ class QuantitativeAdapter:
             confidence=confidence,
             strategy_name="quantitative",
             reasoning=f"Z-score ({zscore:.2f}) triggered {direction.value}",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     def required_features(self) -> list[str]:

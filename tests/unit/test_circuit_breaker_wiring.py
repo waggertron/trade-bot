@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 from src.core.config import Settings
 from src.risk.circuit_breaker import DrawdownCircuitBreaker
 

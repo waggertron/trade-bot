@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -47,6 +47,7 @@ async def db(tmp_path):
 @pytest.fixture
 def settings():
     from src.core.config import Settings
+
     return Settings.for_testing()
 
 
@@ -60,9 +61,14 @@ async def client(db, settings):
 
 async def _register_and_get_token(client: AsyncClient, email: str) -> tuple[str, str]:
     """Register user and return (user_id, access_token)."""
-    resp = await client.post("/api/auth/register", json={
-        "email": email, "password": "TestPass1!", "name": "Test",
-    })
+    resp = await client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": "TestPass1!",
+            "name": "Test",
+        },
+    )
     data = resp.json()
     return data["user"]["id"], data["access_token"]
 
@@ -85,16 +91,32 @@ class TestTradesEndpointAuth:
         uid_b, token_b = await _register_and_get_token(client, "bob@test.com")
 
         # Insert trades for both users
-        await db.save_trade(TradeRecord(
-            symbol="AAPL", side="buy", quantity="10", price="100",
-            commission="1", strategy="momentum", paper=True,
-            timestamp=datetime.now(timezone.utc), user_id=uid_a,
-        ))
-        await db.save_trade(TradeRecord(
-            symbol="MSFT", side="buy", quantity="5", price="200",
-            commission="1", strategy="momentum", paper=True,
-            timestamp=datetime.now(timezone.utc), user_id=uid_b,
-        ))
+        await db.save_trade(
+            TradeRecord(
+                symbol="AAPL",
+                side="buy",
+                quantity="10",
+                price="100",
+                commission="1",
+                strategy="momentum",
+                paper=True,
+                timestamp=datetime.now(UTC),
+                user_id=uid_a,
+            )
+        )
+        await db.save_trade(
+            TradeRecord(
+                symbol="MSFT",
+                side="buy",
+                quantity="5",
+                price="200",
+                commission="1",
+                strategy="momentum",
+                paper=True,
+                timestamp=datetime.now(UTC),
+                user_id=uid_b,
+            )
+        )
 
         # Alice only sees her trade
         resp = await client.get("/api/trades/", headers=_auth_header(token_a))
@@ -122,18 +144,30 @@ class TestSignalsEndpointAuth:
 
     async def test_list_signals_returns_own_data(self, client: AsyncClient, db: Database):
         uid_a, token_a = await _register_and_get_token(client, "alice@test.com")
-        uid_b, token_b = await _register_and_get_token(client, "bob@test.com")
+        uid_b, _token_b = await _register_and_get_token(client, "bob@test.com")
 
-        await db.save_signal(SignalRecord(
-            symbol="AAPL", direction="buy", confidence=0.9,
-            strategy="momentum", reasoning="test",
-            timestamp=datetime.now(timezone.utc), user_id=uid_a,
-        ))
-        await db.save_signal(SignalRecord(
-            symbol="MSFT", direction="sell", confidence=0.7,
-            strategy="sentiment", reasoning="test",
-            timestamp=datetime.now(timezone.utc), user_id=uid_b,
-        ))
+        await db.save_signal(
+            SignalRecord(
+                symbol="AAPL",
+                direction="buy",
+                confidence=0.9,
+                strategy="momentum",
+                reasoning="test",
+                timestamp=datetime.now(UTC),
+                user_id=uid_a,
+            )
+        )
+        await db.save_signal(
+            SignalRecord(
+                symbol="MSFT",
+                direction="sell",
+                confidence=0.7,
+                strategy="sentiment",
+                reasoning="test",
+                timestamp=datetime.now(UTC),
+                user_id=uid_b,
+            )
+        )
 
         resp = await client.get("/api/signals/", headers=_auth_header(token_a))
         assert resp.status_code == 200
@@ -145,16 +179,19 @@ class TestSignalsEndpointAuth:
 class TestOtherEndpointsRequireAuth:
     """Verify other data endpoints return 401 without auth."""
 
-    @pytest.mark.parametrize("path", [
-        "/api/portfolio/",
-        "/api/portfolio/positions",
-        "/api/strategies/",
-        "/api/strategies/status",
-        "/api/analytics/attribution",
-        "/api/risk/status",
-        "/api/config/",
-        "/api/trading/orders",
-    ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/api/portfolio/",
+            "/api/portfolio/positions",
+            "/api/strategies/",
+            "/api/strategies/status",
+            "/api/analytics/attribution",
+            "/api/risk/status",
+            "/api/config/",
+            "/api/trading/orders",
+        ],
+    )
     async def test_returns_401(self, client: AsyncClient, path: str):
         resp = await client.get(path)
         assert resp.status_code == 401

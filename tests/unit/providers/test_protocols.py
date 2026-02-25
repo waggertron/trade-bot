@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from src.core.models import MarketTick
-from src.db.models import SignalRecord, TradeRecord
 from src.providers.protocols import (
     DataStore,
     FeatureProvider,
@@ -18,6 +15,9 @@ from src.providers.protocols import (
     SentimentAnalyzer,
 )
 
+if TYPE_CHECKING:
+    from src.core.models import MarketTick
+    from src.db.models import SignalRecord, TradeRecord
 
 # -- Conforming dummy implementations ----------------------------------------
 
@@ -41,9 +41,7 @@ class DummyMarketDataProvider:
     async def get_ticks(self, symbols: list[str]) -> list[MarketTick]:
         return []
 
-    async def get_ohlc(
-        self, symbol: str, interval: str, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_ohlc(self, symbol: str, interval: str, limit: int = 100) -> list[dict[str, Any]]:
         return []
 
     async def health_check(self) -> bool:
@@ -113,9 +111,7 @@ class DummyDataStore:
     async def save_trade(self, trade: TradeRecord) -> str:
         return trade.id
 
-    async def list_trades(
-        self, strategy: str | None = None, limit: int = 100
-    ) -> list[TradeRecord]:
+    async def list_trades(self, strategy: str | None = None, limit: int = 100) -> list[TradeRecord]:
         return []
 
     async def save_signal(self, signal: SignalRecord) -> str:

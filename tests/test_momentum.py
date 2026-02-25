@@ -1,6 +1,7 @@
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from src.agents.strategies.momentum import MomentumStrategy
 from src.core.models import AssetType, MarketTick, SignalDirection
@@ -8,7 +9,7 @@ from src.core.models import AssetType, MarketTick, SignalDirection
 
 def make_ticks(prices: list[float], symbol="AAPL") -> list[MarketTick]:
     """Create a series of ticks from price list (oldest first)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         MarketTick(
             symbol=symbol,

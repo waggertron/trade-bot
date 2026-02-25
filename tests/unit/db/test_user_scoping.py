@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -35,17 +35,27 @@ async def user_b(db: Database):
 
 def _make_trade(user_id: str, symbol: str = "AAPL", strategy: str = "momentum") -> TradeRecord:
     return TradeRecord(
-        symbol=symbol, side="buy", quantity="10", price="100",
-        commission="1", strategy=strategy, paper=True,
-        timestamp=datetime.now(timezone.utc), user_id=user_id,
+        symbol=symbol,
+        side="buy",
+        quantity="10",
+        price="100",
+        commission="1",
+        strategy=strategy,
+        paper=True,
+        timestamp=datetime.now(UTC),
+        user_id=user_id,
     )
 
 
 def _make_signal(user_id: str, symbol: str = "AAPL") -> SignalRecord:
     return SignalRecord(
-        symbol=symbol, direction="buy", confidence=0.8,
-        strategy="momentum", reasoning="test",
-        timestamp=datetime.now(timezone.utc), user_id=user_id,
+        symbol=symbol,
+        direction="buy",
+        confidence=0.8,
+        strategy="momentum",
+        reasoning="test",
+        timestamp=datetime.now(UTC),
+        user_id=user_id,
     )
 
 
@@ -59,7 +69,12 @@ class TestSaveTradeWithUser:
 
 
 class TestListTradesScoped:
-    async def test_lists_only_own_trades(self, db: Database, user_a: UserRecord, user_b: UserRecord):
+    async def test_lists_only_own_trades(
+        self,
+        db: Database,
+        user_a: UserRecord,
+        user_b: UserRecord,
+    ):
         await db.save_trade(_make_trade(user_a.id, symbol="AAPL"))
         await db.save_trade(_make_trade(user_a.id, symbol="MSFT"))
         await db.save_trade(_make_trade(user_b.id, symbol="GOOGL"))
@@ -74,14 +89,24 @@ class TestListTradesScoped:
         assert len(bob_trades) == 1
         assert bob_trades[0].user_id == user_b.id
 
-    async def test_strategy_filter_combined_with_user(self, db: Database, user_a: UserRecord, user_b: UserRecord):
+    async def test_strategy_filter_combined_with_user(
+        self,
+        db: Database,
+        user_a: UserRecord,
+        user_b: UserRecord,
+    ):
         await db.save_trade(_make_trade(user_a.id, strategy="momentum"))
         await db.save_trade(_make_trade(user_a.id, strategy="sentiment"))
         await db.save_trade(_make_trade(user_b.id, strategy="momentum"))
         result = await db.list_trades(user_id=user_a.id, strategy="momentum")
         assert len(result) == 1
 
-    async def test_no_user_id_returns_all(self, db: Database, user_a: UserRecord, user_b: UserRecord):
+    async def test_no_user_id_returns_all(
+        self,
+        db: Database,
+        user_a: UserRecord,
+        user_b: UserRecord,
+    ):
         """Backward compat: omitting user_id returns all trades."""
         await db.save_trade(_make_trade(user_a.id))
         await db.save_trade(_make_trade(user_b.id))
@@ -92,7 +117,7 @@ class TestListTradesScoped:
 class TestSaveSignalWithUser:
     async def test_stores_user_id(self, db: Database, user_a: UserRecord):
         sig = _make_signal(user_a.id)
-        sid = await db.save_signal(sig)
+        await db.save_signal(sig)
         # Verify via list
         signals = await db.list_signals(user_id=user_a.id)
         assert len(signals) == 1
@@ -100,7 +125,12 @@ class TestSaveSignalWithUser:
 
 
 class TestListSignalsScoped:
-    async def test_lists_only_own_signals(self, db: Database, user_a: UserRecord, user_b: UserRecord):
+    async def test_lists_only_own_signals(
+        self,
+        db: Database,
+        user_a: UserRecord,
+        user_b: UserRecord,
+    ):
         await db.save_signal(_make_signal(user_a.id, symbol="AAPL"))
         await db.save_signal(_make_signal(user_a.id, symbol="MSFT"))
         await db.save_signal(_make_signal(user_b.id, symbol="GOOGL"))
@@ -108,7 +138,12 @@ class TestListSignalsScoped:
         assert len(alice_signals) == 2
         assert all(s.user_id == user_a.id for s in alice_signals)
 
-    async def test_no_user_id_returns_all(self, db: Database, user_a: UserRecord, user_b: UserRecord):
+    async def test_no_user_id_returns_all(
+        self,
+        db: Database,
+        user_a: UserRecord,
+        user_b: UserRecord,
+    ):
         """Backward compat: omitting user_id returns all signals."""
         await db.save_signal(_make_signal(user_a.id))
         await db.save_signal(_make_signal(user_b.id))

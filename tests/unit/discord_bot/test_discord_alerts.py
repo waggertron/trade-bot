@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
@@ -43,7 +43,7 @@ class TestDiscordAlertHandlerSubscription:
             side=OrderSide.BUY,
             quantity=Decimal("0.5"),
             fill_price=Decimal("50000"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         event = FillEvent(fill=fill, strategy="momentum", reasoning="breakout signal")
 
@@ -91,7 +91,7 @@ class TestDiscordAlertHandlerSubscription:
             side=OrderSide.SELL,
             quantity=Decimal("10"),
             fill_price=Decimal("3000"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         event = FillEvent(fill=fill, strategy="sentiment")
 
@@ -110,7 +110,7 @@ class TestDiscordAlertHandlerSubscription:
             side=OrderSide.BUY,
             quantity=Decimal("1"),
             fill_price=Decimal("100"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         await event_bus.publish(FillEvent(fill=fill, strategy="test"))
 

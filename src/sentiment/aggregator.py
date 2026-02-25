@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
-from src.sentiment.models import SentimentResult
+if TYPE_CHECKING:
+    from src.sentiment.models import SentimentResult
 
 
 class SentimentAggregator:
@@ -82,9 +84,7 @@ class SentimentAggregator:
             return 0
 
         original_count = len(results)
-        self._scores[symbol] = [
-            r for r in results if (now - r.timestamp) <= self._max_age
-        ]
+        self._scores[symbol] = [r for r in results if (now - r.timestamp) <= self._max_age]
         return original_count - len(self._scores[symbol])
 
     def symbols(self) -> list[str]:

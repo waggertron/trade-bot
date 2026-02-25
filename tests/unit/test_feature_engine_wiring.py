@@ -28,7 +28,7 @@ def test_build_feature_engine_mock_false():
     from src.providers.technical import TechnicalFeatureProvider
 
     settings = Settings.for_testing(use_mocks={"ml": False})
-    engine, store = build_feature_engine(settings)
+    engine, _store = build_feature_engine(settings)
     assert isinstance(engine, FeatureEngine)
     assert any(isinstance(p, TechnicalFeatureProvider) for p in engine._providers)
 

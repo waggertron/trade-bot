@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from src.providers.configs import (
     KrakenMarketConfig,
@@ -22,11 +23,11 @@ class TestRateLimit:
         assert rl.requests_per_minute == 60
 
     def test_rejects_zero(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             RateLimit(requests_per_minute=0)
 
     def test_rejects_negative(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             RateLimit(requests_per_minute=-1)
 
 
@@ -66,7 +67,7 @@ class TestMockMarketConfig:
 
 class TestRSSConfig:
     def test_requires_non_empty_feed_urls(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             RSSConfig(feed_urls=[])
 
     def test_valid_feed_urls(self):

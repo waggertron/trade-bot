@@ -1,4 +1,5 @@
 """CLI commands for the simulation system."""
+
 from __future__ import annotations
 
 import asyncio
@@ -9,7 +10,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.rule import Rule
-from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
@@ -30,10 +30,24 @@ console = Console()
 def callback() -> None:
     """Simulation system: run walk-forward backtests and Monte Carlo projections."""
 
+
 ALL_STOCKS = [
-    "SPY", "QQQ", "DIA", "IWM",
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
-    "XLF", "XLK", "XLE", "XLV", "XLI",
+    "SPY",
+    "QQQ",
+    "DIA",
+    "IWM",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "NVDA",
+    "META",
+    "TSLA",
+    "XLF",
+    "XLK",
+    "XLE",
+    "XLV",
+    "XLI",
 ]
 
 
@@ -81,6 +95,7 @@ def _run_simulation(
     report_cache = None
     if use_cache and seed is not None:
         from src.simulation.cache import ReportCache
+
         report_cache = ReportCache()
         cached = report_cache.get(config)
         if cached is not None:
@@ -98,23 +113,39 @@ def _run_simulation(
 
 @app.command()
 def run(
-    stocks: list[str] | None = typer.Option(None, help="Stock symbols (default: all 16)"),
+    stocks: list[str] | None = typer.Option(None, help="Stock symbols (default: all 16)"),  # noqa: B008
     balance: float = typer.Option(10_000.0, help="Starting balance in USD"),
     train_days: int = typer.Option(60, help="Training window in days"),
     test_days: int = typer.Option(30, help="Test/simulation window in days"),
-    risk_levels: list[str] | None = typer.Option(None, "--risk", help="Risk levels (default: all)"),
+    risk_levels: list[str] | None = typer.Option(None, "--risk", help="Risk levels (default: all)"),  # noqa: B008
     mc_sims: int = typer.Option(1000, help="Number of Monte Carlo simulations"),
     output_json: bool = typer.Option(False, "--json", help="Output raw JSON"),
     portfolio: bool = typer.Option(False, "--portfolio", help="Enable portfolio simulation mode"),
     weights: str | None = typer.Option(
-        None, "--weights", help='Custom weights JSON',
+        None,
+        "--weights",
+        help="Custom weights JSON",
     ),
-    rebalance: list[str] = typer.Option(
-        ["none"], "--rebalance", help="Rebalance modes: none, daily, weekly, monthly (repeat for comparison)",
+    rebalance: list[str] = typer.Option(  # noqa: B008
+        ["none"],
+        "--rebalance",
+        help="Rebalance modes: none, daily, weekly, monthly (repeat for comparison)",
     ),
-    seed: int | None = typer.Option(None, "--seed", help="Monte Carlo random seed (default: random)"),
-    rebalance_threshold: float = typer.Option(5.0, "--rebalance-threshold", help="Rebalance drift threshold %"),
-    max_position_pct: float | None = typer.Option(None, "--max-position-pct", help="Override max position size %"),
+    seed: int | None = typer.Option(
+        None,
+        "--seed",
+        help="Monte Carlo random seed (default: random)",
+    ),
+    rebalance_threshold: float = typer.Option(
+        5.0,
+        "--rebalance-threshold",
+        help="Rebalance drift threshold %",
+    ),
+    max_position_pct: float | None = typer.Option(
+        None,
+        "--max-position-pct",
+        help="Override max position size %",
+    ),
     charts: str = typer.Option("summary", "--charts", help="Chart detail: none, summary, full"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Disable disk cache"),
 ) -> None:
@@ -126,9 +157,12 @@ def run(
 
     # Use stderr for status when JSON output is requested
     import sys
+
     status_console = Console(stderr=True) if output_json else console
 
-    status_console.print(f"\n[bold]Simulation: {len(stock_list)} stocks, {len(levels)} risk levels[/bold]")
+    status_console.print(
+        f"\n[bold]Simulation: {len(stock_list)} stocks, {len(levels)} risk levels[/bold]"
+    )
     status_console.print(
         f"Balance: ${balance:,.0f} | Train: {train_days}d"
         f" | Test: {test_days}d | MC paths: {mc_sims}"
@@ -141,7 +175,9 @@ def run(
         status_console.print("Cache: DISABLED")
     if portfolio:
         rebal_display = ", ".join(rebalance)
-        status_console.print(f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebal_display}")
+        status_console.print(
+            f"  Portfolio Mode: [bold green]ON[/bold green] | Rebalance: {rebal_display}"
+        )
     status_console.print()
 
     num_stocks = len(stock_list)
@@ -158,17 +194,29 @@ def run(
             risk_task = progress.add_task("Risk levels", total=len(levels))
             stock_task = progress.add_task("Stocks", total=num_stocks)
 
-            def on_progress(stage: str, current: int, total: int, detail: str = "") -> None:
+            def on_progress(
+                stage: str,
+                current: int,
+                total: int,
+                detail: str = "",
+                _risk_task=risk_task,
+                _stock_task=stock_task,
+            ) -> None:
                 if stage == "risk_level":
-                    progress.update(risk_task, completed=current, description=f"Risk: {detail}")
-                    progress.update(stock_task, completed=0, total=num_stocks)
+                    progress.update(_risk_task, completed=current, description=f"Risk: {detail}")
+                    progress.update(_stock_task, completed=0, total=num_stocks)
                 elif stage == "stock":
-                    progress.update(stock_task, completed=current, description=f"Stock: {detail}")
+                    progress.update(_stock_task, completed=current, description=f"Stock: {detail}")
                 elif stage == "benchmark":
-                    progress.update(risk_task, description="SPY benchmarks")
+                    progress.update(_risk_task, description="SPY benchmarks")
 
             report = _run_simulation(
-                stock_list, balance, train_days, test_days, levels, mc_sims,
+                stock_list,
+                balance,
+                train_days,
+                test_days,
+                levels,
+                mc_sims,
                 portfolio_mode=portfolio,
                 allocation_weights=allocation_weights,
                 rebalance_freq=rebal_mode,
@@ -312,7 +360,7 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
         console.print(Rule("[bold]Per-Stock Details[/bold]"))
 
     for level_name, result in report.get("risk_level_results", {}).items():
-        # Per-stock table (skip in none mode — too verbose with 16 stocks × 4 levels)
+        # Per-stock table (skip in none mode -- too verbose with 16 stocks x 4 levels)
         if charts_mode != "none" and result.get("stock_results"):
             stock_table = Table(title=f"\n{level_name.upper()} — Per-Stock Results")
             stock_table.add_column("Symbol", style="bold")
@@ -358,15 +406,27 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             metrics_table.add_column("Value", justify="right")
             metrics_table.add_row("Initial Balance", f"${pm['initial_balance']:,.2f}")
             fv_style = "green" if pm["final_value"] >= pm["initial_balance"] else "red"
-            metrics_table.add_row("Final Value", f"[{fv_style}]${pm['final_value']:,.2f}[/{fv_style}]")
+            metrics_table.add_row(
+                "Final Value",
+                f"[{fv_style}]${pm['final_value']:,.2f}[/{fv_style}]",
+            )
             metrics_table.add_row("Total Return", format_pct(pm["total_return_pct"]))
             metrics_table.add_row("Max Drawdown", f"[red]{pm['max_drawdown']:.2f}%[/red]")
             sh_style = "green" if pm["sharpe_ratio"] >= 0 else "red"
-            metrics_table.add_row("Sharpe Ratio", f"[{sh_style}]{pm['sharpe_ratio']:.3f}[/{sh_style}]")
+            metrics_table.add_row(
+                "Sharpe Ratio",
+                f"[{sh_style}]{pm['sharpe_ratio']:.3f}[/{sh_style}]",
+            )
             so_style = "green" if pm["sortino_ratio"] >= 0 else "red"
-            metrics_table.add_row("Sortino Ratio", f"[{so_style}]{pm['sortino_ratio']:.3f}[/{so_style}]")
+            metrics_table.add_row(
+                "Sortino Ratio",
+                f"[{so_style}]{pm['sortino_ratio']:.3f}[/{so_style}]",
+            )
             ca_style = "green" if pm["calmar_ratio"] >= 0 else "red"
-            metrics_table.add_row("Calmar Ratio", f"[{ca_style}]{pm['calmar_ratio']:.3f}[/{ca_style}]")
+            metrics_table.add_row(
+                "Calmar Ratio",
+                f"[{ca_style}]{pm['calmar_ratio']:.3f}[/{ca_style}]",
+            )
             metrics_table.add_row("Total Trades", str(pm["total_trades"]))
             console.print(metrics_table)
 
@@ -384,10 +444,10 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             if mode == "equal_weight" and result.get("stock_results"):
                 n = len(result["stock_results"])
                 for sr in result["stock_results"]:
-                    alloc_table.add_row(sr["symbol"], f"{100/n:.1f}%")
+                    alloc_table.add_row(sr["symbol"], f"{100 / n:.1f}%")
             elif weights_dict:
                 for sym, w in weights_dict.items():
-                    alloc_table.add_row(sym, f"{w*100:.1f}%")
+                    alloc_table.add_row(sym, f"{w * 100:.1f}%")
 
             if alloc_table.row_count:
                 console.print(alloc_table)
@@ -402,11 +462,14 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             pmc_table.add_row("P5 Final", f"${pmc['p5_final']:,.2f}")
             pmc_table.add_row("P95 Final", f"${pmc['p95_final']:,.2f}")
             mr_style = "green" if pmc["median_return_pct"] >= 0 else "red"
-            pmc_table.add_row("Median Return %", f"[{mr_style}]{pmc['median_return_pct']:.2f}%[/{mr_style}]")
+            pmc_table.add_row(
+                "Median Return %",
+                f"[{mr_style}]{pmc['median_return_pct']:.2f}%[/{mr_style}]",
+            )
             pmc_table.add_row("Worst DD (P95)", f"[red]{pmc['worst_drawdown_p95']:.2f}%[/red]")
             console.print(pmc_table)
 
-        # --- Correlation matrix (skip in none mode — 16×16 is very wide) ---
+        # --- Correlation matrix (skip in none mode -- 16x16 is very wide) ---
         if charts_mode != "none" and pmc and pmc.get("correlation_matrix"):
             corr = pmc["correlation_matrix"]
             corr_table = Table(title="Return Correlation Matrix")
@@ -427,7 +490,7 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
             if not result.get("monte_carlo_projections"):
                 continue
 
-            test_d = report['config']['test_days']
+            test_d = report["config"]["test_days"]
             mc_table = Table(
                 title=f"\n{level_name.upper()} — MC Projections ({test_d}d forward)",
             )
@@ -469,7 +532,8 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
                 console=console,
             ) as chart_progress:
                 chart_task = chart_progress.add_task(
-                    "Rendering charts", total=total_stock_charts,
+                    "Rendering charts",
+                    total=total_stock_charts,
                 )
                 try:
                     for level_name, result in report.get("risk_level_results", {}).items():
@@ -483,7 +547,8 @@ def _print_report(report: dict, *, charts_mode: str = "summary") -> None:
                                 )
                                 console.print(Panel(chart, expand=False))
                             chart_progress.update(
-                                chart_task, advance=1,
+                                chart_task,
+                                advance=1,
                                 description=f"Rendering charts: {sr['symbol']}",
                             )
                 except Exception:

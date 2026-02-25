@@ -7,7 +7,10 @@ This will be wired to SQLAlchemy later.
 
 from __future__ import annotations
 
-from src.sentiment.models import Article, SentimentResult
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.sentiment.models import Article, SentimentResult
 
 
 class SentimentStore:
@@ -55,11 +58,7 @@ class SentimentStore:
         """Return total article count, optionally filtered by symbol."""
         if symbol is None:
             return len(self._articles)
-        return sum(
-            1
-            for a in self._articles.values()
-            if symbol in a.related_symbols
-        )
+        return sum(1 for a in self._articles.values() if symbol in a.related_symbols)
 
     # -- Scores ---------------------------------------------------------------
 

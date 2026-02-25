@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
@@ -38,7 +38,7 @@ def _make_tick(symbol="BTC/USD", price="50000"):
         symbol=symbol,
         price=Decimal(price),
         volume=1000,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         asset_type=AssetType.CRYPTO,
     )
 
@@ -49,7 +49,7 @@ def _make_signal(symbol="BTC/USD", direction=SignalDirection.BUY):
         direction=direction,
         confidence=0.8,
         strategy_name="test_strategy",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         reasoning="test reason",
     )
 
@@ -72,7 +72,7 @@ async def test_orchestrator_persists_signals_when_db_provided(db):
         return_value=PortfolioSnapshot(
             cash=Decimal("100000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
     portfolio.record_fill = AsyncMock()
@@ -85,7 +85,7 @@ async def test_orchestrator_persists_signals_when_db_provided(db):
             side=OrderSide.BUY,
             quantity=Decimal("0.04"),
             fill_price=Decimal("50000"),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
 
@@ -126,7 +126,7 @@ async def test_orchestrator_works_without_db():
         return_value=PortfolioSnapshot(
             cash=Decimal("100000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
     portfolio.record_fill = AsyncMock()
@@ -139,7 +139,7 @@ async def test_orchestrator_works_without_db():
             side=OrderSide.BUY,
             quantity=Decimal("0.04"),
             fill_price=Decimal("50000"),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
 

@@ -1,12 +1,16 @@
 """System status panel for the TUI dashboard."""
+
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
+from textual import work
 from textual.containers import Vertical
 from textual.widgets import Label, Static
-from textual import work
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +61,12 @@ class SystemPanel(Static):
         try:
             sys_info = await api.get_system_status()
             self._update_label(
-                "#sys-mode", f"Mode: [bold]{sys_info.get('mode', '?')}[/bold]",
+                "#sys-mode",
+                f"Mode: [bold]{sys_info.get('mode', '?')}[/bold]",
             )
             self._update_label(
-                "#sys-strategies", f"Strategies: {sys_info.get('strategies_count', 0)}",
+                "#sys-strategies",
+                f"Strategies: {sys_info.get('strategies_count', 0)}",
             )
             uptime_s = sys_info.get("uptime_seconds", 0)
             h, rem = divmod(uptime_s, 3600)
@@ -69,7 +75,8 @@ class SystemPanel(Static):
             paused = sys_info.get("is_paused", False)
             color = "red" if paused else "green"
             self._update_label(
-                "#sys-paused", f"Paused: [{color}]{paused}[/{color}]",
+                "#sys-paused",
+                f"Paused: [{color}]{paused}[/{color}]",
             )
         except Exception:
             logger.debug("Panel render error", exc_info=True)

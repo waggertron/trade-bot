@@ -1,4 +1,5 @@
 """Tests for BlockchairProvider on-chain data provider."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,7 +8,6 @@ import pytest
 
 from src.providers.configs import BlockchairConfig
 from src.providers.protocols import OnChainProvider
-
 
 # -- Simple mock client that returns dicts directly ---------------------------
 

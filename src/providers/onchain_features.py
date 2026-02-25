@@ -1,4 +1,5 @@
 """On-chain feature computation from blockchain metrics."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -58,9 +59,7 @@ class OnChainFeatureProvider:
 
         # Active addresses trend: current vs average
         avg_active = sum(float(h.get("active_addresses", 0)) for h in history) / len(history)
-        active_addresses_trend = (
-            (active_addrs - avg_active) / avg_active if avg_active > 0 else 0.0
-        )
+        active_addresses_trend = (active_addrs - avg_active) / avg_active if avg_active > 0 else 0.0
 
         return {
             "exchange_inflow_ratio": round(exchange_inflow_ratio, 4),

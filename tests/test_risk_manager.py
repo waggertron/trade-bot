@@ -1,12 +1,17 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+
+import pytest
 
 from src.agents.risk_manager import RiskManager
 from src.core.config import RiskSettings
 from src.core.models import (
-    AssetType, PortfolioSnapshot, Position, RiskAction,
-    Signal, SignalDirection,
+    AssetType,
+    PortfolioSnapshot,
+    Position,
+    RiskAction,
+    Signal,
+    SignalDirection,
 )
 from src.risk.circuit_breaker import DrawdownCircuitBreaker
 from src.risk.models import RiskContext, StrategyPerformance, VolatilityRegime
@@ -29,16 +34,20 @@ def risk_manager(risk_settings):
 
 def make_signal(symbol="AAPL", direction=SignalDirection.BUY, confidence=0.9):
     return Signal(
-        symbol=symbol, direction=direction, confidence=confidence,
-        strategy_name="test", timestamp=datetime.now(timezone.utc),
+        symbol=symbol,
+        direction=direction,
+        confidence=confidence,
+        strategy_name="test",
+        timestamp=datetime.now(UTC),
         reasoning="test signal",
     )
 
 
 def make_portfolio(cash=Decimal("10000"), positions=None):
     return PortfolioSnapshot(
-        cash=cash, positions=positions or [],
-        timestamp=datetime.now(timezone.utc),
+        cash=cash,
+        positions=positions or [],
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -51,8 +60,13 @@ async def test_approve_valid_trade(risk_manager):
 
 async def test_veto_max_positions_exceeded(risk_manager):
     positions = [
-        Position(symbol=s, quantity=Decimal("10"), avg_entry_price=Decimal("100"),
-                 current_price=Decimal("100"), asset_type=AssetType.STOCK)
+        Position(
+            symbol=s,
+            quantity=Decimal("10"),
+            avg_entry_price=Decimal("100"),
+            current_price=Decimal("100"),
+            asset_type=AssetType.STOCK,
+        )
         for s in ["AAPL", "MSFT", "GOOGL"]
     ]
     portfolio = make_portfolio(positions=positions)
@@ -96,6 +110,7 @@ async def test_check_portfolio_health_near_limit(risk_manager):
 # New tests for enhanced RiskManager (Task 5)
 # ---------------------------------------------------------------------------
 
+
 def _make_risk_context(
     regime: VolatilityRegime = VolatilityRegime.MEDIUM,
     correlation_matrix: dict[str, float] | None = None,
@@ -110,8 +125,11 @@ def _make_risk_context(
         correlation_matrix=correlation_matrix or {},
         strategy_stats={
             "test": StrategyPerformance(
-                name="test", win_rate=0.6, avg_win=Decimal("100"),
-                avg_loss=Decimal("50"), total_trades=20,
+                name="test",
+                win_rate=0.6,
+                avg_win=Decimal("100"),
+                avg_loss=Decimal("50"),
+                total_trades=20,
             ),
         },
         drawdown_from_peak=0.0,
@@ -123,7 +141,7 @@ def _make_risk_context(
 async def test_circuit_breaker_veto(risk_settings):
     """Circuit breaker tripped -> VETO."""
     cb = DrawdownCircuitBreaker(max_drawdown_pct=5.0, cooldown_hours=24.0)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Set peak, then trigger drawdown
     cb.update(Decimal("10000"), now)
     rm = RiskManager(risk_settings, circuit_breaker=cb)
@@ -153,8 +171,13 @@ async def test_regime_adjusted_daily_loss_limit(risk_settings):
 async def test_regime_adjusted_max_positions(risk_settings):
     """HIGH regime limits to 4 positions. With 4 filled and a new symbol -> VETO."""
     positions = [
-        Position(symbol=s, quantity=Decimal("10"), avg_entry_price=Decimal("100"),
-                 current_price=Decimal("100"), asset_type=AssetType.STOCK)
+        Position(
+            symbol=s,
+            quantity=Decimal("10"),
+            avg_entry_price=Decimal("100"),
+            current_price=Decimal("100"),
+            asset_type=AssetType.STOCK,
+        )
         for s in ["AAPL", "MSFT", "GOOGL", "TSLA"]
     ]
     portfolio = make_portfolio(positions=positions)
@@ -162,8 +185,10 @@ async def test_regime_adjusted_max_positions(risk_settings):
 
     # Static limit is 3 so this would be vetoed anyway; use a higher static limit
     settings = RiskSettings(
-        max_position_pct=2.0, daily_loss_limit_pct=3.0,
-        max_open_positions=10, stop_loss_pct=5.0,
+        max_position_pct=2.0,
+        daily_loss_limit_pct=3.0,
+        max_open_positions=10,
+        stop_loss_pct=5.0,
     )
     rm = RiskManager(settings)
     signal = make_signal(symbol="AMZN")
@@ -176,8 +201,13 @@ async def test_regime_adjusted_max_positions(risk_settings):
 async def test_correlation_veto(risk_settings):
     """Correlation between signal symbol and existing position > max_correlation -> VETO."""
     positions = [
-        Position(symbol="MSFT", quantity=Decimal("10"), avg_entry_price=Decimal("100"),
-                 current_price=Decimal("100"), asset_type=AssetType.STOCK),
+        Position(
+            symbol="MSFT",
+            quantity=Decimal("10"),
+            avg_entry_price=Decimal("100"),
+            current_price=Decimal("100"),
+            asset_type=AssetType.STOCK,
+        ),
     ]
     portfolio = make_portfolio(positions=positions)
     # max_correlation defaults to 0.7; set correlation to 0.85
@@ -196,8 +226,13 @@ async def test_correlation_veto(risk_settings):
 async def test_correlation_resize(risk_settings):
     """Correlation between max_correlation*0.7 and max_correlation -> RESIZE with multiplier."""
     positions = [
-        Position(symbol="MSFT", quantity=Decimal("10"), avg_entry_price=Decimal("100"),
-                 current_price=Decimal("100"), asset_type=AssetType.STOCK),
+        Position(
+            symbol="MSFT",
+            quantity=Decimal("10"),
+            avg_entry_price=Decimal("100"),
+            current_price=Decimal("100"),
+            asset_type=AssetType.STOCK,
+        ),
     ]
     portfolio = make_portfolio(positions=positions)
     # max_correlation=0.7, threshold for resize = 0.7 * 0.7 = 0.49
@@ -234,7 +269,7 @@ async def test_update_circuit_breaker(risk_settings):
     """update_circuit_breaker tracks peak value."""
     cb = DrawdownCircuitBreaker(max_drawdown_pct=5.0, cooldown_hours=24.0)
     rm = RiskManager(risk_settings, circuit_breaker=cb)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     rm.update_circuit_breaker(Decimal("10000"), now)
     assert cb.peak_value == Decimal("10000")
@@ -246,5 +281,5 @@ async def test_update_circuit_breaker(risk_settings):
 async def test_circuit_breaker_none_no_error(risk_settings):
     """update_circuit_breaker with no circuit breaker set raises no error."""
     rm = RiskManager(risk_settings)  # no circuit_breaker
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rm.update_circuit_breaker(Decimal("10000"), now)  # should not raise

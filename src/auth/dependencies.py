@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import HTTPException, status
 from jose import JWTError
 
 from src.auth.tokens import decode_token
-from src.db.database import Database
-from src.db.models import UserRecord
+
+if TYPE_CHECKING:
+    from src.db.database import Database
+    from src.db.models import UserRecord
 
 
 async def get_current_user(
@@ -25,7 +29,7 @@ async def get_current_user(
     try:
         payload = decode_token(token, secret=secret)
     except JWTError:
-        raise credentials_exc
+        raise credentials_exc from None
 
     if payload.get("type") != "access":
         raise credentials_exc

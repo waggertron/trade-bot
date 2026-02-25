@@ -15,9 +15,7 @@ def test_mock_settings_default_all_true():
 
 
 def test_mock_settings_can_override():
-    settings = Settings.for_testing(
-        use_mocks={"stock_feed": False, "ml": False}
-    )
+    settings = Settings.for_testing(use_mocks={"stock_feed": False, "ml": False})
     assert settings.use_mocks.stock_feed is False
     assert settings.use_mocks.ml is False
     # Others stay default

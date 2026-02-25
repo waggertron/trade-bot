@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from src.db.database import Database
 from src.db.models import UserRecord
@@ -27,7 +28,7 @@ class TestCreateUser:
         user1 = UserRecord(email="alice@example.com", hashed_password="hashed123")
         await db.create_user(user1)
         user2 = UserRecord(email="alice@example.com", hashed_password="hashed456")
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             await db.create_user(user2)
 
 

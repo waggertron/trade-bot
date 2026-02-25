@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from src.core.models import Signal, SignalDirection
-from src.ml.models import FeatureVector
+
+if TYPE_CHECKING:
+    from src.ml.models import FeatureVector
 
 _DEFAULT_PAIRS: dict[str, str] = {
     "ETH/USD": "BTC/USD",
@@ -27,7 +30,9 @@ class CrossAssetStrategy:
         self._min_correlation = min_correlation
 
     async def evaluate(
-        self, symbol: str, features: FeatureVector,
+        self,
+        symbol: str,
+        features: FeatureVector,
     ) -> Signal | None:
         leader = self._pairs.get(symbol)
         if leader is None:
@@ -50,7 +55,7 @@ class CrossAssetStrategy:
                 confidence=confidence,
                 strategy_name=self.name,
                 reasoning=f"Leader {leader} bullish, {symbol} lagging",
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
         return None

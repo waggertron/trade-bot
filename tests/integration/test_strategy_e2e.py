@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -26,7 +26,6 @@ from src.ml.mock_model import MockModel
 from src.ml.models import FeatureVector
 from src.risk.models import RiskContext, StrategyPerformance, VolatilityRegime
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -44,7 +43,7 @@ def _make_signal(
         confidence=confidence,
         strategy_name=strategy,
         reasoning="Test signal",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 

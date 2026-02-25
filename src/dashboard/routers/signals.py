@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from src.dashboard.dependencies import require_user, state
-from src.db.models import UserRecord
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
@@ -15,7 +15,7 @@ async def list_signals(
     limit: int = 100,
     strategy: str | None = None,
     symbol: str | None = None,
-    current_user: UserRecord = Depends(require_user),
+    current_user: UserRecord = Depends(require_user),  # noqa: B008
 ):
     """Recent signals with optional filters."""
     if state.db is None:
@@ -41,7 +41,7 @@ async def list_signals(
 
 
 @router.get("/latest")
-async def latest_signals(current_user: UserRecord = Depends(require_user)):
+async def latest_signals(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Latest signal per strategy per symbol."""
     if state.db is None:
         return []
@@ -53,13 +53,15 @@ async def latest_signals(current_user: UserRecord = Depends(require_user)):
         key = (s.strategy, s.symbol)
         if key not in seen:
             seen.add(key)
-            latest.append({
-                "id": s.id,
-                "symbol": s.symbol,
-                "direction": s.direction,
-                "confidence": s.confidence,
-                "strategy": s.strategy,
-                "reasoning": s.reasoning,
-                "timestamp": s.timestamp.isoformat(),
-            })
+            latest.append(
+                {
+                    "id": s.id,
+                    "symbol": s.symbol,
+                    "direction": s.direction,
+                    "confidence": s.confidence,
+                    "strategy": s.strategy,
+                    "reasoning": s.reasoning,
+                    "timestamp": s.timestamp.isoformat(),
+                }
+            )
     return latest

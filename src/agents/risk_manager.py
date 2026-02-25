@@ -1,15 +1,22 @@
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from src.core.config import RiskSettings
 from src.core.models import (
-    PortfolioSnapshot, RiskAction, RiskDecision, Signal, SignalDirection,
+    PortfolioSnapshot,
+    RiskAction,
+    RiskDecision,
+    Signal,
 )
-from src.risk.circuit_breaker import DrawdownCircuitBreaker
 from src.risk.models import RiskContext, VolatilityRegime
-from src.risk.protocols import PositionSizer
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from src.core.config import RiskSettings
+    from src.risk.circuit_breaker import DrawdownCircuitBreaker
+    from src.risk.protocols import PositionSizer
 
 REGIME_LIMITS = {
     VolatilityRegime.LOW: {
@@ -62,12 +69,13 @@ class RiskManager:
         risk_context: RiskContext | None = None,
     ) -> RiskDecision:
         # 1. Circuit breaker check
-        if self._circuit_breaker is not None:
-            if self._circuit_breaker.is_tripped(portfolio.total_value, signal.timestamp):
-                return RiskDecision(
-                    action=RiskAction.VETO,
-                    reason="Circuit breaker tripped: drawdown exceeded threshold",
-                )
+        if self._circuit_breaker is not None and self._circuit_breaker.is_tripped(
+            portfolio.total_value, signal.timestamp
+        ):
+            return RiskDecision(
+                action=RiskAction.VETO,
+                reason="Circuit breaker tripped: drawdown exceeded threshold",
+            )
 
         # Determine effective limits (regime-adjusted or static)
         if risk_context is not None:
@@ -85,7 +93,7 @@ class RiskManager:
                 return RiskDecision(
                     action=RiskAction.VETO,
                     reason=f"Daily loss limit exceeded: {daily_loss_pct:.1f}% "
-                           f"(limit: {effective_daily_loss_limit}%)",
+                    f"(limit: {effective_daily_loss_limit}%)",
                 )
 
         # 3. Check max open positions
@@ -95,7 +103,7 @@ class RiskManager:
                 return RiskDecision(
                     action=RiskAction.VETO,
                     reason=f"Max open positions reached: {len(portfolio.positions)} "
-                           f"(limit: {effective_max_positions})",
+                    f"(limit: {effective_max_positions})",
                 )
 
         # 4. Correlation check (only when risk_context is provided)
@@ -116,7 +124,7 @@ class RiskManager:
                 return RiskDecision(
                     action=RiskAction.VETO,
                     reason=f"High correlation with {worst_pair}: "
-                           f"{worst_correlation:.2f} (limit: {max_corr})",
+                    f"{worst_correlation:.2f} (limit: {max_corr})",
                 )
 
             if worst_correlation > resize_threshold:
@@ -124,7 +132,7 @@ class RiskManager:
                 return RiskDecision(
                     action=RiskAction.RESIZE,
                     reason=f"Moderate correlation with {worst_pair}: "
-                           f"{worst_correlation:.2f}, reducing size",
+                    f"{worst_correlation:.2f}, reducing size",
                     size_multiplier=multiplier,
                 )
 
@@ -132,7 +140,8 @@ class RiskManager:
         return RiskDecision(action=RiskAction.APPROVE, reason="All risk checks passed")
 
     async def check_portfolio_health(
-        self, portfolio: PortfolioSnapshot,
+        self,
+        portfolio: PortfolioSnapshot,
     ) -> list[str]:
         warnings = []
         if portfolio.total_value > 0:

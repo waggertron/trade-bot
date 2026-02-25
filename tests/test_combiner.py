@@ -83,36 +83,54 @@ class TestCombineDatasets:
         """Higher-priority source wins on overlapping timestamps."""
         # Source A: cryptocompare (priority=4), timestamps 1,2,3,5,6
         src_a_path = tmp_path / "BTCUSD" / "cryptocompare_1d.csv"
-        _write_csv(src_a_path, [
-            _make_row(1, close="100.0"),
-            _make_row(2, close="200.0"),
-            _make_row(3, close="300.0"),
-            _make_row(5, close="500.0"),
-            _make_row(6, close="600.0"),
-        ])
+        _write_csv(
+            src_a_path,
+            [
+                _make_row(1, close="100.0"),
+                _make_row(2, close="200.0"),
+                _make_row(3, close="300.0"),
+                _make_row(5, close="500.0"),
+                _make_row(6, close="600.0"),
+            ],
+        )
 
         # Source B: kraken (priority=2), timestamps 2,3,4,5
         src_b_path = tmp_path / "BTCUSD" / "kraken_1d.csv"
-        _write_csv(src_b_path, [
-            _make_row(2, close="201.0"),
-            _make_row(3, close="301.0"),
-            _make_row(4, close="400.0"),
-            _make_row(5, close="501.0"),
-        ])
+        _write_csv(
+            src_b_path,
+            [
+                _make_row(2, close="201.0"),
+                _make_row(3, close="301.0"),
+                _make_row(4, close="400.0"),
+                _make_row(5, close="501.0"),
+            ],
+        )
 
         catalog = Catalog()
-        catalog.upsert(DatasetEntry(
-            symbol="BTCUSD", source="cryptocompare", interval="1d",
-            file_path=str(src_a_path),
-            first_timestamp=1, last_timestamp=6, row_count=5,
-            last_updated="2024-01-01T00:00:00+00:00",
-        ))
-        catalog.upsert(DatasetEntry(
-            symbol="BTCUSD", source="kraken", interval="1d",
-            file_path=str(src_b_path),
-            first_timestamp=2, last_timestamp=5, row_count=4,
-            last_updated="2024-01-01T00:00:00+00:00",
-        ))
+        catalog.upsert(
+            DatasetEntry(
+                symbol="BTCUSD",
+                source="cryptocompare",
+                interval="1d",
+                file_path=str(src_a_path),
+                first_timestamp=1,
+                last_timestamp=6,
+                row_count=5,
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
+        catalog.upsert(
+            DatasetEntry(
+                symbol="BTCUSD",
+                source="kraken",
+                interval="1d",
+                file_path=str(src_b_path),
+                first_timestamp=2,
+                last_timestamp=5,
+                row_count=4,
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
 
         catalog_path = tmp_path / "catalog.json"
         save_catalog(catalog, catalog_path)
@@ -170,18 +188,30 @@ class TestCombineDatasets:
         _write_csv(combined_path, [_make_row(1000, close="999.0")])
 
         catalog = Catalog()
-        catalog.upsert(DatasetEntry(
-            symbol="BTCUSD", source="kraken", interval="1d",
-            file_path=str(src_path),
-            first_timestamp=1000, last_timestamp=1000, row_count=1,
-            last_updated="2024-01-01T00:00:00+00:00",
-        ))
-        catalog.upsert(DatasetEntry(
-            symbol="BTCUSD", source="combined", interval="1d",
-            file_path=str(combined_path),
-            first_timestamp=1000, last_timestamp=1000, row_count=1,
-            last_updated="2024-01-01T00:00:00+00:00",
-        ))
+        catalog.upsert(
+            DatasetEntry(
+                symbol="BTCUSD",
+                source="kraken",
+                interval="1d",
+                file_path=str(src_path),
+                first_timestamp=1000,
+                last_timestamp=1000,
+                row_count=1,
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
+        catalog.upsert(
+            DatasetEntry(
+                symbol="BTCUSD",
+                source="combined",
+                interval="1d",
+                file_path=str(combined_path),
+                first_timestamp=1000,
+                last_timestamp=1000,
+                row_count=1,
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
 
         catalog_path = tmp_path / "catalog.json"
         save_catalog(catalog, catalog_path)
@@ -204,12 +234,18 @@ class TestCombineDatasets:
         _write_csv(src_path, [_make_row(1000), _make_row(2000)])
 
         catalog = Catalog()
-        catalog.upsert(DatasetEntry(
-            symbol="BTCUSD", source="kraken", interval="1d",
-            file_path=str(src_path),
-            first_timestamp=1000, last_timestamp=2000, row_count=2,
-            last_updated="2024-01-01T00:00:00+00:00",
-        ))
+        catalog.upsert(
+            DatasetEntry(
+                symbol="BTCUSD",
+                source="kraken",
+                interval="1d",
+                file_path=str(src_path),
+                first_timestamp=1000,
+                last_timestamp=2000,
+                row_count=2,
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
 
         catalog_path = tmp_path / "catalog.json"
         save_catalog(catalog, catalog_path)

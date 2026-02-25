@@ -1,4 +1,5 @@
 """Tests for the simulation API router."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -10,7 +11,12 @@ from src.dashboard.app import create_app
 from src.dashboard.dependencies import require_user
 from src.db.models import UserRecord
 
-_test_user = UserRecord(email="test@example.com", hashed_password="h", name="Test", is_verified=True)
+_test_user = UserRecord(
+    email="test@example.com",
+    hashed_password="h",
+    name="Test",
+    is_verified=True,
+)
 
 
 @pytest.fixture
@@ -24,7 +30,14 @@ def test_simulation_run_endpoint(client):
     mock_report = {
         "id": "test123",
         "status": "completed",
-        "config": {"stocks": ["AAPL"], "initial_balance": 10000.0, "train_days": 60, "test_days": 30, "risk_levels": ["moderate"], "mc_simulations": 50},
+        "config": {
+            "stocks": ["AAPL"],
+            "initial_balance": 10000.0,
+            "train_days": 60,
+            "test_days": 30,
+            "risk_levels": ["moderate"],
+            "mc_simulations": 50,
+        },
         "risk_level_results": {},
         "recommendation": None,
         "started_at": "2026-01-01T00:00:00",
@@ -32,15 +45,22 @@ def test_simulation_run_endpoint(client):
         "error": None,
     }
 
-    with patch("src.dashboard.routers.simulation._run_async", new_callable=AsyncMock, return_value=mock_report):
-        resp = client.post("/api/simulation/run", json={
-            "stocks": ["AAPL"],
-            "initial_balance": 10000.0,
-            "train_days": 60,
-            "test_days": 30,
-            "risk_levels": ["moderate"],
-            "mc_simulations": 50,
-        })
+    with patch(
+        "src.dashboard.routers.simulation._run_async",
+        new_callable=AsyncMock,
+        return_value=mock_report,
+    ):
+        resp = client.post(
+            "/api/simulation/run",
+            json={
+                "stocks": ["AAPL"],
+                "initial_balance": 10000.0,
+                "train_days": 60,
+                "test_days": 30,
+                "risk_levels": ["moderate"],
+                "mc_simulations": 50,
+            },
+        )
 
     assert resp.status_code == 200
     data = resp.json()
@@ -85,15 +105,18 @@ def test_simulation_run_forwards_mc_seed(client):
         new_callable=AsyncMock,
         return_value=mock_report,
     ) as mock_run:
-        resp = client.post("/api/simulation/run", json={
-            "stocks": ["AAPL"],
-            "initial_balance": 10000.0,
-            "train_days": 60,
-            "test_days": 30,
-            "risk_levels": ["moderate"],
-            "mc_simulations": 50,
-            "mc_seed": 42,
-        })
+        resp = client.post(
+            "/api/simulation/run",
+            json={
+                "stocks": ["AAPL"],
+                "initial_balance": 10000.0,
+                "train_days": 60,
+                "test_days": 30,
+                "risk_levels": ["moderate"],
+                "mc_simulations": 50,
+                "mc_seed": 42,
+            },
+        )
 
     assert resp.status_code == 200
     # Verify the request object passed to _run_async had mc_seed set
@@ -128,15 +151,18 @@ def test_simulation_run_forwards_max_position_pct(client):
         new_callable=AsyncMock,
         return_value=mock_report,
     ) as mock_run:
-        resp = client.post("/api/simulation/run", json={
-            "stocks": ["AAPL"],
-            "initial_balance": 10000.0,
-            "train_days": 60,
-            "test_days": 30,
-            "risk_levels": ["moderate"],
-            "mc_simulations": 50,
-            "max_position_pct": 5.0,
-        })
+        resp = client.post(
+            "/api/simulation/run",
+            json={
+                "stocks": ["AAPL"],
+                "initial_balance": 10000.0,
+                "train_days": 60,
+                "test_days": 30,
+                "risk_levels": ["moderate"],
+                "mc_simulations": 50,
+                "max_position_pct": 5.0,
+            },
+        )
 
     assert resp.status_code == 200
     call_args = mock_run.call_args

@@ -1,7 +1,6 @@
-import asyncio
 import pytest
 
-from src.core.event_bus import EventBus, Event
+from src.core.event_bus import Event, EventBus
 
 
 class SampleEvent(Event):

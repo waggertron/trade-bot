@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -73,26 +73,20 @@ class TestRSSNewsProvider:
         assert len(articles) == 2
         assert all(isinstance(a, Article) for a in articles)
 
-    async def test_fetch_articles_respects_limit(
-        self, provider: RSSNewsProvider, mock_feed: dict
-    ):
+    async def test_fetch_articles_respects_limit(self, provider: RSSNewsProvider, mock_feed: dict):
         with patch("src.providers.rss.feedparser.parse", return_value=mock_feed):
             articles = await provider.fetch_articles("BTC", limit=1)
 
         assert len(articles) == 1
 
-    async def test_articles_have_correct_source(
-        self, provider: RSSNewsProvider, mock_feed: dict
-    ):
+    async def test_articles_have_correct_source(self, provider: RSSNewsProvider, mock_feed: dict):
         with patch("src.providers.rss.feedparser.parse", return_value=mock_feed):
             articles = await provider.fetch_articles("BTC", limit=10)
 
         for article in articles:
             assert article.source == "rss"
 
-    async def test_articles_have_correct_symbol(
-        self, provider: RSSNewsProvider, mock_feed: dict
-    ):
+    async def test_articles_have_correct_symbol(self, provider: RSSNewsProvider, mock_feed: dict):
         with patch("src.providers.rss.feedparser.parse", return_value=mock_feed):
             articles = await provider.fetch_articles("BTC", limit=10)
 
@@ -109,7 +103,7 @@ class TestRSSNewsProvider:
         assert first.title == "BTC up 10%"
         assert first.body == "Bitcoin rose sharply today after institutional buying."
         assert first.url == "https://example.com/1"
-        assert first.published_at == datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        assert first.published_at == datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
 
     async def test_fetch_articles_multiple_feeds(self, mock_feed: dict):
         config = RSSConfig(
@@ -124,7 +118,8 @@ class TestRSSNewsProvider:
         assert len(articles) == 4
 
     async def test_entries_missing_summary_use_empty_string(
-        self, provider: RSSNewsProvider,
+        self,
+        provider: RSSNewsProvider,
     ):
         feed = {
             "entries": [
@@ -143,7 +138,8 @@ class TestRSSNewsProvider:
         assert articles[0].body == ""
 
     async def test_entries_missing_link_use_empty_string(
-        self, provider: RSSNewsProvider,
+        self,
+        provider: RSSNewsProvider,
     ):
         feed = {
             "entries": [
@@ -166,13 +162,13 @@ class TestRSSNewsProvider:
 
         t = (2026, 1, 15, 12, 0, 0, 0, 0, 0)
         result = RSSNewsProvider._parse_time(t)
-        assert result == datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        assert result == datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
 
     async def test_parse_time_none_returns_now(self):
         from src.providers.rss import RSSNewsProvider
 
         result = RSSNewsProvider._parse_time(None)
         # Should be approximately now in UTC
-        assert result.tzinfo == timezone.utc
-        now = datetime.now(timezone.utc)
+        assert result.tzinfo == UTC
+        now = datetime.now(UTC)
         assert abs((now - result).total_seconds()) < 2

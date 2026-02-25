@@ -1,5 +1,3 @@
-import pytest
-
 from src.integrations.claude_client import ClaudeClient
 from src.integrations.ollama_client import OllamaClient
 

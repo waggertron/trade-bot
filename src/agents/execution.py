@@ -1,7 +1,7 @@
 # src/agents/execution.py
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from src.core.models import AssetType, Fill, Order, OrderSide, OrderType
@@ -44,7 +44,7 @@ class PaperExecutionAgent:
             side=order.side,
             quantity=order.quantity,
             fill_price=fill_price,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     async def cancel_order(self, order_id: str) -> bool:

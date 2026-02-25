@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from src.analytics.models import MonteCarloResult, Trade
+from src.analytics.models import Trade
 from src.analytics.monte_carlo import MonteCarloSimulator
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_trade(pnl: float, symbol: str = "BTC/USD") -> Trade:
     """Create a Trade with the given pnl (entry/exit prices derived)."""
@@ -29,6 +29,7 @@ def make_trade(pnl: float, symbol: str = "BTC/USD") -> Trade:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestMonteCarloSimulator:
     """Tests for MonteCarloSimulator.simulate()."""

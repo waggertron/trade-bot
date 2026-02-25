@@ -59,7 +59,7 @@ def status() -> None:
     enabled_str = "[green]Yes[/green]" if cfg.enabled else "[red]No[/red]"
     console.print(f"  Enabled:    {enabled_str}")
     console.print(f"  Analyzer:   {cfg.analyzer}")
-    console.print(f"  Feeds:      DB-managed (see 'feeds' table)")
+    console.print("  Feeds:      DB-managed (see 'feeds' table)")
     console.print(f"  Interval:   {cfg.pipeline_interval_seconds}s")
 
     console.print()

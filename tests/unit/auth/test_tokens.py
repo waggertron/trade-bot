@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from jose import JWTError
 
 from src.auth.tokens import create_access_token, create_refresh_token, decode_token
 
@@ -44,17 +45,19 @@ class TestDecodeToken:
         assert payload["sub"] == "user123"
 
     def test_invalid_token_raises(self):
-        with pytest.raises(Exception):
+        with pytest.raises(JWTError):
             decode_token("invalid.token.here", secret=TEST_SECRET)
 
     def test_wrong_secret_raises(self):
         token = create_access_token(user_id="user123", secret=TEST_SECRET)
-        with pytest.raises(Exception):
+        with pytest.raises(JWTError):
             decode_token(token, secret="wrong-secret")
 
     def test_expired_token_raises(self):
         token = create_access_token(
-            user_id="user123", secret=TEST_SECRET, expire_minutes=-1,
+            user_id="user123",
+            secret=TEST_SECRET,
+            expire_minutes=-1,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(JWTError):
             decode_token(token, secret=TEST_SECRET)

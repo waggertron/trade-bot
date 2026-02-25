@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from src.db.database import Database
-from src.db.models import ArticleRecord, FeedRecord, SentimentScoreRecord
-from src.providers.configs import MockNewsConfig, MockSentimentConfig
-from src.providers.mock import MockNewsProvider, MockSentimentAnalyzer
+from src.db.models import ArticleRecord, SentimentScoreRecord
+from src.providers.configs import MockSentimentConfig
+from src.providers.mock import MockSentimentAnalyzer
 from src.sentiment.models import Article
 from src.sentiment.pipeline import SentimentPipeline
-
 
 CANNED_ARTICLES = [
     Article(
@@ -20,7 +19,7 @@ CANNED_ARTICLES = [
         body="Bitcoin broke records today...",
         source="rss",
         url="https://example.com/1",
-        published_at=datetime(2026, 1, 15, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 15, tzinfo=UTC),
         related_symbols=["BTC"],
     ),
 ]
@@ -130,17 +129,19 @@ class TestWarmUp:
             content_hash="warmup_hash",
             title="Old article",
             source="rss",
-            published_at=datetime(2026, 1, 10, tzinfo=timezone.utc),
+            published_at=datetime(2026, 1, 10, tzinfo=UTC),
             symbols=["BTC"],
         )
         await db.save_article(article)
-        await db.save_score(SentimentScoreRecord(
-            article_id=article.id,
-            score=0.8,
-            magnitude=0.9,
-            analyzer="mock",
-            reasoning="Warm-up test",
-        ))
+        await db.save_score(
+            SentimentScoreRecord(
+                article_id=article.id,
+                score=0.8,
+                magnitude=0.9,
+                analyzer="mock",
+                reasoning="Warm-up test",
+            )
+        )
 
         pipeline = _make_pipeline(db)
         await pipeline.warm_up(["BTC"], hours=48)

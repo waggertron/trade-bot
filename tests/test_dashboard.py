@@ -1,20 +1,25 @@
 # tests/test_dashboard.py
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 
+from src.core.config import RiskSettings, Settings
+from src.core.models import AssetType, PortfolioSnapshot, Position
 from src.dashboard import dependencies
 from src.dashboard.app import create_app
 from src.dashboard.dependencies import require_user
-from src.core.config import RiskSettings, Settings
-from src.core.models import PortfolioSnapshot, Position, AssetType
 from src.db.models import TradeRecord, UserRecord
 
-_test_user = UserRecord(email="test@example.com", hashed_password="h", name="Test", is_verified=True)
+_test_user = UserRecord(
+    email="test@example.com",
+    hashed_password="h",
+    name="Test",
+    is_verified=True,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -48,17 +53,21 @@ def mock_portfolio():
         cash=Decimal("50000"),
         positions=[
             Position(
-                symbol="AAPL", quantity=Decimal("10"),
-                avg_entry_price=Decimal("150"), current_price=Decimal("155"),
+                symbol="AAPL",
+                quantity=Decimal("10"),
+                avg_entry_price=Decimal("150"),
+                current_price=Decimal("155"),
                 asset_type=AssetType.STOCK,
             )
         ],
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     portfolio.get_positions.return_value = [
         Position(
-            symbol="AAPL", quantity=Decimal("10"),
-            avg_entry_price=Decimal("150"), current_price=Decimal("155"),
+            symbol="AAPL",
+            quantity=Decimal("10"),
+            avg_entry_price=Decimal("150"),
+            current_price=Decimal("155"),
             asset_type=AssetType.STOCK,
         )
     ]
@@ -74,9 +83,14 @@ def mock_db():
     db = AsyncMock()
     db.list_trades.return_value = [
         TradeRecord(
-            symbol="AAPL", side="buy", quantity="10", price="150",
-            commission="1", strategy="momentum", paper=True,
-            timestamp=datetime.now(timezone.utc),
+            symbol="AAPL",
+            side="buy",
+            quantity="10",
+            price="150",
+            commission="1",
+            strategy="momentum",
+            paper=True,
+            timestamp=datetime.now(UTC),
         )
     ]
     db.list_signals.return_value = []
@@ -127,7 +141,9 @@ def mock_settings():
 def mock_strategies():
     return [
         SimpleNamespace(
-            name="momentum", enabled=True, weight=0.4,
+            name="momentum",
+            enabled=True,
+            weight=0.4,
             description="Momentum strategy",
             __class__=type("MomentumStrategy", (), {}),
         ),
@@ -136,8 +152,14 @@ def mock_strategies():
 
 @pytest.fixture
 async def client(
-    mock_portfolio, mock_db, mock_orchestrator, mock_executor,
-    mock_risk_manager, mock_event_bus, mock_settings, mock_strategies,
+    mock_portfolio,
+    mock_db,
+    mock_orchestrator,
+    mock_executor,
+    mock_risk_manager,
+    mock_event_bus,
+    mock_settings,
+    mock_strategies,
 ):
     app = create_app(
         portfolio_manager=mock_portfolio,

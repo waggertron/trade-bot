@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -16,7 +16,6 @@ from src.core.models import (
     RiskDecision,
 )
 from src.risk.models import RiskContext, StrategyPerformance, VolatilityRegime
-
 
 # -- VolatilityRegime --------------------------------------------------------
 
@@ -108,7 +107,7 @@ class TestStrategyPerformance:
 
 # -- RiskContext --------------------------------------------------------------
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 def _make_portfolio() -> PortfolioSnapshot:

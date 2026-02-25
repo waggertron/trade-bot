@@ -1,4 +1,5 @@
 """Tests for OHLC database loading and querying."""
+
 from __future__ import annotations
 
 import csv
@@ -25,12 +26,30 @@ def sample_csv(tmp_path: Path) -> Path:
     """Create a sample CSV file for testing."""
     filepath = tmp_path / "test.csv"
     rows = [
-        {"timestamp": "1000", "open": "100", "high": "110",
-         "low": "90", "close": "105", "volume": "1000"},
-        {"timestamp": "2000", "open": "105", "high": "115",
-         "low": "95", "close": "110", "volume": "1100"},
-        {"timestamp": "3000", "open": "110", "high": "120",
-         "low": "100", "close": "115", "volume": "1200"},
+        {
+            "timestamp": "1000",
+            "open": "100",
+            "high": "110",
+            "low": "90",
+            "close": "105",
+            "volume": "1000",
+        },
+        {
+            "timestamp": "2000",
+            "open": "105",
+            "high": "115",
+            "low": "95",
+            "close": "110",
+            "volume": "1100",
+        },
+        {
+            "timestamp": "3000",
+            "open": "110",
+            "high": "120",
+            "low": "100",
+            "close": "115",
+            "volume": "1200",
+        },
     ]
     cols = ["timestamp", "open", "high", "low", "close", "volume"]
     with open(filepath, "w", newline="") as f:
@@ -86,9 +105,15 @@ async def test_load_ohlc_bars_directly(db: Database) -> None:
     """Test the load_ohlc_bars method directly."""
     records = [
         OHLCRecord(
-            symbol="SPY", interval="1d", timestamp=i * 1000,
-            open="100", high="110", low="90", close="105",
-            volume="500", source="yfinance",
+            symbol="SPY",
+            interval="1d",
+            timestamp=i * 1000,
+            open="100",
+            high="110",
+            low="90",
+            close="105",
+            volume="500",
+            source="yfinance",
         )
         for i in range(1, 4)
     ]
@@ -103,16 +128,28 @@ async def test_query_with_source_filter(db: Database) -> None:
     """Query bars filtered by source."""
     records_a = [
         OHLCRecord(
-            symbol="BTCUSD", interval="1d", timestamp=1000,
-            open="50000", high="51000", low="49000", close="50500",
-            volume="100", source="cryptocompare",
+            symbol="BTCUSD",
+            interval="1d",
+            timestamp=1000,
+            open="50000",
+            high="51000",
+            low="49000",
+            close="50500",
+            volume="100",
+            source="cryptocompare",
         ),
     ]
     records_b = [
         OHLCRecord(
-            symbol="BTCUSD", interval="1d", timestamp=2000,
-            open="50500", high="52000", low="50000", close="51500",
-            volume="200", source="binance",
+            symbol="BTCUSD",
+            interval="1d",
+            timestamp=2000,
+            open="50500",
+            high="52000",
+            low="50000",
+            close="51500",
+            volume="200",
+            source="binance",
         ),
     ]
     await db.load_ohlc_bars(records_a)

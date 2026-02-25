@@ -4,6 +4,7 @@ These tests exercise the full pipeline: engine -> backtest -> MC projection -> p
 verifying end-to-end behavior for portfolio mode, backward compatibility, custom weights,
 single-stock portfolios, and serialization round-trips.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,9 @@ from src.simulation.models import (
 
 
 def _make_bars(
-    n: int, start_price: float = 150.0, volatility: float = 2.0,
+    n: int,
+    start_price: float = 150.0,
+    volatility: float = 2.0,
 ) -> list[OHLCBar]:
     """Create n daily bars simulating realistic stock price movement."""
     random.seed(42)
@@ -33,20 +36,24 @@ def _make_bars(
     for i in range(n):
         change = random.gauss(0.1, volatility)
         price = max(1.0, price + change)
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=f"{price - 0.5:.2f}",
-            high=f"{price + abs(change):.2f}",
-            low=f"{price - abs(change):.2f}",
-            close=f"{price:.2f}",
-            volume=str(random.randint(500000, 5000000)),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=f"{price - 0.5:.2f}",
+                high=f"{price + abs(change):.2f}",
+                low=f"{price - abs(change):.2f}",
+                close=f"{price:.2f}",
+                volume=str(random.randint(500000, 5000000)),
+                source="yfinance",
+            )
+        )
     return bars
 
 
 def _make_bars_for_symbol(
-    symbol: str, n: int = 90, base_price: float = 100.0,
+    symbol: str,
+    n: int = 90,
+    base_price: float = 100.0,
 ) -> list[OHLCBar]:
     """Create n daily bars with a seed derived from the symbol name."""
     seed = hash(symbol) % 1000
@@ -58,15 +65,17 @@ def _make_bars_for_symbol(
     for i in range(n):
         change = random.gauss(0.1, 2.0)
         price = max(1.0, price + change)
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=f"{price - 0.5:.2f}",
-            high=f"{price + abs(change):.2f}",
-            low=f"{price - abs(change):.2f}",
-            close=f"{price:.2f}",
-            volume=str(random.randint(500000, 5000000)),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=f"{price - 0.5:.2f}",
+                high=f"{price + abs(change):.2f}",
+                low=f"{price - abs(change):.2f}",
+                close=f"{price:.2f}",
+                volume=str(random.randint(500000, 5000000)),
+                source="yfinance",
+            )
+        )
     return bars
 
 
@@ -335,4 +344,5 @@ async def test_portfolio_serialization_roundtrip():
     # Round-trip: deserialize and check key fields survive
     deserialized = json.loads(serialized)
     assert deserialized["status"] == "completed"
-    assert deserialized["risk_level_results"]["moderate"]["portfolio_metrics"]["initial_balance"] == config.initial_balance
+    moderate = deserialized["risk_level_results"]["moderate"]
+    assert moderate["portfolio_metrics"]["initial_balance"] == config.initial_balance

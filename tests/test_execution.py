@@ -1,7 +1,7 @@
 # tests/test_execution.py
-import pytest
-from datetime import datetime, timezone
 from decimal import Decimal
+
+import pytest
 
 from src.agents.execution import PaperExecutionAgent
 from src.core.models import AssetType, Order, OrderSide, OrderType
@@ -15,8 +15,11 @@ def executor():
 async def test_submit_market_order(executor):
     executor.set_current_price("AAPL", Decimal("150.00"))
     order = Order(
-        symbol="AAPL", side=OrderSide.BUY, order_type=OrderType.MARKET,
-        quantity=Decimal("10"), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        order_type=OrderType.MARKET,
+        quantity=Decimal("10"),
+        asset_type=AssetType.STOCK,
     )
     fill = await executor.submit_order(order)
     assert fill.symbol == "AAPL"
@@ -28,8 +31,11 @@ async def test_submit_market_order(executor):
 async def test_submit_limit_order_fills(executor):
     executor.set_current_price("AAPL", Decimal("149.00"))
     order = Order(
-        symbol="AAPL", side=OrderSide.BUY, order_type=OrderType.LIMIT,
-        quantity=Decimal("10"), limit_price=Decimal("150.00"),
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        order_type=OrderType.LIMIT,
+        quantity=Decimal("10"),
+        limit_price=Decimal("150.00"),
         asset_type=AssetType.STOCK,
     )
     fill = await executor.submit_order(order)

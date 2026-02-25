@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from src.dashboard.dependencies import require_user, state
-from src.db.models import UserRecord
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 
@@ -17,7 +17,7 @@ async def get_ohlc(
     start: int | None = None,
     end: int | None = None,
     limit: int = 500,
-    current_user: UserRecord = Depends(require_user),
+    current_user: UserRecord = Depends(require_user),  # noqa: B008
 ):
     """OHLC bars for charting."""
     if state.db is None:
@@ -47,18 +47,15 @@ async def get_ohlc(
 
 
 @router.get("/prices")
-async def get_current_prices(current_user: UserRecord = Depends(require_user)):
+async def get_current_prices(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Current prices for all symbols from executor."""
     if state.executor is None:
         return {}
-    return {
-        symbol: str(price)
-        for symbol, price in state.executor._current_prices.items()
-    }
+    return {symbol: str(price) for symbol, price in state.executor._current_prices.items()}
 
 
 @router.get("/sparklines")
-async def get_sparklines(points: int = 24, current_user: UserRecord = Depends(require_user)):
+async def get_sparklines(points: int = 24, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Mini price arrays for watchlist sparklines."""
     if state.db is None:
         return {}
@@ -70,12 +67,15 @@ async def get_sparklines(points: int = 24, current_user: UserRecord = Depends(re
 
     # Group by symbol, take last N close prices
     from collections import defaultdict
+
     by_symbol: dict[str, list[dict]] = defaultdict(list)
     for bar in bars:
-        by_symbol[bar.symbol].append({
-            "timestamp": bar.timestamp,
-            "close": float(bar.close),
-        })
+        by_symbol[bar.symbol].append(
+            {
+                "timestamp": bar.timestamp,
+                "close": float(bar.close),
+            }
+        )
 
     result = {}
     for symbol, data in by_symbol.items():

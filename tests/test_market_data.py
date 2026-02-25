@@ -1,9 +1,8 @@
-import pytest
-from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
+
 from src.agents.market_data import MarketDataManager
-from src.core.models import AssetType, MarketTick
 
 
 class MockStockFeed:

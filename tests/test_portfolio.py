@@ -1,9 +1,10 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
+
 from src.agents.portfolio import PortfolioManager
-from src.core.models import AssetType, Fill, OrderSide, Position
+from src.core.models import Fill, OrderSide
 
 
 @pytest.fixture
@@ -20,9 +21,13 @@ async def test_initial_snapshot(portfolio):
 
 async def test_record_buy_fill(portfolio):
     fill = Fill(
-        order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-        quantity=Decimal("10"), fill_price=Decimal("150"),
-        timestamp=datetime.now(timezone.utc), commission=Decimal("1"),
+        order_id="ord-1",
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        fill_price=Decimal("150"),
+        timestamp=datetime.now(UTC),
+        commission=Decimal("1"),
     )
     await portfolio.record_fill(fill)
     positions = await portfolio.get_positions()
@@ -37,16 +42,24 @@ async def test_record_buy_fill(portfolio):
 
 async def test_record_sell_fill(portfolio):
     buy = Fill(
-        order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-        quantity=Decimal("10"), fill_price=Decimal("150"),
-        timestamp=datetime.now(timezone.utc), commission=Decimal("1"),
+        order_id="ord-1",
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        fill_price=Decimal("150"),
+        timestamp=datetime.now(UTC),
+        commission=Decimal("1"),
     )
     await portfolio.record_fill(buy)
 
     sell = Fill(
-        order_id="ord-2", symbol="AAPL", side=OrderSide.SELL,
-        quantity=Decimal("5"), fill_price=Decimal("160"),
-        timestamp=datetime.now(timezone.utc), commission=Decimal("1"),
+        order_id="ord-2",
+        symbol="AAPL",
+        side=OrderSide.SELL,
+        quantity=Decimal("5"),
+        fill_price=Decimal("160"),
+        timestamp=datetime.now(UTC),
+        commission=Decimal("1"),
     )
     await portfolio.record_fill(sell)
 
@@ -61,16 +74,22 @@ async def test_record_sell_fill(portfolio):
 
 async def test_sell_all_removes_position(portfolio):
     buy = Fill(
-        order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-        quantity=Decimal("10"), fill_price=Decimal("150"),
-        timestamp=datetime.now(timezone.utc),
+        order_id="ord-1",
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        fill_price=Decimal("150"),
+        timestamp=datetime.now(UTC),
     )
     await portfolio.record_fill(buy)
 
     sell = Fill(
-        order_id="ord-2", symbol="AAPL", side=OrderSide.SELL,
-        quantity=Decimal("10"), fill_price=Decimal("155"),
-        timestamp=datetime.now(timezone.utc),
+        order_id="ord-2",
+        symbol="AAPL",
+        side=OrderSide.SELL,
+        quantity=Decimal("10"),
+        fill_price=Decimal("155"),
+        timestamp=datetime.now(UTC),
     )
     await portfolio.record_fill(sell)
 
@@ -80,14 +99,20 @@ async def test_sell_all_removes_position(portfolio):
 
 async def test_get_pnl(portfolio):
     buy = Fill(
-        order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-        quantity=Decimal("10"), fill_price=Decimal("150"),
-        timestamp=datetime.now(timezone.utc),
+        order_id="ord-1",
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        fill_price=Decimal("150"),
+        timestamp=datetime.now(UTC),
     )
     sell = Fill(
-        order_id="ord-2", symbol="AAPL", side=OrderSide.SELL,
-        quantity=Decimal("10"), fill_price=Decimal("160"),
-        timestamp=datetime.now(timezone.utc),
+        order_id="ord-2",
+        symbol="AAPL",
+        side=OrderSide.SELL,
+        quantity=Decimal("10"),
+        fill_price=Decimal("160"),
+        timestamp=datetime.now(UTC),
     )
     await portfolio.record_fill(buy)
     await portfolio.record_fill(sell)

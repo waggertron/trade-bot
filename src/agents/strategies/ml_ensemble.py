@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from src.core.models import Signal, SignalDirection
-from src.ml.models import FeatureVector
+
+if TYPE_CHECKING:
+    from src.ml.models import FeatureVector
 
 
 class MLEnsembleStrategy:
@@ -49,6 +52,8 @@ class MLEnsembleStrategy:
             direction=direction,
             confidence=prediction.confidence,
             strategy_name=self.name,
-            reasoning=f"ML ensemble: {prediction.direction} with {prediction.confidence:.2f} confidence",
-            timestamp=datetime.now(timezone.utc),
+            reasoning=(
+                f"ML ensemble: {prediction.direction} with {prediction.confidence:.2f} confidence"
+            ),
+            timestamp=datetime.now(UTC),
         )

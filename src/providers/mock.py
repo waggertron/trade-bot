@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.core.models import AssetType, MarketTick
-from src.sentiment.models import SentimentResult
-from src.db.models import SignalRecord, TradeRecord
 from src.providers.configs import (
     MockFeatureConfig,
     MockMarketConfig,
@@ -18,7 +16,10 @@ from src.providers.configs import (
     MockSentimentConfig,
 )
 from src.providers.protocols import HttpResponse
+from src.sentiment.models import SentimentResult
 
+if TYPE_CHECKING:
+    from src.db.models import SignalRecord, TradeRecord
 
 # -- Mock HttpClient ----------------------------------------------------------
 
@@ -80,7 +81,7 @@ class MockMarketDataProvider:
         if self._config.latency_ms > 0:
             await asyncio.sleep(self._config.latency_ms / 1000.0)
         ticks: list[MarketTick] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for sym in symbols:
             price = self._prices.get(sym, Decimal("100.00"))
             ticks.append(
@@ -94,9 +95,7 @@ class MockMarketDataProvider:
             )
         return ticks
 
-    async def get_ohlc(
-        self, symbol: str, interval: str, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_ohlc(self, symbol: str, interval: str, limit: int = 100) -> list[dict[str, Any]]:
         if self._config.should_fail:
             raise RuntimeError("MockMarketDataProvider configured to fail")
         return []
@@ -156,7 +155,7 @@ class MockSentimentAnalyzer:
         return SentimentResult(
             score=self._config.default_score,
             magnitude=self._config.default_magnitude,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning=None,
         )
 
@@ -191,24 +190,28 @@ class MockOnChainProvider:
         else:
             self._should_fail = should_fail
 
-        self._metrics: dict[str, dict[str, Any]] = metrics if metrics is not None else {
-            "BTC": {
-                "symbol": "BTC",
-                "timestamp": 1700000000,
-                "active_addresses": 1000000,
-                "transaction_count": 500000,
-                "average_transaction_value": 25000.0,
-                "blocks_24h": 144,
-            },
-            "ETH": {
-                "symbol": "ETH",
-                "timestamp": 1700000000,
-                "active_addresses": 500000,
-                "transaction_count": 1200000,
-                "average_transaction_value": 800.0,
-                "blocks_24h": 7200,
-            },
-        }
+        self._metrics: dict[str, dict[str, Any]] = (
+            metrics
+            if metrics is not None
+            else {
+                "BTC": {
+                    "symbol": "BTC",
+                    "timestamp": 1700000000,
+                    "active_addresses": 1000000,
+                    "transaction_count": 500000,
+                    "average_transaction_value": 25000.0,
+                    "blocks_24h": 144,
+                },
+                "ETH": {
+                    "symbol": "ETH",
+                    "timestamp": 1700000000,
+                    "active_addresses": 500000,
+                    "transaction_count": 1200000,
+                    "average_transaction_value": 800.0,
+                    "blocks_24h": 7200,
+                },
+            }
+        )
         self.call_count: int = 0
 
     @property
@@ -271,9 +274,7 @@ class MockDataStore:
         self._trades.append(trade)
         return trade.id
 
-    async def list_trades(
-        self, strategy: str | None = None, limit: int = 100
-    ) -> list[TradeRecord]:
+    async def list_trades(self, strategy: str | None = None, limit: int = 100) -> list[TradeRecord]:
         trades = self._trades
         if strategy is not None:
             trades = [t for t in trades if t.strategy == strategy]

@@ -1,4 +1,5 @@
 """Monte Carlo price path projector using geometric Brownian motion."""
+
 from __future__ import annotations
 
 import logging
@@ -35,7 +36,7 @@ class MonteCarloProjector:
         last_price = prices[-1]
 
         # GBM: S(t+1) = S(t) * exp((mu - sigma^2/2) + sigma * Z)
-        drift = mu - 0.5 * sigma ** 2
+        drift = mu - 0.5 * sigma**2
         shocks = self._rng.normal(0, 1, size=(self._n_paths, days_forward))
 
         log_paths = drift + sigma * shocks
@@ -93,7 +94,9 @@ class MonteCarloProjector:
 
         # 5. Generate independent normal shocks: (n_paths, days_forward, n_stocks)
         independent_shocks = self._rng.normal(
-            0, 1, size=(self._n_paths, days_forward, n_stocks),
+            0,
+            1,
+            size=(self._n_paths, days_forward, n_stocks),
         )
 
         # 6. Apply Cholesky factor to correlate shocks
@@ -124,10 +127,9 @@ class MonteCarloProjector:
 
         # 8. Convert to portfolio value
         # shares_s = (initial_balance * weight_s) / last_price_s
-        shares = np.array([
-            (initial_balance * weights[sym]) / last_prices[i]
-            for i, sym in enumerate(symbols)
-        ])
+        shares = np.array(
+            [(initial_balance * weights[sym]) / last_prices[i] for i, sym in enumerate(symbols)]
+        )
 
         # portfolio_value[path, day] = sum(shares_s * price_path_s[path, day])
         portfolio_paths = np.einsum("pds,s->pd", stock_price_paths, shares)

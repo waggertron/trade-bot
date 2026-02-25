@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -14,7 +14,6 @@ from src.analytics.regime_tagger import RegimeTagger
 from src.analytics.reporter import AnalyticsReporter
 from src.core.models import Fill, OrderSide
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -24,14 +23,14 @@ _COUNTER = 0
 
 def _next_id() -> str:
     """Generate a unique fill id for test reproducibility."""
-    global _COUNTER  # noqa: PLW0603
+    global _COUNTER
     _COUNTER += 1
     return f"fill-{_COUNTER}"
 
 
 def _ts(minute: int) -> datetime:
     """Create a deterministic UTC timestamp at a given minute offset."""
-    return datetime(2025, 6, 15, 12, minute, 0, tzinfo=timezone.utc)
+    return datetime(2025, 6, 15, 12, minute, 0, tzinfo=UTC)
 
 
 def _make_fill(

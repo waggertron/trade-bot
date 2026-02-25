@@ -8,9 +8,11 @@ downstream scoring only processes each piece of content once.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
-from src.sentiment.models import Article
+if TYPE_CHECKING:
+    from src.sentiment.models import Article
 
 
 class ArticleBuffer:
@@ -36,7 +38,7 @@ class ArticleBuffer:
         Returns the count of new (non-duplicate) articles ingested.
         """
         new_count = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for article in articles:
             if article.content_hash in self._seen:
@@ -68,11 +70,8 @@ class ArticleBuffer:
 
         Returns the count of hashes removed.
         """
-        now = datetime.now(timezone.utc)
-        expired = [
-            h for h, seen_at in self._seen.items()
-            if (now - seen_at) >= self._max_age
-        ]
+        now = datetime.now(UTC)
+        expired = [h for h, seen_at in self._seen.items() if (now - seen_at) >= self._max_age]
         for h in expired:
             del self._seen[h]
         return len(expired)

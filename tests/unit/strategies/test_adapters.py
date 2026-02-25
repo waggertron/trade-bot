@@ -13,7 +13,6 @@ from src.core.models import Signal, SignalDirection
 from src.core.protocols import FeatureStrategy
 from src.ml.models import FeatureVector
 
-
 # -- Helper ---------------------------------------------------------------
 
 

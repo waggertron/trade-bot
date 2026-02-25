@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from src.ml.models import Dataset, EvalMetrics, FeatureVector, Prediction, TrainResult
+if TYPE_CHECKING:
+    from src.ml.models import Dataset, EvalMetrics, FeatureVector, Prediction, TrainResult
 
 
 @runtime_checkable

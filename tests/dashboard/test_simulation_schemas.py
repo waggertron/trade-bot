@@ -1,6 +1,8 @@
 """Tests for simulation API schema portfolio fields."""
+
 import pytest
 from pydantic import ValidationError
+
 from src.dashboard.schemas import SimulationRequest
 
 

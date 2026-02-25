@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

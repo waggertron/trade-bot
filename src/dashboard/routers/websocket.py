@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-
-from src.dashboard.dependencies import state
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
@@ -20,11 +17,13 @@ _clients: set[WebSocket] = set()
 
 async def broadcast(event_type: str, data: dict) -> None:
     """Broadcast an event to all connected WebSocket clients."""
-    message = json.dumps({
-        "type": event_type,
-        "data": data,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    message = json.dumps(
+        {
+            "type": event_type,
+            "data": data,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+    )
     disconnected = set()
     for ws in _clients:
         try:

@@ -47,15 +47,21 @@ class TestGovernmentFeedAdapter:
     async def test_fetch_returns_articles_from_rss_feed(self):
         adapter = GovernmentFeedAdapter([_make_feed()])
         # Mock the RSS parsing
-        with patch.object(adapter, "_fetch_rss", return_value=[
-            Article(
-                title="Fed Rate Decision",
-                body="The Federal Reserve...",
-                source="government",
-                published_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
-                related_symbols=["SPY"],
-            )
-        ]):
+        with patch.object(
+            adapter,
+            "_fetch_rss",
+            return_value=[
+                Article(
+                    title="Fed Rate Decision",
+                    body="The Federal Reserve...",
+                    source="government",
+                    published_at=__import__("datetime").datetime.now(
+                        __import__("datetime").timezone.utc
+                    ),
+                    related_symbols=["SPY"],
+                )
+            ],
+        ):
             articles = await adapter.fetch_articles("SPY")
         assert len(articles) == 1
         assert articles[0].title == "Fed Rate Decision"

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from src.core.models import PortfolioSnapshot, Signal
 from src.risk.models import RiskContext, VolatilityRegime
+
+if TYPE_CHECKING:
+    from src.core.models import PortfolioSnapshot, Signal
 
 _REGIME_MULTIPLIER: dict[VolatilityRegime, Decimal] = {
     VolatilityRegime.LOW: Decimal("1.0"),

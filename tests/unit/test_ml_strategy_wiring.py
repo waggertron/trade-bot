@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -11,7 +11,6 @@ from src.core.config import Settings
 from src.core.models import AssetType, MarketTick, SignalDirection
 from src.ml.feature_store import FeatureStore
 from src.ml.mock_model import MockModel
-from src.ml.models import FeatureVector
 
 
 def test_build_ml_strategy_mock_true():
@@ -41,6 +40,7 @@ async def test_ml_tick_adapter_bridges_to_feature_strategy():
 
     model = MockModel(default_direction="buy", default_confidence=0.8)
     from src.agents.strategies.ml_ensemble import MLEnsembleStrategy
+
     ml_strategy = MLEnsembleStrategy(model=model)
 
     feature_store = FeatureStore()
@@ -54,7 +54,7 @@ async def test_ml_tick_adapter_bridges_to_feature_strategy():
         symbol="BTC/USD",
         price=Decimal("50000"),
         volume=1000,
-        timestamp=datetime.fromtimestamp(1000, tz=timezone.utc),
+        timestamp=datetime.fromtimestamp(1000, tz=UTC),
         asset_type=AssetType.CRYPTO,
     )
 
@@ -72,6 +72,7 @@ async def test_ml_tick_adapter_returns_none_when_no_features():
 
     model = MockModel(default_direction="buy", default_confidence=0.8)
     from src.agents.strategies.ml_ensemble import MLEnsembleStrategy
+
     ml_strategy = MLEnsembleStrategy(model=model)
 
     feature_store = FeatureStore()  # Empty store
@@ -82,7 +83,7 @@ async def test_ml_tick_adapter_returns_none_when_no_features():
         symbol="BTC/USD",
         price=Decimal("50000"),
         volume=1000,
-        timestamp=datetime.fromtimestamp(2000, tz=timezone.utc),
+        timestamp=datetime.fromtimestamp(2000, tz=UTC),
         asset_type=AssetType.CRYPTO,
     )
 

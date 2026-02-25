@@ -1,4 +1,5 @@
 """Portfolio-level simulation logic."""
+
 from __future__ import annotations
 
 import math
@@ -80,10 +81,7 @@ class PortfolioSimulator:
 
         portfolio: list[float] = []
         for i in range(min_len):
-            value = sum(
-                allocated[sym] * (curve[i] / base[sym])
-                for sym, curve in usable
-            )
+            value = sum(allocated[sym] * (curve[i] / base[sym]) for sym, curve in usable)
             portfolio.append(value)
 
             if self.should_rebalance(i, min_len):
@@ -99,8 +97,11 @@ class PortfolioSimulator:
     # ------------------------------------------------------------------
 
     def compute_portfolio_metrics(
-        self, equity_curve: list[float], total_trades: int,
-        *, rebalance_days: list[int] | None = None,
+        self,
+        equity_curve: list[float],
+        total_trades: int,
+        *,
+        rebalance_days: list[int] | None = None,
     ) -> PortfolioMetrics:
         """Derive portfolio-level performance metrics from an equity curve."""
         initial = equity_curve[0] if equity_curve else 0.0
@@ -212,9 +213,7 @@ class PortfolioSimulator:
         return mean_r / std_neg * math.sqrt(252)
 
     @staticmethod
-    def _calmar(
-        total_return_pct: float, max_drawdown: float, n_daily: int
-    ) -> float:
+    def _calmar(total_return_pct: float, max_drawdown: float, n_daily: int) -> float:
         """Calmar ratio: annualised return / max drawdown."""
         if max_drawdown == 0 or n_daily == 0:
             return 0.0

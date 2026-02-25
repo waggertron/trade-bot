@@ -1,6 +1,7 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
+
+import pytest
 
 from src.agents.strategies.sentiment import SentimentStrategy
 from src.core.models import AssetType, MarketTick, ResearchReport, SignalDirection
@@ -8,15 +9,21 @@ from src.core.models import AssetType, MarketTick, ResearchReport, SignalDirecti
 
 def make_tick(symbol="AAPL", price="150.00"):
     return MarketTick(
-        symbol=symbol, price=Decimal(price), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol=symbol,
+        price=Decimal(price),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
 
 
 def make_report(symbol="AAPL", sentiment=0.8, summary="Positive outlook"):
     return ResearchReport(
-        symbol=symbol, summary=summary, sentiment_score=sentiment,
-        timestamp=datetime.now(timezone.utc), sources=["news"],
+        symbol=symbol,
+        summary=summary,
+        sentiment_score=sentiment,
+        timestamp=datetime.now(UTC),
+        sources=["news"],
     )
 
 

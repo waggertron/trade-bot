@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -19,7 +19,7 @@ def _make_result(
     return SentimentResult(
         score=score,
         magnitude=magnitude,
-        timestamp=timestamp or datetime.now(timezone.utc),
+        timestamp=timestamp or datetime.now(UTC),
     )
 
 
@@ -31,12 +31,12 @@ class TestSentimentAggregatorExponential:
 
     def test_no_scores_returns_zero(self):
         agg = SentimentAggregator()
-        result = agg.aggregate("BTC", datetime.now(timezone.utc))
+        result = agg.aggregate("BTC", datetime.now(UTC))
         assert result == 0.0
 
     def test_single_recent_score(self):
         """A score created 'now' should come back approximately as-is."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("BTC", [_make_result(score=0.8, magnitude=1.0, timestamp=now)])
         result = agg.aggregate("BTC", now)
@@ -45,7 +45,7 @@ class TestSentimentAggregatorExponential:
     def test_old_score_decays(self):
         """A score 12 hours old with a 6-hour half-life should be weighted at
         ~0.25 of its original value relative to a fresh score."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         twelve_hours_ago = now - timedelta(hours=12)
 
         agg = SentimentAggregator(half_life_hours=6.0)
@@ -65,7 +65,7 @@ class TestSentimentAggregatorExponential:
     def test_recent_outweighs_old(self):
         """When a recent bullish score and an old bearish score compete,
         the recent one should dominate."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         old_time = now - timedelta(hours=12)  # 2 half-lives at 6h
 
         agg = SentimentAggregator(half_life_hours=6.0)
@@ -87,7 +87,7 @@ class TestSentimentAggregatorExponential:
 
     def test_magnitude_scales_contribution(self):
         """A low-magnitude score contributes less than a high-magnitude score."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         agg = SentimentAggregator()
         agg.add_scores(
@@ -108,7 +108,7 @@ class TestSentimentAggregatorExponential:
 
     def test_prune_removes_old_scores(self):
         """Scores older than max_age_hours should be pruned."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         old_time = now - timedelta(hours=49)  # Older than 48h default
         recent_time = now - timedelta(hours=1)
 
@@ -130,11 +130,11 @@ class TestSentimentAggregatorExponential:
 
     def test_prune_nonexistent_symbol_returns_zero(self):
         agg = SentimentAggregator()
-        removed = agg.prune("NONEXISTENT", datetime.now(timezone.utc))
+        removed = agg.prune("NONEXISTENT", datetime.now(UTC))
         assert removed == 0
 
     def test_symbols_lists_symbols_with_scores(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
 
         assert agg.symbols() == []
@@ -148,7 +148,7 @@ class TestSentimentAggregatorExponential:
     def test_symbols_excludes_empty_after_prune(self):
         """After pruning all scores for a symbol, it should still appear in
         symbols() since the key exists (but with an empty list)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         old_time = now - timedelta(hours=49)
 
         agg = SentimentAggregator(max_age_hours=48.0)
@@ -160,7 +160,7 @@ class TestSentimentAggregatorExponential:
 
     def test_add_scores_appends(self):
         """Calling add_scores multiple times should accumulate scores."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("BTC", [_make_result(score=0.5, timestamp=now)])
         agg.add_scores("BTC", [_make_result(score=0.3, timestamp=now)])
@@ -180,7 +180,7 @@ class TestSentimentAggregatorLinear:
     """Tests for SentimentAggregator with linear decay mode."""
 
     def test_linear_decay_recent_score(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator(decay="linear", half_life_hours=6.0)
         agg.add_scores("BTC", [_make_result(score=0.7, magnitude=1.0, timestamp=now)])
         result = agg.aggregate("BTC", now)
@@ -189,7 +189,7 @@ class TestSentimentAggregatorLinear:
     def test_linear_decay_old_score_zero_weight(self):
         """A score at exactly 4 * half_life hours old should have weight 0
         under linear decay, so it contributes nothing."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Linear decay: weight = max(0, 1 - age / (half_life * 4))
         # At age = half_life * 4 = 24h, weight = max(0, 1 - 1) = 0
         cutoff_time = now - timedelta(hours=24)
@@ -204,7 +204,7 @@ class TestSentimentAggregatorLinear:
 
     def test_linear_decay_midpoint(self):
         """A score at 2 * half_life should have weight 0.5."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         mid_time = now - timedelta(hours=12)  # 2 * 6h half_life
 
         agg = SentimentAggregator(decay="linear", half_life_hours=6.0)
@@ -221,7 +221,7 @@ class TestSentimentAggregatorLinear:
 
     def test_linear_recent_outweighs_old(self):
         """Under linear decay, recent should still dominate old."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         old_time = now - timedelta(hours=18)  # weight = max(0, 1 - 18/24) = 0.25
 
         agg = SentimentAggregator(decay="linear", half_life_hours=6.0)

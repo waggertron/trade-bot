@@ -44,12 +44,12 @@ async def test_multiple_windows_with_step_size() -> None:
     """Multiple folds should be produced when step_size allows sliding."""
     store = _populated_store(n_minutes=100, interval=60)
     model = MockModel()
-    trainer = WalkForwardTrainer(
+    WalkForwardTrainer(
         model=model,
         store=store,
-        train_window=3600,   # 60 min
-        test_window=1200,    # 20 min
-        step_size=1200,      # 20 min step
+        train_window=3600,  # 60 min
+        test_window=1200,  # 20 min
+        step_size=1200,  # 20 min step
     )
     # data spans 0..5940
     # cursor starts at 0 + 3600 = 3600
@@ -61,9 +61,9 @@ async def test_multiple_windows_with_step_size() -> None:
     trainer2 = WalkForwardTrainer(
         model=model,
         store=store2,
-        train_window=3600,   # 60 min
-        test_window=1200,    # 20 min
-        step_size=1200,      # 20 min step
+        train_window=3600,  # 60 min
+        test_window=1200,  # 20 min
+        step_size=1200,  # 20 min step
     )
     # data spans 0..11940
     # cursor starts at 3600

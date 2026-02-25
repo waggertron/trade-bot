@@ -4,10 +4,13 @@ so the existing SentimentStrategy can consume real sentiment data.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from src.core.models import ResearchReport
-from src.sentiment.aggregator import SentimentAggregator
+
+if TYPE_CHECKING:
+    from src.sentiment.aggregator import SentimentAggregator
 
 
 class SentimentBridge:
@@ -27,7 +30,7 @@ class SentimentBridge:
         Symbols not present in the aggregator are silently skipped.
         The ``sentiment_score`` is clamped to ``[-1.0, 1.0]``.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         reports: list[ResearchReport] = []
 
         for symbol in symbols:

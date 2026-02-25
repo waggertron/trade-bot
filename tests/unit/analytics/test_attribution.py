@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 
 from src.analytics.attribution import StrategyAttribution
-from src.analytics.models import AttributedFill, AttributionReport, StrategyStats, Trade
+from src.analytics.models import AttributedFill
 from src.core.models import Fill, OrderSide
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_fill(
     symbol: str = "BTC/USD",
@@ -28,7 +28,7 @@ def make_fill(
         side=side,
         quantity=Decimal(str(qty)),
         fill_price=Decimal(str(price)),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -43,6 +43,7 @@ def make_attributed(
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestStrategyAttribution:
     """Tests for StrategyAttribution.analyze()."""
@@ -119,19 +120,11 @@ class TestStrategyAttribution:
     def test_multiple_strategies(self) -> None:
         fills = [
             # momentum: buy 100, sell 130 -> +30
-            make_attributed(
-                make_fill(side=OrderSide.BUY, price=100.0), strategy="momentum"
-            ),
-            make_attributed(
-                make_fill(side=OrderSide.SELL, price=130.0), strategy="momentum"
-            ),
+            make_attributed(make_fill(side=OrderSide.BUY, price=100.0), strategy="momentum"),
+            make_attributed(make_fill(side=OrderSide.SELL, price=130.0), strategy="momentum"),
             # ml_ensemble: buy 200, sell 190 -> -10
-            make_attributed(
-                make_fill(side=OrderSide.BUY, price=200.0), strategy="ml_ensemble"
-            ),
-            make_attributed(
-                make_fill(side=OrderSide.SELL, price=190.0), strategy="ml_ensemble"
-            ),
+            make_attributed(make_fill(side=OrderSide.BUY, price=200.0), strategy="ml_ensemble"),
+            make_attributed(make_fill(side=OrderSide.SELL, price=190.0), strategy="ml_ensemble"),
         ]
         report = self.attr.analyze(fills)
 
@@ -162,12 +155,12 @@ class TestStrategyAttribution:
     def test_max_consecutive_losses(self) -> None:
         # Sequence: L, L, W, L, L, L -> max consecutive losses = 3
         trade_results = [
-            (100.0, 90.0),   # L: -10
-            (100.0, 95.0),   # L: -5
+            (100.0, 90.0),  # L: -10
+            (100.0, 95.0),  # L: -5
             (100.0, 120.0),  # W: +20
-            (100.0, 80.0),   # L: -20
-            (100.0, 85.0),   # L: -15
-            (100.0, 99.0),   # L: -1
+            (100.0, 80.0),  # L: -20
+            (100.0, 85.0),  # L: -15
+            (100.0, 99.0),  # L: -1
         ]
         fills = []
         for buy_price, sell_price in trade_results:
@@ -183,19 +176,11 @@ class TestStrategyAttribution:
     def test_best_worst_strategy(self) -> None:
         fills = [
             # Strategy A: +500
-            make_attributed(
-                make_fill(side=OrderSide.BUY, price=100.0), strategy="A"
-            ),
-            make_attributed(
-                make_fill(side=OrderSide.SELL, price=600.0), strategy="A"
-            ),
+            make_attributed(make_fill(side=OrderSide.BUY, price=100.0), strategy="A"),
+            make_attributed(make_fill(side=OrderSide.SELL, price=600.0), strategy="A"),
             # Strategy B: -200
-            make_attributed(
-                make_fill(side=OrderSide.BUY, price=300.0), strategy="B"
-            ),
-            make_attributed(
-                make_fill(side=OrderSide.SELL, price=100.0), strategy="B"
-            ),
+            make_attributed(make_fill(side=OrderSide.BUY, price=300.0), strategy="B"),
+            make_attributed(make_fill(side=OrderSide.SELL, price=100.0), strategy="B"),
         ]
         report = self.attr.analyze(fills)
 

@@ -50,31 +50,23 @@ class TestSaveAndLoad:
 
 
 class TestLoadRange:
-    def test_load_range_returns_sorted_results(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_load_range_returns_sorted_results(self, populated_store: FeatureStore) -> None:
         results = populated_store.load_range("AAPL", 1000, 3000)
         assert len(results) == 3
         timestamps = [r.timestamp for r in results]
         assert timestamps == [1000, 2000, 3000]
 
-    def test_load_range_filters_by_time_range(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_load_range_filters_by_time_range(self, populated_store: FeatureStore) -> None:
         results = populated_store.load_range("AAPL", 1500, 2500)
         assert len(results) == 1
         assert results[0].timestamp == 2000
         assert results[0].symbol == "AAPL"
 
-    def test_load_range_missing_symbol_returns_empty(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_load_range_missing_symbol_returns_empty(self, populated_store: FeatureStore) -> None:
         results = populated_store.load_range("ETH", 0, 99999)
         assert results == []
 
-    def test_load_range_returns_feature_vectors(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_load_range_returns_feature_vectors(self, populated_store: FeatureStore) -> None:
         results = populated_store.load_range("AAPL", 1000, 1000)
         assert len(results) == 1
         fv = results[0]
@@ -85,24 +77,18 @@ class TestLoadRange:
 
 
 class TestFeatureNames:
-    def test_feature_names_across_all_symbols(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_feature_names_across_all_symbols(self, populated_store: FeatureStore) -> None:
         names = populated_store.feature_names()
         assert names == {"rsi", "macd", "volume", "momentum"}
 
-    def test_feature_names_filtered_by_symbol(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_feature_names_filtered_by_symbol(self, populated_store: FeatureStore) -> None:
         aapl_names = populated_store.feature_names(symbol="AAPL")
         assert aapl_names == {"rsi", "macd", "volume"}
 
         btc_names = populated_store.feature_names(symbol="BTC")
         assert btc_names == {"rsi", "momentum"}
 
-    def test_feature_names_unknown_symbol_returns_empty(
-        self, store: FeatureStore
-    ) -> None:
+    def test_feature_names_unknown_symbol_returns_empty(self, store: FeatureStore) -> None:
         assert store.feature_names(symbol="ETH") == set()
 
 
@@ -114,9 +100,7 @@ class TestCount:
         assert populated_store.count(symbol="AAPL") == 3
         assert populated_store.count(symbol="BTC") == 2
 
-    def test_count_unknown_symbol_returns_zero(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_count_unknown_symbol_returns_zero(self, populated_store: FeatureStore) -> None:
         assert populated_store.count(symbol="ETH") == 0
 
     def test_count_empty_store(self, store: FeatureStore) -> None:
@@ -124,9 +108,7 @@ class TestCount:
 
 
 class TestSymbols:
-    def test_symbols_lists_unique_symbols(
-        self, populated_store: FeatureStore
-    ) -> None:
+    def test_symbols_lists_unique_symbols(self, populated_store: FeatureStore) -> None:
         syms = populated_store.symbols()
         assert sorted(syms) == ["AAPL", "BTC"]
 

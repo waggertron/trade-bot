@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
 
 from src.core.models import MarketTick, ResearchReport, Signal, SignalDirection
 
@@ -24,8 +23,8 @@ class MomentumStrategy:
 
         prices = [float(t.price) for t in market_data]
 
-        short_ma = sum(prices[-self._short_window:]) / self._short_window
-        long_ma = sum(prices[-self._long_window:]) / self._long_window
+        short_ma = sum(prices[-self._short_window :]) / self._short_window
+        long_ma = sum(prices[-self._long_window :]) / self._long_window
 
         if short_ma == long_ma:
             return None
@@ -44,8 +43,8 @@ class MomentumStrategy:
             direction=direction,
             confidence=confidence,
             strategy_name=self.name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning=f"Short MA ({self._short_window}): {short_ma:.2f}, "
-                      f"Long MA ({self._long_window}): {long_ma:.2f}, "
-                      f"Spread: {spread:.4f}",
+            f"Long MA ({self._long_window}): {long_ma:.2f}, "
+            f"Spread: {spread:.4f}",
         )

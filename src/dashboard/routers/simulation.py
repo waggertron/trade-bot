@@ -1,11 +1,12 @@
 """Simulation endpoints: run, list, get results."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.dashboard.dependencies import require_user, state
-from src.dashboard.schemas import SimulationRequest
-from src.db.models import UserRecord
+from src.dashboard.dependencies import require_user
+from src.dashboard.schemas import SimulationRequest  # noqa: TC001
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/simulation", tags=["simulation"])
 
@@ -44,7 +45,7 @@ async def _run_async(req: SimulationRequest) -> dict:
 
 
 @router.post("/run")
-async def run_simulation(req: SimulationRequest, current_user: UserRecord = Depends(require_user)):
+async def run_simulation(req: SimulationRequest, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Run a new simulation."""
     report = await _run_async(req)
     _simulation_runs[report["id"]] = report
@@ -52,13 +53,13 @@ async def run_simulation(req: SimulationRequest, current_user: UserRecord = Depe
 
 
 @router.get("/runs")
-async def list_runs(current_user: UserRecord = Depends(require_user)):
+async def list_runs(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """List all simulation runs."""
     return list(_simulation_runs.values())
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: str, current_user: UserRecord = Depends(require_user)):
+async def get_run(run_id: str, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Get a specific simulation run."""
     if run_id not in _simulation_runs:
         raise HTTPException(status_code=404, detail="Simulation run not found")

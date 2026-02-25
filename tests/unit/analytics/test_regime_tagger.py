@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 
-from src.analytics.models import AttributedFill, StrategyStats
+from src.analytics.models import AttributedFill
 from src.analytics.regime_tagger import RegimeTagger
 from src.core.models import Fill, OrderSide
-
 
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
+
 
 def make_fill(
     symbol: str = "BTC/USD",
@@ -30,7 +30,7 @@ def make_fill(
         side=side,
         quantity=Decimal(str(qty)),
         fill_price=Decimal(str(price)),
-        timestamp=ts or datetime.now(timezone.utc),
+        timestamp=ts or datetime.now(UTC),
     )
     if fill_id is not None:
         # Override the auto-generated id
@@ -56,7 +56,7 @@ class TestSetAndGetRegime:
 
 class TestTagFills:
     def test_tag_fills_with_regime(self) -> None:
-        ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
         ts_unix = int(ts.timestamp())
 
         tagger = RegimeTagger()
@@ -70,7 +70,7 @@ class TestTagFills:
         assert result[0].fill == fill
 
     def test_tag_fills_with_strategy_map(self) -> None:
-        ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
         ts_unix = int(ts.timestamp())
 
         tagger = RegimeTagger()
@@ -86,7 +86,7 @@ class TestTagFills:
         assert result[0].regime == "high_vol"
 
     def test_tag_fills_no_strategy_map(self) -> None:
-        ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
         fill = make_fill(symbol="BTC/USD", ts=ts)
 
         tagger = RegimeTagger()
@@ -96,7 +96,7 @@ class TestTagFills:
         assert result[0].strategy == ""
 
     def test_tag_fills_unknown_regime(self) -> None:
-        ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        ts = datetime(2024, 1, 1, tzinfo=UTC)
         fill = make_fill(symbol="BTC/USD", ts=ts)
 
         tagger = RegimeTagger()
@@ -109,8 +109,8 @@ class TestTagFills:
 
 class TestPerformanceByRegime:
     def test_performance_by_regime(self) -> None:
-        ts_low = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        ts_high = datetime(2024, 6, 1, tzinfo=timezone.utc)
+        ts_low = datetime(2024, 1, 1, tzinfo=UTC)
+        ts_high = datetime(2024, 6, 1, tzinfo=UTC)
 
         # Create buy/sell pairs for two regimes
         buy_low = make_fill(side=OrderSide.BUY, price=100.0, qty=1.0, ts=ts_low)

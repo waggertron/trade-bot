@@ -35,16 +35,12 @@ class FeatureStore:
         """
         return dict(self._data.get((symbol, timestamp), {}))
 
-    def load_range(
-        self, symbol: str, start_ts: int, end_ts: int
-    ) -> list[FeatureVector]:
+    def load_range(self, symbol: str, start_ts: int, end_ts: int) -> list[FeatureVector]:
         """Load all feature vectors for symbol in [start_ts, end_ts], sorted by timestamp."""
         results: list[FeatureVector] = []
         for (sym, ts), features in self._data.items():
             if sym == symbol and start_ts <= ts <= end_ts:
-                results.append(
-                    FeatureVector(symbol=sym, timestamp=ts, features=features)
-                )
+                results.append(FeatureVector(symbol=sym, timestamp=ts, features=features))
         results.sort(key=lambda v: v.timestamp)
         return results
 

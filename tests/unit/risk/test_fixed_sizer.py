@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -15,10 +15,10 @@ from src.core.models import (
     SignalDirection,
 )
 from src.risk.fixed_sizer import FixedPositionSizer
-from src.risk.models import RiskContext, StrategyPerformance, VolatilityRegime
+from src.risk.models import RiskContext, VolatilityRegime
 from src.risk.protocols import PositionSizer
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 # -- Helpers ------------------------------------------------------------------

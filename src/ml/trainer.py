@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.ml.dataset_builder import DatasetBuilder
-from src.ml.feature_store import FeatureStore
 from src.ml.models import WalkForwardResult
+
+if TYPE_CHECKING:
+    from src.ml.feature_store import FeatureStore
 
 
 class WalkForwardTrainer:
@@ -21,8 +25,8 @@ class WalkForwardTrainer:
         model,  # ModelProvider (e.g. MockModel)
         store: FeatureStore,
         train_window: int,  # seconds
-        test_window: int,   # seconds
-        step_size: int,     # seconds
+        test_window: int,  # seconds
+        step_size: int,  # seconds
     ) -> None:
         self._model = model
         self._store = store
@@ -64,12 +68,14 @@ class WalkForwardTrainer:
             train_result = await self._model.train(train_data)
             eval_result = await self._model.evaluate(test_data)
 
-            results.append(WalkForwardResult(
-                train_period=(train_start, train_end),
-                test_period=(test_start, test_end),
-                train_result=train_result,
-                eval_result=eval_result,
-            ))
+            results.append(
+                WalkForwardResult(
+                    train_period=(train_start, train_end),
+                    test_period=(test_start, test_end),
+                    train_result=train_result,
+                    eval_result=eval_result,
+                )
+            )
 
             cursor += self._step_size
 

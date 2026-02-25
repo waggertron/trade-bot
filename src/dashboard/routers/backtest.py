@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.dashboard.dependencies import require_user, state
-from src.dashboard.schemas import BacktestRequest
-from src.db.models import UserRecord
+from src.dashboard.schemas import BacktestRequest  # noqa: TC001
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
@@ -18,7 +18,7 @@ _backtest_runs: dict[str, dict] = {}
 
 
 @router.post("/run")
-async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(require_user)):
+async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Start a backtest run."""
     run_id = str(uuid.uuid4())[:8]
 
@@ -26,7 +26,7 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
         "id": run_id,
         "status": "running",
         "config": req.model_dump(),
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "result": None,
     }
 
@@ -36,8 +36,9 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
 
         if state.db:
             # Get OHLC data for the requested symbols
-            from src.core.models import AssetType, MarketTick
             from decimal import Decimal
+
+            from src.core.models import AssetType, MarketTick
 
             all_ticks = []
             for symbol in req.symbols or ["BTC/USD"]:
@@ -47,7 +48,7 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
                         symbol=bar.symbol,
                         price=Decimal(bar.close),
                         volume=int(float(bar.volume)),
-                        timestamp=datetime.fromtimestamp(bar.timestamp, tz=timezone.utc),
+                        timestamp=datetime.fromtimestamp(bar.timestamp, tz=UTC),
                         asset_type=AssetType.CRYPTO if "/" in bar.symbol else AssetType.STOCK,
                     )
                     all_ticks.append(tick)
@@ -65,8 +66,7 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
                     "max_drawdown": result.max_drawdown,
                     "sharpe_ratio": result.sharpe_ratio,
                     "equity_curve": [
-                        {"index": i, "value": v}
-                        for i, v in enumerate(result.equity_curve)
+                        {"index": i, "value": v} for i, v in enumerate(result.equity_curve)
                     ],
                 }
                 _backtest_runs[run_id]["status"] = "completed"
@@ -84,13 +84,13 @@ async def run_backtest(req: BacktestRequest, current_user: UserRecord = Depends(
 
 
 @router.get("/runs")
-async def list_runs(current_user: UserRecord = Depends(require_user)):
+async def list_runs(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """List previous backtest runs."""
     return list(_backtest_runs.values())
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: str, current_user: UserRecord = Depends(require_user)):
+async def get_run(run_id: str, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Get specific backtest run results."""
     if run_id not in _backtest_runs:
         raise HTTPException(status_code=404, detail="Run not found")

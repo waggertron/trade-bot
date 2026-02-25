@@ -8,7 +8,7 @@ Supports two modes:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from src.db.models import ArticleRecord
@@ -72,7 +72,7 @@ class SentimentPipeline:
 
     def get_sentiment(self, symbol: str) -> float:
         """Return the current aggregated sentiment score for *symbol*."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return self.aggregator.aggregate(symbol, now)
 
     async def run_cycle(self, symbols: list[str]) -> dict[str, float]:
@@ -97,7 +97,7 @@ class SentimentPipeline:
             article = articles[0]
             ts = rec.created_at
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
             result = SentimentResult(
                 score=rec.score,
                 magnitude=rec.magnitude,
@@ -219,6 +219,6 @@ class SentimentPipeline:
             body=raw.get("body", ""),
             source=raw.get("source", provider_name),
             url=raw.get("url", ""),
-            published_at=raw.get("published_at", datetime.now(timezone.utc)),
+            published_at=raw.get("published_at", datetime.now(UTC)),
             related_symbols=raw.get("related_symbols", []),
         )

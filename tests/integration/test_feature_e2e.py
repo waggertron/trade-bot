@@ -1,15 +1,16 @@
 """End-to-end integration test for Feature Store & ML Pipeline."""
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
+
+from src.ml.dataset_builder import DatasetBuilder
 from src.ml.feature_engine import FeatureEngine
 from src.ml.feature_store import FeatureStore
-from src.ml.dataset_builder import DatasetBuilder
 from src.ml.mock_model import MockModel
 from src.ml.trainer import WalkForwardTrainer
-from src.providers.technical import TechnicalFeatureProvider
 from src.providers.configs import TechnicalFeatureConfig
 from src.providers.mock import MockFeatureProvider
+from src.providers.technical import TechnicalFeatureProvider
 
 
 def _make_ohlcv(n=200, start=100.0):
@@ -51,7 +52,7 @@ class TestFeaturePipelineE2E:
         data = _make_ohlcv(100)
         vector = await engine.compute_and_store("AAPL", data, 1000)
 
-        assert "rsi_14" in vector.features     # from technical
+        assert "rsi_14" in vector.features  # from technical
         assert "sentiment_avg" in vector.features  # from mock
 
     @pytest.mark.asyncio
@@ -65,7 +66,7 @@ class TestFeaturePipelineE2E:
         data = _make_ohlcv(100)
         for i in range(20):
             # Use a sliding window of the price data
-            window = {k: v[i:i+50] for k, v in data.items()}
+            window = {k: v[i : i + 50] for k, v in data.items()}
             await engine.compute_and_store("AAPL", window, 1000 + i * 60)
 
         # Build dataset
@@ -81,19 +82,23 @@ class TestFeaturePipelineE2E:
 
         # Populate store with feature vectors (simulating computed features)
         for i in range(100):
-            store.save("AAPL", i * 60, {
-                "close": 100.0 + i * 0.5,
-                "rsi_14": 50.0 + (i % 20) - 10,
-                "sma_14": 100.0 + i * 0.3,
-            })
+            store.save(
+                "AAPL",
+                i * 60,
+                {
+                    "close": 100.0 + i * 0.5,
+                    "rsi_14": 50.0 + (i % 20) - 10,
+                    "sma_14": 100.0 + i * 0.3,
+                },
+            )
 
         model = MockModel(default_direction="buy", default_confidence=0.7)
         trainer = WalkForwardTrainer(
             model=model,
             store=store,
-            train_window=3600,   # 60 min
-            test_window=1200,    # 20 min
-            step_size=1200,      # 20 min step
+            train_window=3600,  # 60 min
+            test_window=1200,  # 20 min
+            step_size=1200,  # 20 min step
         )
 
         results = await trainer.run(["AAPL"], 0, 6000, ["close", "rsi_14", "sma_14"])

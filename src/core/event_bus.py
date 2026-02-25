@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Event:
     event_type: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class EventBus:
@@ -20,7 +22,11 @@ class EventBus:
         self._subscribers: dict[str, list[Callable[..., Any]]] = {}
         self._history: list[Event] | None = None
 
-    def subscribe(self, event_type: str, handler: Callable[[Event], Coroutine[Any, Any, None]]) -> None:
+    def subscribe(
+        self,
+        event_type: str,
+        handler: Callable[[Event], Coroutine[Any, Any, None]],
+    ) -> None:
         self._subscribers.setdefault(event_type, []).append(handler)
 
     def unsubscribe(self, event_type: str, handler: Callable[..., Any]) -> None:

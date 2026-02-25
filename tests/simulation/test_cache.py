@@ -1,15 +1,16 @@
 """Tests for the simulation disk cache."""
+
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
-
-import pytest
 
 from src.data.providers.base import OHLCBar
 from src.simulation.cache import BarCache, ReportCache
 from src.simulation.models import SimulationConfig
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _make_bars(n: int = 3, start_price: float = 100.0) -> list[OHLCBar]:
@@ -18,15 +19,17 @@ def _make_bars(n: int = 3, start_price: float = 100.0) -> list[OHLCBar]:
     base_ts = 1700000000
     for i in range(n):
         price = start_price + i * 0.5
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=str(price - 0.2),
-            high=str(price + 1.0),
-            low=str(price - 1.0),
-            close=str(price),
-            volume=str(1000000),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=str(price - 0.2),
+                high=str(price + 1.0),
+                low=str(price - 1.0),
+                close=str(price),
+                volume=str(1000000),
+                source="yfinance",
+            )
+        )
     return bars
 
 

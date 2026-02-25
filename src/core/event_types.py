@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from src.core.event_bus import Event
-from src.core.models import Fill
+
+if TYPE_CHECKING:
+    from src.core.models import Fill
 
 
 @dataclass

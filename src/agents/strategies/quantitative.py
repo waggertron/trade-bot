@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.models import MarketTick, ResearchReport, Signal, SignalDirection
 
@@ -23,7 +23,7 @@ class QuantitativeStrategy:
             return None
 
         prices = [float(t.price) for t in market_data]
-        lookback_prices = prices[-(self._lookback + 1):-1]
+        lookback_prices = prices[-(self._lookback + 1) : -1]
         current_price = prices[-1]
 
         mean = sum(lookback_prices) / len(lookback_prices)
@@ -42,7 +42,9 @@ class QuantitativeStrategy:
         elif z_score >= self._z_threshold:
             direction = SignalDirection.SELL
             confidence = min(abs(z_score) / (self._z_threshold * 2), 1.0)
-            reasoning = f"Mean reversion SELL: z-score={z_score:.2f}, mean={mean:.2f}, std={std:.2f}"
+            reasoning = (
+                f"Mean reversion SELL: z-score={z_score:.2f}, mean={mean:.2f}, std={std:.2f}"
+            )
         else:
             return None
 
@@ -51,6 +53,6 @@ class QuantitativeStrategy:
             direction=direction,
             confidence=confidence,
             strategy_name=self.name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning=reasoning,
         )

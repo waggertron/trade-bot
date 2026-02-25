@@ -8,10 +8,10 @@ from src.ml.lstm_model import LSTMModel
 from src.ml.models import Dataset, EvalMetrics, FeatureVector, Prediction, TrainResult
 from src.ml.protocols import ModelProvider
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_feature_vector(
     symbol: str = "BTC",
@@ -86,12 +86,11 @@ class TestVectorsToSequences:
         """The label for each sequence should correspond to the last vector in that window."""
         fnames = ["f1"]
         vectors = [
-            FeatureVector(symbol="BTC", timestamp=i, features={"f1": float(i)})
-            for i in range(5)
+            FeatureVector(symbol="BTC", timestamp=i, features={"f1": float(i)}) for i in range(5)
         ]
         labels = [10, 20, 30, 40, 50]
 
-        X, y = LSTMModel._vectors_to_sequences(vectors, labels, fnames, seq_len=3)
+        _X, y = LSTMModel._vectors_to_sequences(vectors, labels, fnames, seq_len=3)
 
         # Sequences: [0,1,2], [1,2,3], [2,3,4] => labels at idx 2,3,4 => 30,40,50
         assert y == [30, 40, 50]
@@ -100,8 +99,7 @@ class TestVectorsToSequences:
         """If there are fewer vectors than seq_len, returns empty lists."""
         fnames = ["rsi"]
         vectors = [
-            FeatureVector(symbol="BTC", timestamp=i, features={"rsi": 1.0})
-            for i in range(3)
+            FeatureVector(symbol="BTC", timestamp=i, features={"rsi": 1.0}) for i in range(3)
         ]
         labels = [0, 1, 2]
 
@@ -186,7 +184,7 @@ class TestLSTMModelTrainWithTorch:
     @pytest.mark.asyncio
     async def test_train_creates_network(self):
         """Training should create the LSTM network and set feature names."""
-        torch = pytest.importorskip("torch")
+        pytest.importorskip("torch")
 
         model = LSTMModel(sequence_length=5, epochs=2)
         ds = _make_dataset(n=20, feature_names=["rsi", "macd"])
@@ -201,7 +199,7 @@ class TestLSTMModelTrainWithTorch:
     @pytest.mark.asyncio
     async def test_train_accuracy_between_zero_and_one(self):
         """Training accuracy should be a valid float between 0 and 1."""
-        torch = pytest.importorskip("torch")
+        pytest.importorskip("torch")
 
         model = LSTMModel(sequence_length=5, epochs=5)
         ds = _make_dataset(n=20)
@@ -214,7 +212,7 @@ class TestLSTMModelPredictWithTorch:
     @pytest.mark.asyncio
     async def test_predict_after_training(self):
         """After training and filling buffer, predict returns valid direction/confidence."""
-        torch = pytest.importorskip("torch")
+        pytest.importorskip("torch")
 
         seq_len = 5
         model = LSTMModel(sequence_length=seq_len, epochs=2)
@@ -234,7 +232,7 @@ class TestLSTMModelPredictWithTorch:
     @pytest.mark.asyncio
     async def test_predict_before_full_buffer_returns_hold(self):
         """Predict with partial buffer (not yet seq_len) returns hold."""
-        torch = pytest.importorskip("torch")
+        pytest.importorskip("torch")
 
         seq_len = 10
         model = LSTMModel(sequence_length=seq_len, epochs=2)
@@ -254,7 +252,7 @@ class TestLSTMModelEvaluateWithTorch:
     @pytest.mark.asyncio
     async def test_evaluate_returns_valid_metrics(self):
         """Evaluate after training returns valid EvalMetrics."""
-        torch = pytest.importorskip("torch")
+        pytest.importorskip("torch")
 
         model = LSTMModel(sequence_length=5, epochs=2)
         ds = _make_dataset(n=20, feature_names=["rsi", "macd"])
@@ -270,7 +268,7 @@ class TestLSTMModelEvaluateWithTorch:
     @pytest.mark.asyncio
     async def test_evaluate_without_training_returns_defaults(self):
         """Evaluate without training returns default EvalMetrics."""
-        torch = pytest.importorskip("torch")
+        pytest.importorskip("torch")
 
         model = LSTMModel()
         ds = _make_dataset(n=10)

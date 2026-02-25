@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from src.core.models import PortfolioSnapshot, Signal
-from src.risk.models import RiskContext
+if TYPE_CHECKING:
+    from src.core.models import PortfolioSnapshot, Signal
+    from src.risk.models import RiskContext
 
 
 class FixedPositionSizer:

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
 
 from src.core.models import AssetType, MarketTick
 
@@ -48,6 +47,6 @@ class MarketDataManager:
             symbol=symbol,
             price=price,
             volume=0,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             asset_type=asset_type,
         )

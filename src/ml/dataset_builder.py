@@ -1,10 +1,15 @@
 """Builds ML datasets from feature store data."""
+
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from src.ml.feature_store import FeatureStore
 from src.ml.models import Dataset, FeatureVector
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from src.ml.feature_store import FeatureStore
 
 
 def default_label_fn(vectors: list[FeatureVector]) -> list[int]:

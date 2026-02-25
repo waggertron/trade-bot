@@ -8,7 +8,6 @@ from src.providers.configs import MockNewsConfig, MockSentimentConfig
 from src.providers.mock import MockNewsProvider, MockSentimentAnalyzer
 from src.sentiment.pipeline import SentimentPipeline
 
-
 # -- Fixtures -----------------------------------------------------------------
 
 CANNED_ARTICLES = [

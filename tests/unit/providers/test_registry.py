@@ -59,9 +59,7 @@ class TestForTesting:
         custom_market = MockMarketDataProvider()
         custom_market.set_price("BTC", __import__("decimal").Decimal("99999"))
 
-        registry = ProviderRegistry.for_testing(
-            overrides={MarketDataProvider: custom_market}
-        )
+        registry = ProviderRegistry.for_testing(overrides={MarketDataProvider: custom_market})
         assert registry.get(MarketDataProvider) is custom_market
         # Other mocks still present
         assert isinstance(registry.get(NewsProvider), MockNewsProvider)

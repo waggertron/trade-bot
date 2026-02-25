@@ -1,4 +1,5 @@
 """Tests for portfolio-mode engine integration."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -22,15 +23,17 @@ def _make_bars(n: int, start_price: float = 100.0) -> list[OHLCBar]:
     base_ts = 1700000000
     for i in range(n):
         price = start_price + i * 0.5
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=str(price - 0.2),
-            high=str(price + 1.0),
-            low=str(price - 1.0),
-            close=str(price),
-            volume=str(1000000),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=str(price - 0.2),
+                high=str(price + 1.0),
+                low=str(price - 1.0),
+                close=str(price),
+                volume=str(1000000),
+                source="yfinance",
+            )
+        )
     return bars
 
 
@@ -145,25 +148,25 @@ def test_portfolio_recommendation_uses_portfolio_metrics():
                 initial_balance=10000.0,
                 final_value=12000.0,
                 total_pnl=2000.0,
-                return_pct=20.0,       # high per-stock return
-                max_drawdown=5.0,      # low per-stock drawdown
-                sharpe_ratio=2.0,      # high per-stock sharpe
+                return_pct=20.0,  # high per-stock return
+                max_drawdown=5.0,  # low per-stock drawdown
+                sharpe_ratio=2.0,  # high per-stock sharpe
                 total_trades=10,
                 winning_trades=7,
                 losing_trades=3,
                 win_rate=0.7,
             ),
         ],
-        total_return_pct=20.0,         # avg return (from per-stock)
-        avg_sharpe=2.0,                # avg sharpe (from per-stock)
-        avg_max_drawdown=5.0,          # avg drawdown (from per-stock)
+        total_return_pct=20.0,  # avg return (from per-stock)
+        avg_sharpe=2.0,  # avg sharpe (from per-stock)
+        avg_max_drawdown=5.0,  # avg drawdown (from per-stock)
         total_trades=10,
         portfolio_metrics=PortfolioMetrics(
             initial_balance=10000.0,
             final_value=9000.0,
-            total_return_pct=-10.0,    # BAD portfolio return
-            max_drawdown=15.0,         # BAD portfolio drawdown
-            sharpe_ratio=-0.5,         # BAD portfolio sharpe
+            total_return_pct=-10.0,  # BAD portfolio return
+            max_drawdown=15.0,  # BAD portfolio drawdown
+            sharpe_ratio=-0.5,  # BAD portfolio sharpe
             sortino_ratio=-0.3,
             calmar_ratio=-0.2,
             total_trades=10,
@@ -179,25 +182,25 @@ def test_portfolio_recommendation_uses_portfolio_metrics():
                 initial_balance=10000.0,
                 final_value=10100.0,
                 total_pnl=100.0,
-                return_pct=1.0,        # low per-stock return
-                max_drawdown=10.0,     # high per-stock drawdown
-                sharpe_ratio=0.1,      # low per-stock sharpe
+                return_pct=1.0,  # low per-stock return
+                max_drawdown=10.0,  # high per-stock drawdown
+                sharpe_ratio=0.1,  # low per-stock sharpe
                 total_trades=10,
                 winning_trades=5,
                 losing_trades=5,
                 win_rate=0.5,
             ),
         ],
-        total_return_pct=1.0,          # avg return (from per-stock)
-        avg_sharpe=0.1,                # avg sharpe (from per-stock)
-        avg_max_drawdown=10.0,         # avg drawdown (from per-stock)
+        total_return_pct=1.0,  # avg return (from per-stock)
+        avg_sharpe=0.1,  # avg sharpe (from per-stock)
+        avg_max_drawdown=10.0,  # avg drawdown (from per-stock)
         total_trades=10,
         portfolio_metrics=PortfolioMetrics(
             initial_balance=10000.0,
             final_value=13000.0,
-            total_return_pct=30.0,     # GOOD portfolio return
-            max_drawdown=3.0,          # GOOD portfolio drawdown
-            sharpe_ratio=3.0,          # GOOD portfolio sharpe
+            total_return_pct=30.0,  # GOOD portfolio return
+            max_drawdown=3.0,  # GOOD portfolio drawdown
+            sharpe_ratio=3.0,  # GOOD portfolio sharpe
             sortino_ratio=4.0,
             calmar_ratio=5.0,
             total_trades=10,
@@ -254,7 +257,12 @@ async def test_portfolio_mc_uses_allocated_balance():
         portfolio_mode=False,
     )
     engine_non_portfolio = SimulationEngine(config_non_portfolio)
-    with patch.object(engine_non_portfolio, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
+    with patch.object(
+        engine_non_portfolio,
+        "_fetch_bars",
+        new_callable=AsyncMock,
+        return_value=bars,
+    ):
         report_ref = await engine_non_portfolio.run()
 
     ref_result = report_ref.risk_level_results["moderate"]

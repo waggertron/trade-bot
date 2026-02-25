@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import typer
@@ -21,9 +21,7 @@ from src.core.models import Fill, OrderSide
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(
-    name="backtest", help="Backtesting commands.", no_args_is_help=True
-)
+app = typer.Typer(name="backtest", help="Backtesting commands.", no_args_is_help=True)
 
 console = Console()
 
@@ -42,7 +40,7 @@ def status() -> None:
 
 def _example_fills() -> list[AttributedFill]:
     """Build example fills for the demo backtest."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     return [
         # --- momentum strategy: AAPL buy then sell (profitable) ---

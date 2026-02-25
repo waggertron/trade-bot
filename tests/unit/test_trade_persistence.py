@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -29,7 +29,7 @@ async def test_fill_is_persisted(db):
         side=OrderSide.BUY,
         quantity=Decimal("0.5"),
         fill_price=Decimal("50000"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     record = TradeRecord(
         symbol=fill.symbol,
@@ -41,7 +41,7 @@ async def test_fill_is_persisted(db):
         paper=True,
         timestamp=fill.timestamp,
     )
-    trade_id = await db.save_trade(record)
+    await db.save_trade(record)
     trades = await db.list_trades()
     assert len(trades) == 1
     assert trades[0].symbol == "BTC/USD"
@@ -60,7 +60,7 @@ async def test_persist_fill_helper_saves_to_db(db):
         side=OrderSide.SELL,
         quantity=Decimal("1.5"),
         fill_price=Decimal("3000"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         commission=Decimal("0.15"),
     )
     await persist_fill(db, fill, strategy_name="sentiment", is_paper=True)
@@ -85,7 +85,7 @@ async def test_persist_fill_does_not_raise_on_db_error(db):
         side=OrderSide.BUY,
         quantity=Decimal("0.1"),
         fill_price=Decimal("60000"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     # Should not raise
     await persist_fill(db, fill, strategy_name="momentum", is_paper=True)

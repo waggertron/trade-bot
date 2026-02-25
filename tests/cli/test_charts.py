@@ -1,4 +1,5 @@
 """Tests for chart utilities."""
+
 from __future__ import annotations
 
 from src.cli.charts import plotext_multi_line
@@ -27,7 +28,7 @@ def test_multi_line_chart_legend_has_colored_markers():
     assert "Alpha" in chart
     assert "Beta" in chart
     # Each legend entry should have an ANSI-colored marker before the label
-    legend_line = [line for line in chart.split("\n") if "Legend:" in line][0]
+    legend_line = next(line for line in chart.split("\n") if "Legend:" in line)
     assert "\x1b[" in legend_line, "Legend should have colored markers"
 
 

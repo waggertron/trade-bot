@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -21,7 +21,7 @@ def _make_result(
     return SentimentResult(
         score=score,
         magnitude=magnitude,
-        timestamp=timestamp or datetime.now(timezone.utc),
+        timestamp=timestamp or datetime.now(UTC),
     )
 
 
@@ -30,7 +30,7 @@ class TestSentimentBridge:
 
     def test_returns_report_for_symbol_with_scores(self):
         """A symbol with aggregated scores should produce a ResearchReport."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("AAPL", [_make_result(score=0.7, magnitude=0.8, timestamp=now)])
 
@@ -54,7 +54,7 @@ class TestSentimentBridge:
 
     def test_multiple_symbols(self):
         """Multiple symbols with scores should each produce a report."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("AAPL", [_make_result(score=0.7, magnitude=1.0, timestamp=now)])
         agg.add_scores("GOOG", [_make_result(score=-0.3, magnitude=1.0, timestamp=now)])
@@ -68,7 +68,7 @@ class TestSentimentBridge:
 
     def test_correct_sentiment_score_value(self):
         """The report's sentiment_score should match the aggregator's output."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("AAPL", [_make_result(score=0.7, magnitude=0.8, timestamp=now)])
 
@@ -82,7 +82,7 @@ class TestSentimentBridge:
 
     def test_sentiment_score_clamped_to_valid_range(self):
         """The sentiment_score should be clamped to [-1.0, 1.0]."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         # Score of 1.0 with magnitude 1.0 gives aggregate of 1.0
         agg.add_scores("BTC", [_make_result(score=1.0, magnitude=1.0, timestamp=now)])
@@ -94,7 +94,7 @@ class TestSentimentBridge:
 
     def test_summary_contains_score(self):
         """The report summary should include the aggregated score."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("AAPL", [_make_result(score=0.5, magnitude=1.0, timestamp=now)])
 
@@ -105,7 +105,7 @@ class TestSentimentBridge:
 
     def test_mixed_symbols_with_and_without_scores(self):
         """Only symbols present in the aggregator should produce reports."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("AAPL", [_make_result(score=0.6, magnitude=1.0, timestamp=now)])
         # GOOG has no scores
@@ -118,7 +118,7 @@ class TestSentimentBridge:
 
     def test_report_has_utc_timestamp(self):
         """The report timestamp should be timezone-aware (UTC)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         agg = SentimentAggregator()
         agg.add_scores("AAPL", [_make_result(score=0.5, timestamp=now)])
 

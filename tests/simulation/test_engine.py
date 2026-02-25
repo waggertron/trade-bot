@@ -1,4 +1,5 @@
 """Tests for the simulation engine."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -17,15 +18,17 @@ def _make_bars(n: int, start_price: float = 100.0) -> list[OHLCBar]:
     base_ts = 1700000000
     for i in range(n):
         price = start_price + i * 0.5
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=str(price - 0.2),
-            high=str(price + 1.0),
-            low=str(price - 1.0),
-            close=str(price),
-            volume=str(1000000),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=str(price - 0.2),
+                high=str(price + 1.0),
+                low=str(price - 1.0),
+                close=str(price),
+                volume=str(1000000),
+                source="yfinance",
+            )
+        )
     return bars
 
 
@@ -106,9 +109,14 @@ async def test_engine_applies_max_position_pct_override():
     engine = SimulationEngine(config)
     bars = _make_bars(90)
 
-    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
-        with patch("src.simulation.engine.RiskSettings.from_risk_level", wraps=RiskSettings.from_risk_level) as mock_frl:
-            report = await engine.run()
+    with (
+        patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars),
+        patch(
+            "src.simulation.engine.RiskSettings.from_risk_level",
+            wraps=RiskSettings.from_risk_level,
+        ) as mock_frl,
+    ):
+        report = await engine.run()
 
     assert report.status == "completed"
     # Verify from_risk_level was called with the override
@@ -129,9 +137,14 @@ async def test_engine_no_override_when_max_position_pct_is_none():
     engine = SimulationEngine(config)
     bars = _make_bars(90)
 
-    with patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars):
-        with patch("src.simulation.engine.RiskSettings.from_risk_level", wraps=RiskSettings.from_risk_level) as mock_frl:
-            report = await engine.run()
+    with (
+        patch.object(engine, "_fetch_bars", new_callable=AsyncMock, return_value=bars),
+        patch(
+            "src.simulation.engine.RiskSettings.from_risk_level",
+            wraps=RiskSettings.from_risk_level,
+        ) as mock_frl,
+    ):
+        report = await engine.run()
 
     assert report.status == "completed"
     # Called with just the risk level, no keyword overrides
@@ -296,7 +309,9 @@ async def test_per_stock_mc_differs_across_risk_levels():
     con_mc = report.risk_level_results["conservative"].monte_carlo_projections[0]
     agg_mc = report.risk_level_results["aggressive"].monte_carlo_projections[0]
     assert con_mc.median_final != agg_mc.median_final, (
-        f"Per-stock MC should differ: conservative={con_mc.median_final}, aggressive={agg_mc.median_final}"
+        f"Per-stock MC should differ:"
+        f" conservative={con_mc.median_final},"
+        f" aggressive={agg_mc.median_final}"
     )
 
 

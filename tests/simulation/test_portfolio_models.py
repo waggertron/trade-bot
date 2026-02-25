@@ -1,16 +1,16 @@
 """Tests for portfolio simulation data models."""
+
 import pytest
 from pydantic import ValidationError
 
 from src.simulation.models import (
     AllocationWeights,
-    RebalanceConfig,
     PortfolioMetrics,
     PortfolioMonteCarloProjection,
-    SimulationConfig,
+    RebalanceConfig,
     RiskLevelResult,
+    SimulationConfig,
 )
-
 
 # ---------------------------------------------------------------------------
 # Backward compatibility — old-style SimulationConfig without new fields
@@ -89,7 +89,7 @@ class TestAllocationWeights:
             AllocationWeights(mode="equal_weight", extra_field="bad")
 
     def test_custom_weights_not_summing_to_one_rejected(self):
-        with pytest.raises(ValidationError, match="sum to ~1.0"):
+        with pytest.raises(ValidationError, match=r"sum to ~1\.0"):
             AllocationWeights(
                 mode="custom",
                 weights={"AAPL": 0.5, "MSFT": 0.2},

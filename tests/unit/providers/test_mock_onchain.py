@@ -1,11 +1,11 @@
 """Tests for MockOnChainProvider (enhanced version)."""
+
 from __future__ import annotations
 
 import pytest
 
 from src.providers.mock import MockOnChainProvider
 from src.providers.protocols import OnChainProvider
-
 
 # -- Protocol compliance -----------------------------------------------------
 

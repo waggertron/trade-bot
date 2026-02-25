@@ -1,4 +1,5 @@
 """Async API client for the trade bot dashboard."""
+
 from __future__ import annotations
 
 import httpx

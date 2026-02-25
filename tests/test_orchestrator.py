@@ -1,13 +1,22 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
-from src.core.orchestrator import Orchestrator
+import pytest
+
 from src.core.event_bus import EventBus
 from src.core.models import (
-    AssetType, Fill, MarketTick, OrderSide, PortfolioSnapshot,
-    ResearchReport, RiskAction, RiskDecision, Signal, SignalDirection,
+    AssetType,
+    Fill,
+    MarketTick,
+    OrderSide,
+    PortfolioSnapshot,
+    ResearchReport,
+    RiskAction,
+    RiskDecision,
+    Signal,
+    SignalDirection,
 )
+from src.core.orchestrator import Orchestrator
 
 
 class MockStrategy:
@@ -18,8 +27,11 @@ class MockStrategy:
 
     async def evaluate(self, symbol, market_data, research=None):
         return Signal(
-            symbol=symbol, direction=self._direction, confidence=self._confidence,
-            strategy_name=self.name, timestamp=datetime.now(timezone.utc),
+            symbol=symbol,
+            direction=self._direction,
+            confidence=self._confidence,
+            strategy_name=self.name,
+            timestamp=datetime.now(UTC),
             reasoning=f"{self.name} signal",
         )
 
@@ -44,9 +56,12 @@ class MockExecutor:
     async def submit_order(self, order):
         self.submitted_orders.append(order)
         return Fill(
-            order_id=order.id, symbol=order.symbol, side=order.side,
-            quantity=order.quantity, fill_price=Decimal("150"),
-            timestamp=datetime.now(timezone.utc),
+            order_id=order.id,
+            symbol=order.symbol,
+            side=order.side,
+            quantity=order.quantity,
+            fill_price=Decimal("150"),
+            timestamp=datetime.now(UTC),
         )
 
     async def cancel_order(self, order_id):
@@ -59,8 +74,9 @@ class MockExecutor:
 class MockPortfolio:
     async def get_snapshot(self):
         return PortfolioSnapshot(
-            cash=Decimal("100000"), positions=[],
-            timestamp=datetime.now(timezone.utc),
+            cash=Decimal("100000"),
+            positions=[],
+            timestamp=datetime.now(UTC),
         )
 
     async def record_fill(self, fill):
@@ -88,8 +104,11 @@ async def test_process_signals_executes_trade(bus):
         event_bus=bus,
     )
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("150"), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("150"),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     fills = await orchestrator.process_tick(tick)
     assert len(fills) == 1  # Agreeing signals = one trade
@@ -105,8 +124,11 @@ async def test_risk_veto_prevents_trade(bus):
         event_bus=bus,
     )
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("150"), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("150"),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     fills = await orchestrator.process_tick(tick)
     assert len(fills) == 0
@@ -125,8 +147,11 @@ async def test_conflicting_signals_tie_break_by_confidence(bus):
         event_bus=bus,
     )
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("150"), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("150"),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     fills = await orchestrator.process_tick(tick)
     # Conflicting signals resolved by highest confidence (BUY @ 0.9)
@@ -146,8 +171,11 @@ async def test_pause_and_resume(bus):
     )
     orchestrator.pause()
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("150"), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("150"),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     fills = await orchestrator.process_tick(tick)
     assert len(fills) == 0
@@ -173,7 +201,7 @@ class ResearchCapturingStrategy:
             direction=SignalDirection.BUY,
             confidence=0.7,
             strategy_name=self.name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="test",
         )
 
@@ -194,15 +222,18 @@ async def test_set_research_passes_reports_to_strategies(bus):
             symbol="AAPL",
             summary="Bullish sentiment from news",
             sentiment_score=0.8,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             sources=["sentiment_pipeline"],
         ),
     ]
     orchestrator.set_research(reports)
 
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("150"), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("150"),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     await orchestrator.process_tick(tick)
 
@@ -223,8 +254,11 @@ async def test_research_defaults_to_empty_when_not_set(bus):
     )
 
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("150"), volume=1000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("150"),
+        volume=1000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     await orchestrator.process_tick(tick)
 

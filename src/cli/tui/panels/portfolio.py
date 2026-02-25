@@ -1,12 +1,16 @@
 """Portfolio panel for the TUI dashboard."""
+
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
+from textual import work
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, Sparkline, Static
-from textual import work
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 logger = logging.getLogger(__name__)
 

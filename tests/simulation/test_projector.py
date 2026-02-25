@@ -1,6 +1,4 @@
 """Tests for Monte Carlo price path projection."""
-import numpy as np
-import pytest
 
 from src.simulation.projector import MonteCarloProjector
 

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytest
 import yaml
 from typer.testing import CliRunner
 
 from src.cli.main import app
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 runner = CliRunner()
 
@@ -43,9 +45,7 @@ class TestConfigValidate:
         assert result.exit_code == 1
 
     def test_missing_file(self):
-        result = runner.invoke(
-            app, ["config", "validate", "--config", "/nonexistent/path.yaml"]
-        )
+        result = runner.invoke(app, ["config", "validate", "--config", "/nonexistent/path.yaml"])
         assert result.exit_code == 1
 
 
@@ -53,18 +53,14 @@ class TestConfigShow:
     def test_yaml_output(self, tmp_path: Path):
         cfg = tmp_path / "settings.yaml"
         cfg.write_text(yaml.dump(VALID_CONFIG))
-        result = runner.invoke(
-            app, ["config", "show", "--config", str(cfg), "--format", "yaml"]
-        )
+        result = runner.invoke(app, ["config", "show", "--config", str(cfg), "--format", "yaml"])
         assert result.exit_code == 0
         assert "mode" in result.output
 
     def test_json_output(self, tmp_path: Path):
         cfg = tmp_path / "settings.yaml"
         cfg.write_text(yaml.dump(VALID_CONFIG))
-        result = runner.invoke(
-            app, ["config", "show", "--config", str(cfg), "--format", "json"]
-        )
+        result = runner.invoke(app, ["config", "show", "--config", str(cfg), "--format", "json"])
         assert result.exit_code == 0
         # Should be parseable JSON
         parsed = json.loads(result.output)

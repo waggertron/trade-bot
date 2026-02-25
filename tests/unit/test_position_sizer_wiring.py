@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
@@ -29,7 +29,7 @@ def _make_tick(symbol="BTC/USD", price="50000"):
         symbol=symbol,
         price=Decimal(price),
         volume=1000,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         asset_type=AssetType.CRYPTO,
     )
 
@@ -40,7 +40,7 @@ def _make_signal(symbol="BTC/USD", direction=SignalDirection.BUY):
         direction=direction,
         confidence=0.8,
         strategy_name="test",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         reasoning="test",
     )
 
@@ -49,7 +49,7 @@ def _make_portfolio(cash="100000"):
     return PortfolioSnapshot(
         cash=Decimal(cash),
         positions=[],
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -78,7 +78,7 @@ async def test_position_sizer_delegates_compute_quantity():
         side=OrderSide.BUY,
         quantity=Decimal("0.1"),
         fill_price=Decimal("50000"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     executor.submit_order = AsyncMock(return_value=fill)
 
@@ -124,7 +124,7 @@ async def test_without_position_sizer_uses_default():
         side=OrderSide.BUY,
         quantity=Decimal("0.04"),
         fill_price=Decimal("50000"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     executor.submit_order = AsyncMock(return_value=fill)
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -22,7 +22,8 @@ from src.db.models import (
 metadata = sa.MetaData()
 
 users_table = sa.Table(
-    "users", metadata,
+    "users",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("email", sa.String, nullable=False, unique=True, index=True),
     sa.Column("hashed_password", sa.String, nullable=True),
@@ -34,7 +35,8 @@ users_table = sa.Table(
 )
 
 oauth_accounts_table = sa.Table(
-    "oauth_accounts", metadata,
+    "oauth_accounts",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=False, index=True),
     sa.Column("provider", sa.String, nullable=False),
@@ -45,9 +47,17 @@ oauth_accounts_table = sa.Table(
 )
 
 user_settings_table = sa.Table(
-    "user_settings", metadata,
+    "user_settings",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
-    sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=False, unique=True, index=True),
+    sa.Column(
+        "user_id",
+        sa.String,
+        sa.ForeignKey("users.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    ),
     sa.Column("mode", sa.String, nullable=False, server_default="paper"),
     sa.Column("risk_preset", sa.String, nullable=False, server_default=""),
     sa.Column("symbols_config", sa.String, nullable=False, server_default=""),
@@ -57,7 +67,8 @@ user_settings_table = sa.Table(
 )
 
 trades_table = sa.Table(
-    "trades", metadata,
+    "trades",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=True, index=True),
     sa.Column("symbol", sa.String, nullable=False),
@@ -71,7 +82,8 @@ trades_table = sa.Table(
 )
 
 signals_table = sa.Table(
-    "signals", metadata,
+    "signals",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("user_id", sa.String, sa.ForeignKey("users.id"), nullable=True, index=True),
     sa.Column("symbol", sa.String, nullable=False),
@@ -83,7 +95,8 @@ signals_table = sa.Table(
 )
 
 ohlc_bars_table = sa.Table(
-    "ohlc_bars", metadata,
+    "ohlc_bars",
+    metadata,
     sa.Column("symbol", sa.String, nullable=False),
     sa.Column("interval", sa.String, nullable=False),
     sa.Column("timestamp", sa.Integer, nullable=False),
@@ -98,7 +111,8 @@ ohlc_bars_table = sa.Table(
 
 
 feeds_table = sa.Table(
-    "feeds", metadata,
+    "feeds",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("name", sa.String, nullable=False),
     sa.Column("url", sa.String, nullable=False, unique=True),
@@ -112,7 +126,8 @@ feeds_table = sa.Table(
 )
 
 articles_table = sa.Table(
-    "articles", metadata,
+    "articles",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("content_hash", sa.String, nullable=False, unique=True),
     sa.Column("title", sa.String, nullable=False),
@@ -126,14 +141,16 @@ articles_table = sa.Table(
 )
 
 article_symbols_table = sa.Table(
-    "article_symbols", metadata,
+    "article_symbols",
+    metadata,
     sa.Column("article_id", sa.String, sa.ForeignKey("articles.id"), nullable=False),
     sa.Column("symbol", sa.String, nullable=False),
     sa.PrimaryKeyConstraint("article_id", "symbol"),
 )
 
 sentiment_scores_table = sa.Table(
-    "sentiment_scores", metadata,
+    "sentiment_scores",
+    metadata,
     sa.Column("id", sa.String, primary_key=True),
     sa.Column("article_id", sa.String, sa.ForeignKey("articles.id"), nullable=False),
     sa.Column("score", sa.Float, nullable=False),
@@ -169,27 +186,34 @@ class Database:
 
     async def create_user(self, user: UserRecord) -> str:
         async with self._engine.begin() as conn:
-            await conn.execute(users_table.insert().values(
-                id=user.id, email=user.email, hashed_password=user.hashed_password,
-                name=user.name, is_active=user.is_active, is_verified=user.is_verified,
-                created_at=user.created_at, updated_at=user.updated_at,
-            ))
+            await conn.execute(
+                users_table.insert().values(
+                    id=user.id,
+                    email=user.email,
+                    hashed_password=user.hashed_password,
+                    name=user.name,
+                    is_active=user.is_active,
+                    is_verified=user.is_verified,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at,
+                )
+            )
         return user.id
 
     async def get_user_by_email(self, email: str) -> UserRecord | None:
         async with self._engine.connect() as conn:
-            row = (await conn.execute(
-                users_table.select().where(users_table.c.email == email)
-            )).first()
+            row = (
+                await conn.execute(users_table.select().where(users_table.c.email == email))
+            ).first()
         if row is None:
             return None
         return UserRecord(**row._asdict())
 
     async def get_user_by_id(self, user_id: str) -> UserRecord | None:
         async with self._engine.connect() as conn:
-            row = (await conn.execute(
-                users_table.select().where(users_table.c.id == user_id)
-            )).first()
+            row = (
+                await conn.execute(users_table.select().where(users_table.c.id == user_id))
+            ).first()
         if row is None:
             return None
         return UserRecord(**row._asdict())
@@ -197,27 +221,32 @@ class Database:
     async def update_user(self, user_id: str, **fields: object) -> None:
         if not fields:
             return
-        fields["updated_at"] = datetime.now(timezone.utc)
+        fields["updated_at"] = datetime.now(UTC)
         async with self._engine.begin() as conn:
             await conn.execute(
-                users_table.update()
-                .where(users_table.c.id == user_id)
-                .values(**fields)
+                users_table.update().where(users_table.c.id == user_id).values(**fields)
             )
 
     # -- OAuth Account CRUD ----------------------------------------------------
 
     async def link_oauth_account(self, account: OAuthAccountRecord) -> str:
         async with self._engine.begin() as conn:
-            await conn.execute(oauth_accounts_table.insert().values(
-                id=account.id, user_id=account.user_id, provider=account.provider,
-                provider_user_id=account.provider_user_id, email=account.email,
-                created_at=account.created_at,
-            ))
+            await conn.execute(
+                oauth_accounts_table.insert().values(
+                    id=account.id,
+                    user_id=account.user_id,
+                    provider=account.provider,
+                    provider_user_id=account.provider_user_id,
+                    email=account.email,
+                    created_at=account.created_at,
+                )
+            )
         return account.id
 
     async def get_user_by_oauth(
-        self, provider: str, provider_user_id: str,
+        self,
+        provider: str,
+        provider_user_id: str,
     ) -> UserRecord | None:
         query = (
             sa.select(users_table)
@@ -235,19 +264,27 @@ class Database:
 
     async def save_user_settings(self, settings: UserSettingsRecord) -> str:
         async with self._engine.begin() as conn:
-            await conn.execute(user_settings_table.insert().values(
-                id=settings.id, user_id=settings.user_id, mode=settings.mode,
-                risk_preset=settings.risk_preset, symbols_config=settings.symbols_config,
-                strategy_weights=settings.strategy_weights,
-                created_at=settings.created_at, updated_at=settings.updated_at,
-            ))
+            await conn.execute(
+                user_settings_table.insert().values(
+                    id=settings.id,
+                    user_id=settings.user_id,
+                    mode=settings.mode,
+                    risk_preset=settings.risk_preset,
+                    symbols_config=settings.symbols_config,
+                    strategy_weights=settings.strategy_weights,
+                    created_at=settings.created_at,
+                    updated_at=settings.updated_at,
+                )
+            )
         return settings.id
 
     async def get_user_settings(self, user_id: str) -> UserSettingsRecord | None:
         async with self._engine.connect() as conn:
-            row = (await conn.execute(
-                user_settings_table.select().where(user_settings_table.c.user_id == user_id)
-            )).first()
+            row = (
+                await conn.execute(
+                    user_settings_table.select().where(user_settings_table.c.user_id == user_id)
+                )
+            ).first()
         if row is None:
             return None
         return UserSettingsRecord(**row._asdict())
@@ -255,7 +292,7 @@ class Database:
     async def update_user_settings(self, user_id: str, **fields: object) -> None:
         if not fields:
             return
-        fields["updated_at"] = datetime.now(timezone.utc)
+        fields["updated_at"] = datetime.now(UTC)
         async with self._engine.begin() as conn:
             await conn.execute(
                 user_settings_table.update()
@@ -267,25 +304,35 @@ class Database:
 
     async def save_trade(self, trade: TradeRecord) -> str:
         async with self._engine.begin() as conn:
-            await conn.execute(trades_table.insert().values(
-                id=trade.id, user_id=trade.user_id, symbol=trade.symbol,
-                side=trade.side, quantity=trade.quantity, price=trade.price,
-                commission=trade.commission, strategy=trade.strategy,
-                paper=trade.paper, timestamp=trade.timestamp,
-            ))
+            await conn.execute(
+                trades_table.insert().values(
+                    id=trade.id,
+                    user_id=trade.user_id,
+                    symbol=trade.symbol,
+                    side=trade.side,
+                    quantity=trade.quantity,
+                    price=trade.price,
+                    commission=trade.commission,
+                    strategy=trade.strategy,
+                    paper=trade.paper,
+                    timestamp=trade.timestamp,
+                )
+            )
         return trade.id
 
     async def get_trade(self, trade_id: str) -> TradeRecord | None:
         async with self._engine.connect() as conn:
-            row = (await conn.execute(
-                trades_table.select().where(trades_table.c.id == trade_id)
-            )).first()
+            row = (
+                await conn.execute(trades_table.select().where(trades_table.c.id == trade_id))
+            ).first()
         if row is None:
             return None
         return TradeRecord(**row._asdict())
 
     async def list_trades(
-        self, strategy: str | None = None, limit: int = 100,
+        self,
+        strategy: str | None = None,
+        limit: int = 100,
         user_id: str | None = None,
     ) -> list[TradeRecord]:
         query = trades_table.select().order_by(trades_table.c.timestamp.desc()).limit(limit)
@@ -299,16 +346,24 @@ class Database:
 
     async def save_signal(self, signal: SignalRecord) -> str:
         async with self._engine.begin() as conn:
-            await conn.execute(signals_table.insert().values(
-                id=signal.id, user_id=signal.user_id, symbol=signal.symbol,
-                direction=signal.direction, confidence=signal.confidence,
-                strategy=signal.strategy, reasoning=signal.reasoning,
-                timestamp=signal.timestamp,
-            ))
+            await conn.execute(
+                signals_table.insert().values(
+                    id=signal.id,
+                    user_id=signal.user_id,
+                    symbol=signal.symbol,
+                    direction=signal.direction,
+                    confidence=signal.confidence,
+                    strategy=signal.strategy,
+                    reasoning=signal.reasoning,
+                    timestamp=signal.timestamp,
+                )
+            )
         return signal.id
 
     async def list_signals(
-        self, limit: int = 100, user_id: str | None = None,
+        self,
+        limit: int = 100,
+        user_id: str | None = None,
     ) -> list[SignalRecord]:
         query = signals_table.select().order_by(signals_table.c.timestamp.desc()).limit(limit)
         if user_id is not None:
@@ -343,14 +398,20 @@ class Database:
                         stmt = pg_insert(ohlc_bars_table).values(**values)
                         stmt = stmt.on_conflict_do_update(
                             constraint=ohlc_bars_table.primary_key,
-                            set_={k: v for k, v in values.items()
-                                  if k not in ("symbol", "interval", "timestamp")},
+                            set_={
+                                k: v
+                                for k, v in values.items()
+                                if k not in ("symbol", "interval", "timestamp")
+                            },
                         )
                     else:
                         stmt = sqlite_insert(ohlc_bars_table).values(**values)
                         stmt = stmt.on_conflict_do_update(
-                            set_={k: v for k, v in values.items()
-                                  if k not in ("symbol", "interval", "timestamp")},
+                            set_={
+                                k: v
+                                for k, v in values.items()
+                                if k not in ("symbol", "interval", "timestamp")
+                            },
                         )
                     await conn.execute(stmt)
                 total += len(batch)
@@ -401,13 +462,20 @@ class Database:
 
     async def save_feed(self, feed: FeedRecord) -> str:
         async with self._engine.begin() as conn:
-            await conn.execute(feeds_table.insert().values(
-                id=feed.id, name=feed.name, url=feed.url,
-                feed_type=feed.feed_type, category=feed.category,
-                auth_type=feed.auth_type, rate_limit_rpm=feed.rate_limit_rpm,
-                enabled=feed.enabled, last_fetched_at=feed.last_fetched_at,
-                created_at=feed.created_at,
-            ))
+            await conn.execute(
+                feeds_table.insert().values(
+                    id=feed.id,
+                    name=feed.name,
+                    url=feed.url,
+                    feed_type=feed.feed_type,
+                    category=feed.category,
+                    auth_type=feed.auth_type,
+                    rate_limit_rpm=feed.rate_limit_rpm,
+                    enabled=feed.enabled,
+                    last_fetched_at=feed.last_fetched_at,
+                    created_at=feed.created_at,
+                )
+            )
         return feed.id
 
     async def list_feeds(
@@ -417,26 +485,30 @@ class Database:
     ) -> list[FeedRecord]:
         query = feeds_table.select().order_by(feeds_table.c.name.asc())
         if enabled_only:
-            query = query.where(feeds_table.c.enabled == True)  # noqa: E712
+            query = query.where(feeds_table.c.enabled.is_(True))
         if feed_type is not None:
             query = query.where(feeds_table.c.feed_type == feed_type)
         async with self._engine.connect() as conn:
             rows = (await conn.execute(query)).fetchall()
         return [
             FeedRecord(
-                id=r.id, name=r.name, url=r.url, feed_type=r.feed_type,
-                category=r.category, auth_type=r.auth_type,
-                rate_limit_rpm=r.rate_limit_rpm, enabled=r.enabled,
-                last_fetched_at=r.last_fetched_at, created_at=r.created_at,
+                id=r.id,
+                name=r.name,
+                url=r.url,
+                feed_type=r.feed_type,
+                category=r.category,
+                auth_type=r.auth_type,
+                rate_limit_rpm=r.rate_limit_rpm,
+                enabled=r.enabled,
+                last_fetched_at=r.last_fetched_at,
+                created_at=r.created_at,
             )
             for r in rows
         ]
 
     async def count_feeds(self) -> int:
         async with self._engine.connect() as conn:
-            result = await conn.execute(
-                sa.select(sa.func.count()).select_from(feeds_table)
-            )
+            result = await conn.execute(sa.select(sa.func.count()).select_from(feeds_table))
             return int(result.scalar() or 0)
 
     async def seed_feeds(self, records: list[FeedRecord]) -> int:
@@ -446,10 +518,15 @@ class Database:
         async with self._engine.begin() as conn:
             for rec in records:
                 values = {
-                    "id": rec.id, "name": rec.name, "url": rec.url,
-                    "feed_type": rec.feed_type, "category": rec.category,
-                    "auth_type": rec.auth_type, "rate_limit_rpm": rec.rate_limit_rpm,
-                    "enabled": rec.enabled, "last_fetched_at": rec.last_fetched_at,
+                    "id": rec.id,
+                    "name": rec.name,
+                    "url": rec.url,
+                    "feed_type": rec.feed_type,
+                    "category": rec.category,
+                    "auth_type": rec.auth_type,
+                    "rate_limit_rpm": rec.rate_limit_rpm,
+                    "enabled": rec.enabled,
+                    "last_fetched_at": rec.last_fetched_at,
                     "created_at": rec.created_at,
                 }
                 if is_pg:
@@ -465,9 +542,7 @@ class Database:
     async def update_feed_last_fetched(self, feed_id: str, ts: datetime) -> None:
         async with self._engine.begin() as conn:
             await conn.execute(
-                feeds_table.update()
-                .where(feeds_table.c.id == feed_id)
-                .values(last_fetched_at=ts)
+                feeds_table.update().where(feeds_table.c.id == feed_id).values(last_fetched_at=ts)
             )
 
     # -- Article CRUD ----------------------------------------------------------
@@ -476,23 +551,35 @@ class Database:
         """Save an article. Returns article ID on success, None if duplicate."""
         try:
             async with self._engine.begin() as conn:
-                await conn.execute(articles_table.insert().values(
-                    id=article.id, content_hash=article.content_hash,
-                    title=article.title, body=article.body, source=article.source,
-                    url=article.url, published_at=article.published_at,
-                    fetched_at=article.fetched_at, feed_id=article.feed_id,
-                    created_at=article.created_at,
-                ))
+                await conn.execute(
+                    articles_table.insert().values(
+                        id=article.id,
+                        content_hash=article.content_hash,
+                        title=article.title,
+                        body=article.body,
+                        source=article.source,
+                        url=article.url,
+                        published_at=article.published_at,
+                        fetched_at=article.fetched_at,
+                        feed_id=article.feed_id,
+                        created_at=article.created_at,
+                    )
+                )
                 for symbol in article.symbols:
-                    await conn.execute(article_symbols_table.insert().values(
-                        article_id=article.id, symbol=symbol,
-                    ))
+                    await conn.execute(
+                        article_symbols_table.insert().values(
+                            article_id=article.id,
+                            symbol=symbol,
+                        )
+                    )
         except sa.exc.IntegrityError:
             return None
         return article.id
 
     async def get_articles_for_symbol(
-        self, symbol: str, limit: int = 100,
+        self,
+        symbol: str,
+        limit: int = 100,
     ) -> list[ArticleRecord]:
         query = (
             sa.select(articles_table)
@@ -506,47 +593,70 @@ class Database:
             results = []
             for r in rows:
                 syms = await self._get_article_symbols(conn, r.id)
-                results.append(ArticleRecord(
-                    id=r.id, content_hash=r.content_hash, title=r.title,
-                    body=r.body, source=r.source, url=r.url,
-                    published_at=r.published_at, fetched_at=r.fetched_at,
-                    feed_id=r.feed_id, created_at=r.created_at, symbols=syms,
-                ))
+                results.append(
+                    ArticleRecord(
+                        id=r.id,
+                        content_hash=r.content_hash,
+                        title=r.title,
+                        body=r.body,
+                        source=r.source,
+                        url=r.url,
+                        published_at=r.published_at,
+                        fetched_at=r.fetched_at,
+                        feed_id=r.feed_id,
+                        created_at=r.created_at,
+                        symbols=syms,
+                    )
+                )
         return results
 
     async def get_articles_for_symbol_by_id(
-        self, article_id: str,
+        self,
+        article_id: str,
     ) -> list[ArticleRecord]:
         """Get an article by ID with its symbols."""
         async with self._engine.connect() as conn:
-            row = (await conn.execute(
-                articles_table.select().where(articles_table.c.id == article_id)
-            )).first()
+            row = (
+                await conn.execute(articles_table.select().where(articles_table.c.id == article_id))
+            ).first()
             if row is None:
                 return []
             syms = await self._get_article_symbols(conn, row.id)
-            return [ArticleRecord(
-                id=row.id, content_hash=row.content_hash, title=row.title,
-                body=row.body, source=row.source, url=row.url,
-                published_at=row.published_at, fetched_at=row.fetched_at,
-                feed_id=row.feed_id, created_at=row.created_at, symbols=syms,
-            )]
+            return [
+                ArticleRecord(
+                    id=row.id,
+                    content_hash=row.content_hash,
+                    title=row.title,
+                    body=row.body,
+                    source=row.source,
+                    url=row.url,
+                    published_at=row.published_at,
+                    fetched_at=row.fetched_at,
+                    feed_id=row.feed_id,
+                    created_at=row.created_at,
+                    symbols=syms,
+                )
+            ]
 
     async def _get_article_symbols(self, conn, article_id: str) -> list[str]:
-        rows = (await conn.execute(
-            article_symbols_table.select().where(
-                article_symbols_table.c.article_id == article_id
+        rows = (
+            await conn.execute(
+                article_symbols_table.select().where(
+                    article_symbols_table.c.article_id == article_id
+                )
             )
-        )).fetchall()
+        ).fetchall()
         return [r.symbol for r in rows]
 
     async def get_unscored_articles(
-        self, symbol: str, analyzer: str, limit: int = 100,
+        self,
+        symbol: str,
+        analyzer: str,
+        limit: int = 100,
     ) -> list[ArticleRecord]:
         """Get articles for a symbol that have no score from the given analyzer."""
-        scored_subq = (
-            sa.select(sentiment_scores_table.c.article_id)
-            .where(sentiment_scores_table.c.analyzer == analyzer)
+        scored_subq = sa.select(sentiment_scores_table.c.article_id).where(
+            sentiment_scores_table.c.analyzer == analyzer
         )
         query = (
             sa.select(articles_table)
@@ -561,12 +671,21 @@ class Database:
             results = []
             for r in rows:
                 syms = await self._get_article_symbols(conn, r.id)
-                results.append(ArticleRecord(
-                    id=r.id, content_hash=r.content_hash, title=r.title,
-                    body=r.body, source=r.source, url=r.url,
-                    published_at=r.published_at, fetched_at=r.fetched_at,
-                    feed_id=r.feed_id, created_at=r.created_at, symbols=syms,
-                ))
+                results.append(
+                    ArticleRecord(
+                        id=r.id,
+                        content_hash=r.content_hash,
+                        title=r.title,
+                        body=r.body,
+                        source=r.source,
+                        url=r.url,
+                        published_at=r.published_at,
+                        fetched_at=r.fetched_at,
+                        feed_id=r.feed_id,
+                        created_at=r.created_at,
+                        symbols=syms,
+                    )
+                )
         return results
 
     # -- Sentiment Score CRUD --------------------------------------------------
@@ -575,12 +694,17 @@ class Database:
         """Save a sentiment score. Ignores duplicates (article_id + analyzer)."""
         try:
             async with self._engine.begin() as conn:
-                await conn.execute(sentiment_scores_table.insert().values(
-                    id=score.id, article_id=score.article_id,
-                    score=score.score, magnitude=score.magnitude,
-                    reasoning=score.reasoning, analyzer=score.analyzer,
-                    created_at=score.created_at,
-                ))
+                await conn.execute(
+                    sentiment_scores_table.insert().values(
+                        id=score.id,
+                        article_id=score.article_id,
+                        score=score.score,
+                        magnitude=score.magnitude,
+                        reasoning=score.reasoning,
+                        analyzer=score.analyzer,
+                        created_at=score.created_at,
+                    )
+                )
         except sa.exc.IntegrityError:
             return None
         return score.id
@@ -638,16 +762,17 @@ class Database:
 
         def _as_dt(val: object) -> datetime:
             if isinstance(val, datetime):
-                return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+                return val if val.tzinfo else val.replace(tzinfo=UTC)
             dt = datetime.fromisoformat(str(val))
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
         return [(r[0], float(r[1]), float(r[2]), _as_dt(r[3])) for r in rows]
 
     async def load_recent_scores(
-        self, hours: int = 48,
+        self,
+        hours: int = 48,
     ) -> list[SentimentScoreRecord]:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         query = (
             sentiment_scores_table.select()
             .where(sentiment_scores_table.c.created_at >= cutoff)
@@ -657,9 +782,13 @@ class Database:
             rows = (await conn.execute(query)).fetchall()
         return [
             SentimentScoreRecord(
-                id=r.id, article_id=r.article_id, score=r.score,
-                magnitude=r.magnitude, reasoning=r.reasoning,
-                analyzer=r.analyzer, created_at=r.created_at,
+                id=r.id,
+                article_id=r.article_id,
+                score=r.score,
+                magnitude=r.magnitude,
+                reasoning=r.reasoning,
+                analyzer=r.analyzer,
+                created_at=r.created_at,
             )
             for r in rows
         ]

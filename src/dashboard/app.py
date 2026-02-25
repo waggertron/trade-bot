@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import os
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import os
-
 from src.dashboard import dependencies
 from src.dashboard.rate_limit import RateLimitMiddleware
 from src.dashboard.request_id import RequestIDMiddleware
-from src.dashboard.security_headers import SecurityHeadersMiddleware
 from src.dashboard.routers import (
     analytics,
     auth,
@@ -31,6 +29,7 @@ from src.dashboard.routers import (
     trading,
     websocket,
 )
+from src.dashboard.security_headers import SecurityHeadersMiddleware
 
 
 def create_app(
@@ -76,7 +75,7 @@ def create_app(
     dependencies.state.event_bus = event_bus
     dependencies.state.settings = settings
     dependencies.state.strategies = strategy_list or []
-    dependencies.state.start_time = datetime.now(timezone.utc)
+    dependencies.state.start_time = datetime.now(UTC)
 
     # Register routers
     app.include_router(auth.router)
@@ -133,7 +132,7 @@ def create_app(
     async def system_status():
         is_paused = orchestrator.is_paused if orchestrator else False
         mode = settings.mode if settings else "paper"
-        uptime = (datetime.now(timezone.utc) - dependencies.state.start_time).total_seconds()
+        uptime = (datetime.now(UTC) - dependencies.state.start_time).total_seconds()
         return {
             "mode": mode,
             "is_paused": is_paused,

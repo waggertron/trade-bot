@@ -1,4 +1,5 @@
 """Tests for the BenchmarkSimulator."""
+
 from __future__ import annotations
 
 import pytest
@@ -13,15 +14,17 @@ def _make_bars(n: int, start_price: float = 100.0, trend: float = 0.5) -> list[O
     base_ts = 1700000000
     for i in range(n):
         price = start_price + i * trend
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=str(price - 0.2),
-            high=str(price + 1.0),
-            low=str(price - 1.0),
-            close=str(price),
-            volume=str(1_000_000),
-            source="test",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=str(price - 0.2),
+                high=str(price + 1.0),
+                low=str(price - 1.0),
+                close=str(price),
+                volume=str(1_000_000),
+                source="test",
+            )
+        )
     return bars
 
 
@@ -59,11 +62,17 @@ class TestBuyAndHold:
         base_ts = 1700000000
         prices = [100, 110, 120, 105, 90, 95, 115]
         for i, p in enumerate(prices):
-            bars.append(OHLCBar(
-                timestamp=base_ts + i * 86400,
-                open=str(p), high=str(p + 1), low=str(p - 1),
-                close=str(p), volume="1000000", source="test",
-            ))
+            bars.append(
+                OHLCBar(
+                    timestamp=base_ts + i * 86400,
+                    open=str(p),
+                    high=str(p + 1),
+                    low=str(p - 1),
+                    close=str(p),
+                    volume="1000000",
+                    source="test",
+                )
+            )
         bench = BenchmarkSimulator()
         result = bench.buy_and_hold(bars, initial_balance=10_000.0)
 

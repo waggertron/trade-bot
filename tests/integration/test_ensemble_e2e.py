@@ -1,4 +1,5 @@
 """End-to-end integration test for the full ensemble pipeline."""
+
 from __future__ import annotations
 
 import pytest

@@ -46,6 +46,7 @@ async def db(tmp_path):
 @pytest.fixture
 def settings():
     from src.core.config import Settings
+
     return Settings.for_testing()
 
 
@@ -74,19 +75,23 @@ class TestOAuthRedirect:
 
 
 class TestOAuthCallback:
-    async def test_callback_creates_new_user(self, client: AsyncClient, db: Database):
-        mock_token = {"access_token": "mock-token", "token_type": "bearer"}
-        mock_userinfo = {
-            "sub": "google-12345",
-            "email": "newuser@gmail.com",
-            "name": "New User",
-        }
-        with patch("src.dashboard.routers.oauth._fetch_oauth_user_info", new_callable=AsyncMock) as mock_fetch:
+    async def test_callback_creates_new_user(
+        self,
+        client: AsyncClient,
+        db: Database,
+    ):
+        with patch(
+            "src.dashboard.routers.oauth._fetch_oauth_user_info",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
             mock_fetch.return_value = ("google-12345", "newuser@gmail.com", "New User")
-            resp = await client.post("/api/auth/oauth/google/callback", json={
-                "code": "mock-auth-code",
-                "redirect_uri": "http://localhost:3000/auth/callback/google",
-            })
+            resp = await client.post(
+                "/api/auth/oauth/google/callback",
+                json={
+                    "code": "mock-auth-code",
+                    "redirect_uri": "http://localhost:3000/auth/callback/google",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert "access_token" in data
@@ -94,43 +99,80 @@ class TestOAuthCallback:
         assert data["user"]["email"] == "newuser@gmail.com"
         assert data["is_new_user"] is True
 
-    async def test_callback_links_to_existing_user_by_email(self, client: AsyncClient, db: Database):
+    async def test_callback_links_to_existing_user_by_email(
+        self,
+        client: AsyncClient,
+        db: Database,
+    ):
         # Pre-register a user with email/password
-        await client.post("/api/auth/register", json={
-            "email": "existing@gmail.com", "password": "Pass123!", "name": "Existing",
-        })
-        with patch("src.dashboard.routers.oauth._fetch_oauth_user_info", new_callable=AsyncMock) as mock_fetch:
+        await client.post(
+            "/api/auth/register",
+            json={
+                "email": "existing@gmail.com",
+                "password": "Pass123!",
+                "name": "Existing",
+            },
+        )
+        with patch(
+            "src.dashboard.routers.oauth._fetch_oauth_user_info",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
             mock_fetch.return_value = ("google-99", "existing@gmail.com", "Existing")
-            resp = await client.post("/api/auth/oauth/google/callback", json={
-                "code": "mock-code",
-                "redirect_uri": "http://localhost:3000/auth/callback/google",
-            })
+            resp = await client.post(
+                "/api/auth/oauth/google/callback",
+                json={
+                    "code": "mock-code",
+                    "redirect_uri": "http://localhost:3000/auth/callback/google",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_new_user"] is False
         assert data["user"]["email"] == "existing@gmail.com"
 
-    async def test_callback_returns_existing_linked_user(self, client: AsyncClient, db: Database):
+    async def test_callback_returns_existing_linked_user(
+        self,
+        client: AsyncClient,
+        db: Database,
+    ):
         # First OAuth login creates user
-        with patch("src.dashboard.routers.oauth._fetch_oauth_user_info", new_callable=AsyncMock) as mock_fetch:
+        with patch(
+            "src.dashboard.routers.oauth._fetch_oauth_user_info",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
             mock_fetch.return_value = ("gh-555", "dev@github.com", "Dev")
-            resp1 = await client.post("/api/auth/oauth/github/callback", json={
-                "code": "code1", "redirect_uri": "http://localhost:3000/auth/callback/github",
-            })
+            resp1 = await client.post(
+                "/api/auth/oauth/github/callback",
+                json={
+                    "code": "code1",
+                    "redirect_uri": "http://localhost:3000/auth/callback/github",
+                },
+            )
         user_id_1 = resp1.json()["user"]["id"]
 
         # Second OAuth login returns same user
-        with patch("src.dashboard.routers.oauth._fetch_oauth_user_info", new_callable=AsyncMock) as mock_fetch:
+        with patch(
+            "src.dashboard.routers.oauth._fetch_oauth_user_info",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
             mock_fetch.return_value = ("gh-555", "dev@github.com", "Dev")
-            resp2 = await client.post("/api/auth/oauth/github/callback", json={
-                "code": "code2", "redirect_uri": "http://localhost:3000/auth/callback/github",
-            })
+            resp2 = await client.post(
+                "/api/auth/oauth/github/callback",
+                json={
+                    "code": "code2",
+                    "redirect_uri": "http://localhost:3000/auth/callback/github",
+                },
+            )
         user_id_2 = resp2.json()["user"]["id"]
         assert user_id_1 == user_id_2
         assert resp2.json()["is_new_user"] is False
 
     async def test_callback_unsupported_provider_returns_400(self, client: AsyncClient):
-        resp = await client.post("/api/auth/oauth/twitter/callback", json={
-            "code": "code", "redirect_uri": "http://example.com",
-        })
+        resp = await client.post(
+            "/api/auth/oauth/twitter/callback",
+            json={
+                "code": "code",
+                "redirect_uri": "http://example.com",
+            },
+        )
         assert resp.status_code == 400

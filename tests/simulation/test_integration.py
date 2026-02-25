@@ -1,8 +1,9 @@
 """Integration test: full simulation pipeline end-to-end."""
+
 from __future__ import annotations
 
 import random
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -21,15 +22,17 @@ def _make_bars(n: int, start_price: float = 150.0, volatility: float = 2.0) -> l
     for i in range(n):
         change = random.gauss(0.1, volatility)
         price = max(1.0, price + change)
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=f"{price - 0.5:.2f}",
-            high=f"{price + abs(change):.2f}",
-            low=f"{price - abs(change):.2f}",
-            close=f"{price:.2f}",
-            volume=str(random.randint(500000, 5000000)),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=f"{price - 0.5:.2f}",
+                high=f"{price + abs(change):.2f}",
+                low=f"{price - abs(change):.2f}",
+                close=f"{price:.2f}",
+                volume=str(random.randint(500000, 5000000)),
+                source="yfinance",
+            )
+        )
     return bars
 
 

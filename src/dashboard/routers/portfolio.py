@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
 from src.dashboard.dependencies import require_user, state
-from src.db.models import UserRecord
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
 
 @router.get("/")
-async def get_portfolio(current_user: UserRecord = Depends(require_user)):
+async def get_portfolio(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Portfolio snapshot: cash, positions, total value."""
     if state.portfolio is None:
         return {"error": "Portfolio not available"}
@@ -37,7 +37,7 @@ async def get_portfolio(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/positions")
-async def get_positions(current_user: UserRecord = Depends(require_user)):
+async def get_positions(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Detailed positions with current prices."""
     if state.portfolio is None:
         return []
@@ -58,7 +58,7 @@ async def get_positions(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/pnl")
-async def get_pnl(period: str = "30d", current_user: UserRecord = Depends(require_user)):
+async def get_pnl(period: str = "30d", current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """P&L summary: realized, unrealized, win rate."""
     if state.portfolio is None:
         return {"realized_pnl": "0", "unrealized_pnl": "0", "win_rate": 0}
@@ -84,7 +84,7 @@ async def get_pnl(period: str = "30d", current_user: UserRecord = Depends(requir
 
 
 @router.get("/equity-curve")
-async def get_equity_curve(range: str = "1M", current_user: UserRecord = Depends(require_user)):
+async def get_equity_curve(range: str = "1M", current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Equity curve data points. Returns stored equity history or current snapshot."""
     if state.portfolio is None:
         return {"points": []}
@@ -92,7 +92,9 @@ async def get_equity_curve(range: str = "1M", current_user: UserRecord = Depends
     # Build from fill history - reconstruct equity over time
     fills = state.portfolio._fills
     initial_cash = float(state.portfolio._cash) + sum(
-        float(f.fill_price * f.quantity) if f.side.value == "buy" else -float(f.fill_price * f.quantity)
+        float(f.fill_price * f.quantity)
+        if f.side.value == "buy"
+        else -float(f.fill_price * f.quantity)
         for f in fills
     )
 
@@ -104,23 +106,27 @@ async def get_equity_curve(range: str = "1M", current_user: UserRecord = Depends
             running += pnl_impact
         else:
             running -= pnl_impact
-        points.append({
-            "timestamp": fill.timestamp.isoformat(),
-            "value": running,
-        })
+        points.append(
+            {
+                "timestamp": fill.timestamp.isoformat(),
+                "value": running,
+            }
+        )
 
     # Add current value
     snapshot = await state.portfolio.get_snapshot()
-    points.append({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "value": float(snapshot.total_value),
-    })
+    points.append(
+        {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "value": float(snapshot.total_value),
+        }
+    )
 
     return {"points": points}
 
 
 @router.get("/allocation")
-async def get_allocation(current_user: UserRecord = Depends(require_user)):
+async def get_allocation(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Asset allocation breakdown by type and sector."""
     if state.portfolio is None:
         return {"by_type": {}, "by_sector": {}, "cash_pct": 100}

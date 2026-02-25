@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from src.core.event_bus import Event
 from src.core.event_types import (
@@ -24,7 +22,7 @@ class TestFillEvent:
             side=OrderSide.BUY,
             quantity=Decimal("0.5"),
             fill_price=Decimal("50000"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         event = FillEvent(fill=fill, strategy="momentum", reasoning="breakout")
 
@@ -40,7 +38,7 @@ class TestFillEvent:
             side=OrderSide.BUY,
             quantity=Decimal("1"),
             fill_price=Decimal("100"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         event = FillEvent(fill=fill, strategy="test")
         assert isinstance(event, Event)

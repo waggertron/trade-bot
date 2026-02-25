@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from src.core.models import Signal, SignalDirection
-from src.ml.models import FeatureVector
+
+if TYPE_CHECKING:
+    from src.ml.models import FeatureVector
 
 
 class EventDrivenStrategy:
@@ -22,7 +25,9 @@ class EventDrivenStrategy:
         self._sentiment_threshold = sentiment_threshold
 
     async def evaluate(
-        self, symbol: str, features: FeatureVector,
+        self,
+        symbol: str,
+        features: FeatureVector,
     ) -> Signal | None:
         vol_ratio = features.features.get("article_volume_ratio", 1.0)
         sentiment = features.features.get("sentiment_avg_6h", 0.0)
@@ -46,7 +51,7 @@ class EventDrivenStrategy:
                 f"Sentiment spike: {vol_ratio:.1f}x article volume, "
                 f"sentiment={sentiment:.2f}, velocity={velocity:.2f}"
             ),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     def required_features(self) -> list[str]:

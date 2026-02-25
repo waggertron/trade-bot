@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from src.core.models import AssetType, Fill, OrderSide, PortfolioSnapshot, Position
@@ -17,7 +17,7 @@ class PortfolioManager:
         return PortfolioSnapshot(
             cash=max(self._cash, Decimal(0)),
             positions=list(self._positions.values()),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     async def record_fill(self, fill: Fill) -> None:
@@ -31,9 +31,8 @@ class PortfolioManager:
                 pos = self._positions[fill.symbol]
                 total_qty = pos.quantity + fill.quantity
                 avg_price = (
-                    (pos.avg_entry_price * pos.quantity + fill.fill_price * fill.quantity)
-                    / total_qty
-                )
+                    pos.avg_entry_price * pos.quantity + fill.fill_price * fill.quantity
+                ) / total_qty
                 self._positions[fill.symbol] = Position(
                     symbol=fill.symbol,
                     quantity=total_qty,

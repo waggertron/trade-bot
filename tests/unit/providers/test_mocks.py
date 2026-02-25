@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 
 from src.db.models import SignalRecord, TradeRecord
 from src.providers.configs import MockMarketConfig, MockSentimentConfig
@@ -18,7 +19,6 @@ from src.providers.mock import (
     MockOnChainProvider,
     MockSentimentAnalyzer,
 )
-from src.sentiment.models import SentimentResult
 from src.providers.protocols import (
     DataStore,
     FeatureProvider,
@@ -29,7 +29,7 @@ from src.providers.protocols import (
     OnChainProvider,
     SentimentAnalyzer,
 )
-
+from src.sentiment.models import SentimentResult
 
 # -- MockHttpClient -----------------------------------------------------------
 
@@ -98,9 +98,7 @@ class TestMockMarketDataProvider:
             await provider.get_ticks(["BTC"])
 
     async def test_default_prices_from_config(self):
-        provider = MockMarketDataProvider(
-            MockMarketConfig(default_prices={"ETH": "3000.00"})
-        )
+        provider = MockMarketDataProvider(MockMarketConfig(default_prices={"ETH": "3000.00"}))
         ticks = await provider.get_ticks(["ETH"])
         assert ticks[0].price == Decimal("3000.00")
 
@@ -216,7 +214,7 @@ class TestMockDataStore:
             commission="10.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         trade_id = await store.save_trade(trade)
         assert trade_id == trade.id
@@ -235,7 +233,7 @@ class TestMockDataStore:
             confidence=0.85,
             strategy="sentiment",
             reasoning="bullish news",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         signal_id = await store.save_signal(signal)
         assert signal_id == signal.id
@@ -246,18 +244,30 @@ class TestMockDataStore:
 
     async def test_list_trades_by_strategy(self):
         store = MockDataStore()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         await store.save_trade(
             TradeRecord(
-                symbol="BTC", side="buy", quantity="1", price="50000",
-                commission="0", strategy="momentum", paper=True, timestamp=now,
+                symbol="BTC",
+                side="buy",
+                quantity="1",
+                price="50000",
+                commission="0",
+                strategy="momentum",
+                paper=True,
+                timestamp=now,
             )
         )
         await store.save_trade(
             TradeRecord(
-                symbol="ETH", side="sell", quantity="10", price="3000",
-                commission="0", strategy="sentiment", paper=True, timestamp=now,
+                symbol="ETH",
+                side="sell",
+                quantity="10",
+                price="3000",
+                commission="0",
+                strategy="sentiment",
+                paper=True,
+                timestamp=now,
             )
         )
 
@@ -274,7 +284,7 @@ class TestSentimentResult:
         result = SentimentResult(
             score=0.5,
             magnitude=0.8,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="positive outlook",
         )
         assert result.score == 0.5
@@ -284,15 +294,15 @@ class TestSentimentResult:
         result = SentimentResult(
             score=0.5,
             magnitude=0.8,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             result.score = 0.9  # type: ignore[misc]
 
     def test_rejects_out_of_range_score(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SentimentResult(
                 score=1.5,
                 magnitude=0.5,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )

@@ -29,22 +29,41 @@ def _mock_async_client(response: MagicMock) -> AsyncMock:
 # Kraken
 # ---------------------------------------------------------------------------
 
+
 class TestKrakenProvider:
     async def test_parse_bars(self) -> None:
         from src.data.providers.kraken import download
 
-        response = _mock_httpx_response({
-            "error": [],
-            "result": {
-                "XXBTZUSD": [
-                    [1700000000, "40000.0", "40500.0", "39500.0",
-                     "40100.0", "40050.0", "100.5", 500],
-                    [1700003600, "40100.0", "41000.0", "40000.0",
-                     "40800.0", "40500.0", "120.3", 600],
-                ],
-                "last": 1700003600,
-            },
-        })
+        response = _mock_httpx_response(
+            {
+                "error": [],
+                "result": {
+                    "XXBTZUSD": [
+                        [
+                            1700000000,
+                            "40000.0",
+                            "40500.0",
+                            "39500.0",
+                            "40100.0",
+                            "40050.0",
+                            "100.5",
+                            500,
+                        ],
+                        [
+                            1700003600,
+                            "40100.0",
+                            "41000.0",
+                            "40000.0",
+                            "40800.0",
+                            "40500.0",
+                            "120.3",
+                            600,
+                        ],
+                    ],
+                    "last": 1700003600,
+                },
+            }
+        )
         mock_client = _mock_async_client(response)
 
         with patch(
@@ -64,10 +83,12 @@ class TestKrakenProvider:
     async def test_api_error(self) -> None:
         from src.data.providers.kraken import download
 
-        response = _mock_httpx_response({
-            "error": ["EGeneral:Invalid arguments"],
-            "result": {},
-        })
+        response = _mock_httpx_response(
+            {
+                "error": ["EGeneral:Invalid arguments"],
+                "result": {},
+            }
+        )
         mock_client = _mock_async_client(response)
 
         with (
@@ -82,10 +103,12 @@ class TestKrakenProvider:
     async def test_empty_response(self) -> None:
         from src.data.providers.kraken import download
 
-        response = _mock_httpx_response({
-            "error": [],
-            "result": {"XXBTZUSD": [], "last": 0},
-        })
+        response = _mock_httpx_response(
+            {
+                "error": [],
+                "result": {"XXBTZUSD": [], "last": 0},
+            }
+        )
         mock_client = _mock_async_client(response)
 
         with patch(
@@ -101,21 +124,36 @@ class TestKrakenProvider:
 # CryptoCompare
 # ---------------------------------------------------------------------------
 
+
 class TestCryptoCompareProvider:
     async def test_parse_bars(self) -> None:
         from src.data.providers.cryptocompare import download
 
-        response = _mock_httpx_response({
-            "Response": "Success",
-            "Data": {
-                "Data": [
-                    {"time": 1700000000, "open": 40000, "high": 40500,
-                     "low": 39500, "close": 40100, "volumefrom": 1000},
-                    {"time": 1700086400, "open": 40100, "high": 41000,
-                     "low": 40000, "close": 40800, "volumefrom": 1200},
-                ],
-            },
-        })
+        response = _mock_httpx_response(
+            {
+                "Response": "Success",
+                "Data": {
+                    "Data": [
+                        {
+                            "time": 1700000000,
+                            "open": 40000,
+                            "high": 40500,
+                            "low": 39500,
+                            "close": 40100,
+                            "volumefrom": 1000,
+                        },
+                        {
+                            "time": 1700086400,
+                            "open": 40100,
+                            "high": 41000,
+                            "low": 40000,
+                            "close": 40800,
+                            "volumefrom": 1200,
+                        },
+                    ],
+                },
+            }
+        )
         mock_client = _mock_async_client(response)
 
         with patch(
@@ -132,17 +170,31 @@ class TestCryptoCompareProvider:
     async def test_filters_empty_bars(self) -> None:
         from src.data.providers.cryptocompare import download
 
-        response = _mock_httpx_response({
-            "Response": "Success",
-            "Data": {
-                "Data": [
-                    {"time": 1700000000, "open": 0, "high": 0,
-                     "low": 0, "close": 0, "volumefrom": 0},
-                    {"time": 1700086400, "open": 40000, "high": 41000,
-                     "low": 39500, "close": 40800, "volumefrom": 100},
-                ],
-            },
-        })
+        response = _mock_httpx_response(
+            {
+                "Response": "Success",
+                "Data": {
+                    "Data": [
+                        {
+                            "time": 1700000000,
+                            "open": 0,
+                            "high": 0,
+                            "low": 0,
+                            "close": 0,
+                            "volumefrom": 0,
+                        },
+                        {
+                            "time": 1700086400,
+                            "open": 40000,
+                            "high": 41000,
+                            "low": 39500,
+                            "close": 40800,
+                            "volumefrom": 100,
+                        },
+                    ],
+                },
+            }
+        )
         mock_client = _mock_async_client(response)
 
         with patch(
@@ -163,10 +215,12 @@ class TestCryptoCompareProvider:
     async def test_api_error(self) -> None:
         from src.data.providers.cryptocompare import download
 
-        response = _mock_httpx_response({
-            "Response": "Error",
-            "Message": "Invalid fsym",
-        })
+        response = _mock_httpx_response(
+            {
+                "Response": "Error",
+                "Message": "Invalid fsym",
+            }
+        )
         mock_client = _mock_async_client(response)
 
         with (
@@ -183,17 +237,44 @@ class TestCryptoCompareProvider:
 # Binance
 # ---------------------------------------------------------------------------
 
+
 class TestBinanceProvider:
     async def test_parse_bars(self) -> None:
         from src.data.providers.binance import download
 
         # Binance kline: [openTime, O, H, L, C, V, closeTime, quoteV, trades, ...]
-        response = _mock_httpx_response([
-            [1700000000000, "40000.0", "40500.0", "39500.0", "40100.0", "100.5",
-             1700086399999, "4020050.0", 500, "50.0", "2010000.0", "0"],
-            [1700086400000, "40100.0", "41000.0", "40000.0", "40800.0", "120.3",
-             1700172799999, "4920240.0", 600, "60.0", "2460000.0", "0"],
-        ])
+        response = _mock_httpx_response(
+            [
+                [
+                    1700000000000,
+                    "40000.0",
+                    "40500.0",
+                    "39500.0",
+                    "40100.0",
+                    "100.5",
+                    1700086399999,
+                    "4020050.0",
+                    500,
+                    "50.0",
+                    "2010000.0",
+                    "0",
+                ],
+                [
+                    1700086400000,
+                    "40100.0",
+                    "41000.0",
+                    "40000.0",
+                    "40800.0",
+                    "120.3",
+                    1700172799999,
+                    "4920240.0",
+                    600,
+                    "60.0",
+                    "2460000.0",
+                    "0",
+                ],
+            ]
+        )
         mock_client = _mock_async_client(response)
 
         with patch(
@@ -211,10 +292,24 @@ class TestBinanceProvider:
     async def test_converts_ms_to_seconds(self) -> None:
         from src.data.providers.binance import download
 
-        response = _mock_httpx_response([
-            [1700000000123, "100", "101", "99", "100.5", "10",
-             1700086399999, "1005", 100, "5", "500", "0"],
-        ])
+        response = _mock_httpx_response(
+            [
+                [
+                    1700000000123,
+                    "100",
+                    "101",
+                    "99",
+                    "100.5",
+                    "10",
+                    1700086399999,
+                    "1005",
+                    100,
+                    "5",
+                    "500",
+                    "0",
+                ],
+            ]
+        )
         mock_client = _mock_async_client(response)
 
         with patch(
@@ -244,6 +339,7 @@ class TestBinanceProvider:
 # yfinance
 # ---------------------------------------------------------------------------
 
+
 class TestYfinanceProvider:
     async def test_parse_bars(self) -> None:
         import pandas as pd
@@ -272,7 +368,10 @@ class TestYfinanceProvider:
         assert bars[0].source == "yfinance"
         assert bars[0].open == "40000.0"
         mock_yf.download.assert_called_once_with(
-            "BTC-USD", period="max", interval="1d", progress=False,
+            "BTC-USD",
+            period="max",
+            interval="1d",
+            progress=False,
         )
 
     async def test_unsupported_interval(self) -> None:

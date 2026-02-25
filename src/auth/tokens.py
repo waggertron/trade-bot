@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+from jose import jwt
 
 ALGORITHM = "HS256"
 DEFAULT_ACCESS_EXPIRE_MINUTES = 30
@@ -17,7 +17,7 @@ def create_access_token(
     secret: str,
     expire_minutes: int = DEFAULT_ACCESS_EXPIRE_MINUTES,
 ) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": user_id,
         "type": "access",
@@ -33,7 +33,7 @@ def create_refresh_token(
     secret: str,
     expire_days: int = DEFAULT_REFRESH_EXPIRE_DAYS,
 ) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": user_id,
         "type": "refresh",
@@ -49,7 +49,7 @@ def create_verification_token(
     secret: str,
     expire_hours: int = 24,
 ) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": user_id,
         "type": "verification",

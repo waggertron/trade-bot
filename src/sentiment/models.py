@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import ConfigDict, Field
@@ -33,7 +33,7 @@ class Article(StrictBase):
     source: str
     url: str = ""
     published_at: datetime
-    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     related_symbols: list[str]
     content_hash: str = ""
 

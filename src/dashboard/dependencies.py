@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-from src.agents.execution import PaperExecutionAgent
-from src.agents.portfolio import PortfolioManager
-from src.agents.risk_manager import RiskManager
 from src.auth.dependencies import get_current_user
-from src.core.config import Settings
-from src.core.event_bus import EventBus
-from src.core.orchestrator import Orchestrator
-from src.db.database import Database
-from src.db.models import UserRecord
+
+if TYPE_CHECKING:
+    from src.agents.execution import PaperExecutionAgent
+    from src.agents.portfolio import PortfolioManager
+    from src.agents.risk_manager import RiskManager
+    from src.core.config import Settings
+    from src.core.event_bus import EventBus
+    from src.core.orchestrator import Orchestrator
+    from src.db.database import Database
+    from src.db.models import UserRecord
 
 
 @dataclass
@@ -31,7 +34,7 @@ class DashboardState:
     event_bus: EventBus | None = None
     settings: Settings | None = None
     strategies: list = field(default_factory=list)
-    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # Singleton instance — set by create_app()
@@ -50,11 +53,14 @@ async def require_user(token: str | None = Depends(oauth2_scheme)) -> UserRecord
     """FastAPI dependency: extracts and validates the current user from JWT."""
     if token is None:
         raise HTTPException(
-            status_code=401, detail="Not authenticated",
+            status_code=401,
+            detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if state.db is None:
         raise HTTPException(status_code=503, detail="Database not available")
     return await get_current_user(
-        token=token, db=state.db, secret=_jwt_secret(),
+        token=token,
+        db=state.db,
+        secret=_jwt_secret(),
     )

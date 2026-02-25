@@ -8,7 +8,13 @@ from decimal import Decimal
 from src.core.event_bus import Event, EventBus
 from src.core.event_types import FillEvent
 from src.core.models import (
-    Fill, MarketTick, Order, OrderSide, OrderType, ResearchReport, Signal,
+    Fill,
+    MarketTick,
+    Order,
+    OrderSide,
+    OrderType,
+    ResearchReport,
+    Signal,
     SignalDirection,
 )
 from src.db.models import SignalRecord
@@ -65,7 +71,7 @@ class Orchestrator:
         history = self._tick_history.setdefault(tick.symbol, [])
         history.append(tick)
         if len(history) > self._max_history:
-            self._tick_history[tick.symbol] = history[-self._max_history:]
+            self._tick_history[tick.symbol] = history[-self._max_history :]
 
         signals = await self._gather_signals(tick)
         await self._persist_signals(signals)
@@ -73,7 +79,7 @@ class Orchestrator:
             return []
 
         # Publish signal events
-        for signal in signals:
+        for _signal in signals:
             await self._event_bus.publish(Event(event_type="signal"))
 
         consensus = self._find_consensus(signals)
@@ -110,9 +116,7 @@ class Orchestrator:
         await self._portfolio.record_fill(fill)
 
         # Publish fill event with payload
-        await self._event_bus.publish(
-            FillEvent(fill=fill, strategy="consensus")
-        )
+        await self._event_bus.publish(FillEvent(fill=fill, strategy="consensus"))
 
         return [fill]
 
@@ -132,6 +136,7 @@ class Orchestrator:
             if self._position_sizer is not None and signal is not None:
                 # Delegate to position sizer for trade value
                 from src.risk.models import RiskContext, VolatilityRegime
+
                 # Build a minimal risk context for the sizer
                 risk_context = RiskContext(
                     regime=VolatilityRegime.MEDIUM,

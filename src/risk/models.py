@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-from enum import Enum
+from decimal import Decimal  # noqa: TC003
+from enum import StrEnum
 
 from pydantic import ConfigDict, Field
 
 from src.core.base import StrictBase
+from src.core.models import PortfolioSnapshot  # noqa: TC001
 
-from src.core.models import PortfolioSnapshot
 
-
-class VolatilityRegime(str, Enum):
+class VolatilityRegime(StrEnum):
     """Market volatility classification."""
 
     LOW = "low"

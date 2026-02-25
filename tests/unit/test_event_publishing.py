@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
@@ -28,7 +28,7 @@ def _make_tick(symbol="BTC/USD", price="50000"):
         symbol=symbol,
         price=Decimal(price),
         volume=1000,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         asset_type=AssetType.CRYPTO,
     )
 
@@ -39,7 +39,7 @@ def _make_signal(symbol="BTC/USD", direction=SignalDirection.BUY):
         direction=direction,
         confidence=0.8,
         strategy_name="test",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         reasoning="test",
     )
 
@@ -61,7 +61,7 @@ async def test_process_tick_publishes_signal_event():
         return_value=PortfolioSnapshot(
             cash=Decimal("100000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
     portfolio.record_fill = AsyncMock()
@@ -74,7 +74,7 @@ async def test_process_tick_publishes_signal_event():
             side=OrderSide.BUY,
             quantity=Decimal("0.04"),
             fill_price=Decimal("50000"),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
 
@@ -113,7 +113,7 @@ async def test_process_tick_publishes_risk_decision_event():
         return_value=PortfolioSnapshot(
             cash=Decimal("100000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
     portfolio.record_fill = AsyncMock()
@@ -126,7 +126,7 @@ async def test_process_tick_publishes_risk_decision_event():
             side=OrderSide.BUY,
             quantity=Decimal("0.04"),
             fill_price=Decimal("50000"),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
 
@@ -165,7 +165,7 @@ async def test_process_tick_publishes_fill_event():
         return_value=PortfolioSnapshot(
             cash=Decimal("100000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
     portfolio.record_fill = AsyncMock()
@@ -178,7 +178,7 @@ async def test_process_tick_publishes_fill_event():
             side=OrderSide.BUY,
             quantity=Decimal("0.04"),
             fill_price=Decimal("50000"),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
 
@@ -217,7 +217,7 @@ async def test_veto_publishes_risk_decision_but_no_fill():
         return_value=PortfolioSnapshot(
             cash=Decimal("100000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
     )
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from src.dashboard.dependencies import require_user, state
-from src.db.models import UserRecord
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -27,7 +27,7 @@ def _build_attributed_fills():
 
 
 @router.get("/attribution")
-async def get_attribution(current_user: UserRecord = Depends(require_user)):
+async def get_attribution(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Full strategy attribution report."""
     from src.analytics.attribution import StrategyAttribution
 
@@ -81,7 +81,7 @@ async def get_attribution(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/monte-carlo")
-async def get_monte_carlo(current_user: UserRecord = Depends(require_user)):
+async def get_monte_carlo(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Monte Carlo simulation results with percentile curves."""
     from src.analytics.attribution import StrategyAttribution
     from src.analytics.monte_carlo import MonteCarloSimulator
@@ -100,18 +100,20 @@ async def get_monte_carlo(current_user: UserRecord = Depends(require_user)):
         }
 
     analyzer = StrategyAttribution()
-    report = analyzer.analyze(fills)
+    analyzer.analyze(fills)
 
     # Gather all trades from all strategies
     all_trades = []
     for strategy_fills in _group_fills_by_strategy(fills).values():
         from src.analytics.attribution import _pair_fills
+
         all_trades.extend(_pair_fills(strategy_fills))
 
     initial_cash = 100000.0
     if state.portfolio:
         initial_cash = float(state.portfolio._cash) + sum(
-            float(f.fill_price * f.quantity) if f.side.value == "buy"
+            float(f.fill_price * f.quantity)
+            if f.side.value == "buy"
             else -float(f.fill_price * f.quantity)
             for f in state.portfolio._fills
         )
@@ -131,7 +133,7 @@ async def get_monte_carlo(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/drawdown")
-async def get_drawdown(current_user: UserRecord = Depends(require_user)):
+async def get_drawdown(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Drawdown curve data."""
     if state.portfolio is None:
         return {"points": []}
@@ -159,17 +161,19 @@ async def get_drawdown(current_user: UserRecord = Depends(require_user)):
         if value > peak:
             peak = value
         dd = (peak - value) / peak * 100 if peak > 0 else 0
-        drawdown_points.append({
-            "index": i,
-            "value": value,
-            "drawdown_pct": dd,
-        })
+        drawdown_points.append(
+            {
+                "index": i,
+                "value": value,
+                "drawdown_pct": dd,
+            }
+        )
 
     return {"points": drawdown_points}
 
 
 @router.get("/correlation")
-async def get_correlation(current_user: UserRecord = Depends(require_user)):
+async def get_correlation(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Correlation matrix between symbols."""
     if state.db is None:
         return {"symbols": [], "matrix": []}
@@ -181,6 +185,7 @@ async def get_correlation(current_user: UserRecord = Depends(require_user)):
 
     # Group closes by symbol
     from collections import defaultdict
+
     closes: dict[str, list[float]] = defaultdict(list)
     for bar in bars:
         closes[bar.symbol].append(float(bar.close))
@@ -203,7 +208,7 @@ async def get_correlation(current_user: UserRecord = Depends(require_user)):
         sy = math.sqrt(sum((yi - my) ** 2 for yi in y) / n)
         if sx == 0 or sy == 0:
             return 0.0
-        cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y)) / n
+        cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y, strict=False)) / n
         return cov / (sx * sy)
 
     matrix = []
@@ -221,6 +226,7 @@ async def get_correlation(current_user: UserRecord = Depends(require_user)):
 
 def _group_fills_by_strategy(fills):
     from collections import defaultdict
+
     grouped = defaultdict(list)
     for f in fills:
         grouped[f.strategy].append(f)

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from src.sentiment.models import Article, SentimentResult
-
 
 # -- Article ------------------------------------------------------------------
 
@@ -16,7 +16,7 @@ class TestArticle:
     """Tests for the Article Pydantic model."""
 
     def test_creation_with_required_fields(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         article = Article(
             title="Bitcoin hits $100k",
             source="reuters",
@@ -34,7 +34,7 @@ class TestArticle:
         article = Article(
             title="Test",
             source="test",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=[],
         )
         assert article.id is not None
@@ -44,13 +44,13 @@ class TestArticle:
         a1 = Article(
             title="Test",
             source="test",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=[],
         )
         a2 = Article(
             title="Test",
             source="test",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=[],
         )
         assert a1.id != a2.id
@@ -60,7 +60,7 @@ class TestArticle:
             title="Bitcoin hits $100k",
             body="Full body text here",
             source="reuters",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=["BTC"],
         )
         assert article.content_hash is not None
@@ -71,7 +71,7 @@ class TestArticle:
             title="Bitcoin hits $100k",
             body="Full body text here",
             source="reuters",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=["BTC"],
         )
         a1 = Article(**kwargs)
@@ -81,7 +81,7 @@ class TestArticle:
     def test_different_content_different_hash(self):
         common = dict(
             source="reuters",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=["BTC"],
         )
         a1 = Article(title="Bitcoin hits $100k", body="body A", **common)
@@ -94,7 +94,7 @@ class TestArticle:
         common = dict(
             title="Same title",
             source="test",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=[],
         )
         shared_prefix = "A" * 200
@@ -106,25 +106,25 @@ class TestArticle:
         article = Article(
             title="Test",
             source="test",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=[],
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             article.title = "Changed"  # type: ignore[misc]
 
     def test_auto_fetched_at(self):
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         article = Article(
             title="Test",
             source="test",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             related_symbols=[],
         )
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
         assert before <= article.fetched_at <= after
 
     def test_serialization_roundtrip(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         article = Article(
             title="Bitcoin hits $100k",
             body="Some body",
@@ -154,7 +154,7 @@ class TestSentimentResult:
         result = SentimentResult(
             score=0.5,
             magnitude=0.8,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning="positive outlook",
         )
         assert result.score == 0.5
@@ -165,7 +165,7 @@ class TestSentimentResult:
         result = SentimentResult(
             score=0.0,
             magnitude=0.5,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert result.reasoning is None
         assert result.article_id is None
@@ -175,7 +175,7 @@ class TestSentimentResult:
         result = SentimentResult(
             score=0.5,
             magnitude=0.8,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             article_id="abc123",
             analyzer="ollama-llama3",
         )
@@ -186,54 +186,50 @@ class TestSentimentResult:
         result = SentimentResult(
             score=0.5,
             magnitude=0.8,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             result.score = 0.9  # type: ignore[misc]
 
     def test_rejects_score_above_1(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SentimentResult(
                 score=1.5,
                 magnitude=0.5,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_rejects_score_below_neg1(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SentimentResult(
                 score=-1.5,
                 magnitude=0.5,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_rejects_magnitude_above_1(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SentimentResult(
                 score=0.5,
                 magnitude=1.5,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_rejects_magnitude_below_0(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SentimentResult(
                 score=0.5,
                 magnitude=-0.1,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_boundary_values_accepted(self):
         """Score at -1 and 1, magnitude at 0 and 1 should be valid."""
-        r1 = SentimentResult(
-            score=-1.0, magnitude=0.0, timestamp=datetime.now(timezone.utc)
-        )
+        r1 = SentimentResult(score=-1.0, magnitude=0.0, timestamp=datetime.now(UTC))
         assert r1.score == -1.0
         assert r1.magnitude == 0.0
 
-        r2 = SentimentResult(
-            score=1.0, magnitude=1.0, timestamp=datetime.now(timezone.utc)
-        )
+        r2 = SentimentResult(score=1.0, magnitude=1.0, timestamp=datetime.now(UTC))
         assert r2.score == 1.0
         assert r2.magnitude == 1.0
 
@@ -244,7 +240,7 @@ class TestSentimentResult:
         assert SR is SentimentResult
 
     def test_serialization_roundtrip(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = SentimentResult(
             score=0.75,
             magnitude=0.6,

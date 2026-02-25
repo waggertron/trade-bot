@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from src.db.models import FeedRecord
-from src.sentiment.models import Article
+if TYPE_CHECKING:
+    from src.db.database import Database
+    from src.db.models import FeedRecord
+    from src.sentiment.models import Article
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ logger = logging.getLogger(__name__)
 class FeedManager:
     """Loads enabled feeds from the database, groups by type, and orchestrates fetching."""
 
-    def __init__(self, db: "Database") -> None:  # noqa: F821
+    def __init__(self, db: Database) -> None:
         self._db = db
         self.feeds: list[FeedRecord] = []
         self.feeds_by_type: dict[str, list[FeedRecord]] = {}
@@ -59,11 +62,13 @@ class FeedManager:
                 except Exception:
                     logger.warning(
                         "Error fetching %s from %s adapter",
-                        symbol, feed_type, exc_info=True,
+                        symbol,
+                        feed_type,
+                        exc_info=True,
                     )
 
         return all_articles
 
     async def update_last_fetched(self, feed_id: str) -> None:
         """Update last_fetched_at after successful fetch."""
-        await self._db.update_feed_last_fetched(feed_id, datetime.now(timezone.utc))
+        await self._db.update_feed_last_fetched(feed_id, datetime.now(UTC))

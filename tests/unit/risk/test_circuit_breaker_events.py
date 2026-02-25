@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -21,7 +21,7 @@ class TestCircuitBreakerEvents:
         cb = DrawdownCircuitBreaker(max_drawdown_pct=10.0, cooldown_hours=24.0)
         cb.set_event_bus(bus)
 
-        now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 1, tzinfo=UTC)
         # Set peak
         cb.update(Decimal("100000"), now)
         # Trigger drawdown
@@ -45,7 +45,7 @@ class TestCircuitBreakerEvents:
         cb = DrawdownCircuitBreaker(max_drawdown_pct=10.0, cooldown_hours=24.0)
         cb.set_event_bus(bus)
 
-        now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 1, tzinfo=UTC)
         cb.update(Decimal("100000"), now)
         cb.is_tripped(Decimal("95000"), now)  # only 5% drawdown
 
@@ -58,6 +58,6 @@ class TestCircuitBreakerEvents:
         """Circuit breaker still works when no event bus is set."""
         cb = DrawdownCircuitBreaker(max_drawdown_pct=10.0, cooldown_hours=24.0)
 
-        now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 1, tzinfo=UTC)
         cb.update(Decimal("100000"), now)
         assert cb.is_tripped(Decimal("89000"), now) is True

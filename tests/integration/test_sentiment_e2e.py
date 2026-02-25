@@ -1,16 +1,17 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
-from src.providers.mock import MockNewsProvider, MockSentimentAnalyzer
-from src.providers.configs import MockNewsConfig, MockSentimentConfig
-from src.sentiment.pipeline import SentimentPipeline
-from src.sentiment.bridge import SentimentBridge
+import pytest
+
 from src.agents.strategies.sentiment import SentimentStrategy
+from src.core.config import SentimentSettings
+from src.core.event_bus import EventBus
 from src.core.models import AssetType, Fill, MarketTick, OrderSide, PortfolioSnapshot
 from src.core.orchestrator import Orchestrator
-from src.core.event_bus import EventBus
-from src.core.config import SentimentSettings
+from src.providers.configs import MockNewsConfig, MockSentimentConfig
+from src.providers.mock import MockNewsProvider, MockSentimentAnalyzer
+from src.sentiment.bridge import SentimentBridge
+from src.sentiment.pipeline import SentimentPipeline
 
 
 class TestSentimentE2E:
@@ -24,7 +25,7 @@ class TestSentimentE2E:
                 "body": "BTC hit new all-time high today as institutional demand grows.",
                 "source": "rss",
                 "url": "https://example.com/1",
-                "published_at": datetime.now(timezone.utc).isoformat(),
+                "published_at": datetime.now(UTC).isoformat(),
                 "related_symbols": ["BTC"],
             },
             {
@@ -32,12 +33,14 @@ class TestSentimentE2E:
                 "body": "Analysts predict continued growth in crypto markets.",
                 "source": "rss",
                 "url": "https://example.com/2",
-                "published_at": datetime.now(timezone.utc).isoformat(),
+                "published_at": datetime.now(UTC).isoformat(),
                 "related_symbols": ["BTC"],
             },
         ]
         news = MockNewsProvider(MockNewsConfig(canned_articles=canned))
-        analyzer = MockSentimentAnalyzer(MockSentimentConfig(default_score=0.8, default_magnitude=0.9))
+        analyzer = MockSentimentAnalyzer(
+            MockSentimentConfig(default_score=0.8, default_magnitude=0.9)
+        )
         return SentimentPipeline(news_providers=[news], analyzer=analyzer)
 
     @pytest.mark.asyncio
@@ -59,7 +62,7 @@ class TestSentimentE2E:
             symbol="BTC",
             price=Decimal("100000"),
             volume=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             asset_type=AssetType.CRYPTO,
         )
         signal = await strategy.evaluate("BTC", [tick], research=reports)
@@ -69,16 +72,20 @@ class TestSentimentE2E:
     @pytest.mark.asyncio
     async def test_negative_sentiment_generates_sell(self):
         """Negative sentiment -> SELL signal."""
-        canned = [{
-            "title": "Crypto crash imminent",
-            "body": "Markets plummet as regulation fears grow.",
-            "source": "rss",
-            "url": "https://example.com/crash",
-            "published_at": datetime.now(timezone.utc).isoformat(),
-            "related_symbols": ["BTC"],
-        }]
+        canned = [
+            {
+                "title": "Crypto crash imminent",
+                "body": "Markets plummet as regulation fears grow.",
+                "source": "rss",
+                "url": "https://example.com/crash",
+                "published_at": datetime.now(UTC).isoformat(),
+                "related_symbols": ["BTC"],
+            }
+        ]
         news = MockNewsProvider(MockNewsConfig(canned_articles=canned))
-        analyzer = MockSentimentAnalyzer(MockSentimentConfig(default_score=-0.8, default_magnitude=0.9))
+        analyzer = MockSentimentAnalyzer(
+            MockSentimentConfig(default_score=-0.8, default_magnitude=0.9)
+        )
         pipeline = SentimentPipeline(news_providers=[news], analyzer=analyzer)
 
         await pipeline.run_cycle(symbols=["BTC"])
@@ -90,7 +97,7 @@ class TestSentimentE2E:
             symbol="BTC",
             price=Decimal("100000"),
             volume=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             asset_type=AssetType.CRYPTO,
         )
         signal = await strategy.evaluate("BTC", [tick], research=reports)
@@ -100,16 +107,20 @@ class TestSentimentE2E:
     @pytest.mark.asyncio
     async def test_neutral_sentiment_no_signal(self):
         """Neutral sentiment -> no signal."""
-        canned = [{
-            "title": "Market update",
-            "body": "Markets were mixed today.",
-            "source": "rss",
-            "url": "https://example.com/neutral",
-            "published_at": datetime.now(timezone.utc).isoformat(),
-            "related_symbols": ["BTC"],
-        }]
+        canned = [
+            {
+                "title": "Market update",
+                "body": "Markets were mixed today.",
+                "source": "rss",
+                "url": "https://example.com/neutral",
+                "published_at": datetime.now(UTC).isoformat(),
+                "related_symbols": ["BTC"],
+            }
+        ]
         news = MockNewsProvider(MockNewsConfig(canned_articles=canned))
-        analyzer = MockSentimentAnalyzer(MockSentimentConfig(default_score=0.1, default_magnitude=0.5))
+        analyzer = MockSentimentAnalyzer(
+            MockSentimentConfig(default_score=0.1, default_magnitude=0.5)
+        )
         pipeline = SentimentPipeline(news_providers=[news], analyzer=analyzer)
 
         await pipeline.run_cycle(symbols=["BTC"])
@@ -121,7 +132,7 @@ class TestSentimentE2E:
             symbol="BTC",
             price=Decimal("100000"),
             volume=1000,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             asset_type=AssetType.CRYPTO,
         )
         signal = await strategy.evaluate("BTC", [tick], research=reports)
@@ -141,22 +152,28 @@ class TestSentimentE2E:
         class SimpleRiskManager:
             async def evaluate_trade(self, signal, portfolio):
                 from src.core.models import RiskAction, RiskDecision
+
                 return RiskDecision(action=RiskAction.APPROVE, reason="ok")
 
         class SimpleExecutor:
             async def submit_order(self, order):
                 return Fill(
-                    order_id=order.id, symbol=order.symbol, side=order.side,
-                    quantity=order.quantity, fill_price=Decimal("100000"),
-                    timestamp=datetime.now(timezone.utc),
+                    order_id=order.id,
+                    symbol=order.symbol,
+                    side=order.side,
+                    quantity=order.quantity,
+                    fill_price=Decimal("100000"),
+                    timestamp=datetime.now(UTC),
                 )
 
         class SimplePortfolio:
             async def get_snapshot(self):
                 return PortfolioSnapshot(
-                    cash=Decimal("100000"), positions=[],
-                    timestamp=datetime.now(timezone.utc),
+                    cash=Decimal("100000"),
+                    positions=[],
+                    timestamp=datetime.now(UTC),
                 )
+
             async def record_fill(self, fill):
                 pass
 
@@ -179,8 +196,11 @@ class TestSentimentE2E:
         orchestrator.set_research(reports)
 
         tick = MarketTick(
-            symbol="BTC", price=Decimal("100000"), volume=1000,
-            timestamp=datetime.now(timezone.utc), asset_type=AssetType.CRYPTO,
+            symbol="BTC",
+            price=Decimal("100000"),
+            volume=1000,
+            timestamp=datetime.now(UTC),
+            asset_type=AssetType.CRYPTO,
         )
         fills = await orchestrator.process_tick(tick)
         assert len(fills) == 1
@@ -195,7 +215,7 @@ class TestSentimentE2E:
                 "body": "BTC article.",
                 "source": "rss",
                 "url": "https://example.com/btc",
-                "published_at": datetime.now(timezone.utc).isoformat(),
+                "published_at": datetime.now(UTC).isoformat(),
                 "related_symbols": ["BTC"],
             },
             {
@@ -203,12 +223,14 @@ class TestSentimentE2E:
                 "body": "ETH article.",
                 "source": "rss",
                 "url": "https://example.com/eth",
-                "published_at": datetime.now(timezone.utc).isoformat(),
+                "published_at": datetime.now(UTC).isoformat(),
                 "related_symbols": ["ETH"],
             },
         ]
         news = MockNewsProvider(MockNewsConfig(canned_articles=canned))
-        analyzer = MockSentimentAnalyzer(MockSentimentConfig(default_score=0.7, default_magnitude=0.8))
+        analyzer = MockSentimentAnalyzer(
+            MockSentimentConfig(default_score=0.7, default_magnitude=0.8)
+        )
         pipeline = SentimentPipeline(news_providers=[news], analyzer=analyzer)
 
         scores = await pipeline.run_cycle(symbols=["BTC", "ETH"])

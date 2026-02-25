@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
-from src.analytics.attribution import StrategyAttribution
 from src.analytics.models import AttributedFill, AttributionReport, MonteCarloResult, Trade
-from src.analytics.monte_carlo import MonteCarloSimulator
 from src.core.models import OrderSide
+
+if TYPE_CHECKING:
+    from src.analytics.attribution import StrategyAttribution
+    from src.analytics.monte_carlo import MonteCarloSimulator
 
 
 class AnalyticsReporter:
@@ -56,18 +59,12 @@ class AnalyticsReporter:
         for name in sorted(attr_report.strategies):
             stats = attr_report.strategies[name]
             lines.append(f"{name}:")
-            lines.append(
-                f"  Trades: {stats.total_trades}  Win Rate: {stats.win_rate:.1%}"
-            )
+            lines.append(f"  Trades: {stats.total_trades}  Win Rate: {stats.win_rate:.1%}")
             lines.append(
                 f"  P&L: ${stats.total_pnl:,.2f}  Profit Factor: {stats.profit_factor:.2f}"
             )
-            lines.append(
-                f"  Avg Win: ${stats.avg_win:,.2f}  Avg Loss: ${stats.avg_loss:,.2f}"
-            )
-            lines.append(
-                f"  Max Consecutive Losses: {stats.max_consecutive_losses}"
-            )
+            lines.append(f"  Avg Win: ${stats.avg_win:,.2f}  Avg Loss: ${stats.avg_loss:,.2f}")
+            lines.append(f"  Max Consecutive Losses: {stats.max_consecutive_losses}")
 
         # --- Monte Carlo ---
         lines.append("-" * 50)

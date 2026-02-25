@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 
 from src.db.database import Database
 from src.db.models import FeedRecord
 from src.feeds.manager import FeedManager
-from src.sentiment.models import Article
 
 
 def _make_feed(**overrides) -> FeedRecord:

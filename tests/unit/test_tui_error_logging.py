@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-
-import pytest
-
 
 def test_portfolio_panel_has_no_bare_except_pass():
     """portfolio.py should not contain 'except Exception:\\n            pass'."""
@@ -34,9 +30,7 @@ def test_risk_panel_has_no_bare_except_pass():
         stripped = line.strip()
         if stripped == "except Exception:":
             next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-            assert next_line != "pass", (
-                f"risk.py:{i + 1} has bare 'except Exception: pass'"
-            )
+            assert next_line != "pass", f"risk.py:{i + 1} has bare 'except Exception: pass'"
 
 
 def test_system_panel_has_no_bare_except_pass():
@@ -49,9 +43,7 @@ def test_system_panel_has_no_bare_except_pass():
         stripped = line.strip()
         if stripped == "except Exception:":
             next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-            assert next_line != "pass", (
-                f"system.py:{i + 1} has bare 'except Exception: pass'"
-            )
+            assert next_line != "pass", f"system.py:{i + 1} has bare 'except Exception: pass'"
 
 
 def test_simulation_panel_has_no_bare_except_pass():
@@ -64,9 +56,7 @@ def test_simulation_panel_has_no_bare_except_pass():
         stripped = line.strip()
         if stripped == "except Exception:":
             next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-            assert next_line != "pass", (
-                f"simulation.py:{i + 1} has bare 'except Exception: pass'"
-            )
+            assert next_line != "pass", f"simulation.py:{i + 1} has bare 'except Exception: pass'"
 
 
 def test_backtest_cmd_has_no_bare_except_pass():
@@ -79,9 +69,7 @@ def test_backtest_cmd_has_no_bare_except_pass():
         stripped = line.strip()
         if stripped == "except Exception:":
             next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-            assert next_line != "pass", (
-                f"backtest_cmd.py:{i + 1} has bare 'except Exception: pass'"
-            )
+            assert next_line != "pass", f"backtest_cmd.py:{i + 1} has bare 'except Exception: pass'"
 
 
 def test_portfolio_cmd_has_no_bare_except_pass():

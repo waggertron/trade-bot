@@ -1,19 +1,16 @@
 from __future__ import annotations
 
-import csv
-import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
 from src.core.models import AssetType, MarketTick
-from src.data.downloader import bars_to_ticks, load_csv, save_to_csv
 from src.data.backtester import BacktestResult, _compute_metrics, run_backtest
-
+from src.data.downloader import bars_to_ticks, load_csv, save_to_csv
 
 # --- Helpers ---
+
 
 def make_ticks(prices: list[float], symbol: str = "BTC/USD") -> list[MarketTick]:
     """Create a list of MarketTick objects from a price series."""
@@ -23,7 +20,7 @@ def make_ticks(prices: list[float], symbol: str = "BTC/USD") -> list[MarketTick]
             symbol=symbol,
             price=Decimal(str(p)),
             volume=100,
-            timestamp=datetime.fromtimestamp(base_ts + i * 3600, tz=timezone.utc),
+            timestamp=datetime.fromtimestamp(base_ts + i * 3600, tz=UTC),
             asset_type=AssetType.CRYPTO,
         )
         for i, p in enumerate(prices)
@@ -32,14 +29,30 @@ def make_ticks(prices: list[float], symbol: str = "BTC/USD") -> list[MarketTick]
 
 # --- CSV loading tests ---
 
+
 class TestCSVOperations:
     def test_save_and_load_csv(self, tmp_path):
         bars = [
-            {"timestamp": 1700000000, "open": "100.0", "high": "105.0", "low": "99.0", "close": "103.0", "volume": "50.5"},
-            {"timestamp": 1700003600, "open": "103.0", "high": "108.0", "low": "101.0", "close": "106.0", "volume": "60.2"},
+            {
+                "timestamp": 1700000000,
+                "open": "100.0",
+                "high": "105.0",
+                "low": "99.0",
+                "close": "103.0",
+                "volume": "50.5",
+            },
+            {
+                "timestamp": 1700003600,
+                "open": "103.0",
+                "high": "108.0",
+                "low": "101.0",
+                "close": "106.0",
+                "volume": "60.2",
+            },
         ]
         # Temporarily override DATA_DIR for the test
         import src.data.downloader as dl
+
         original_dir = dl.DATA_DIR
         dl.DATA_DIR = tmp_path
         try:
@@ -56,8 +69,22 @@ class TestCSVOperations:
 
     def test_bars_to_ticks(self):
         bars = [
-            {"timestamp": "1700000000", "open": "100", "high": "105", "low": "99", "close": "103.50", "volume": "50.5"},
-            {"timestamp": "1700003600", "open": "103", "high": "108", "low": "101", "close": "106.25", "volume": "60"},
+            {
+                "timestamp": "1700000000",
+                "open": "100",
+                "high": "105",
+                "low": "99",
+                "close": "103.50",
+                "volume": "50.5",
+            },
+            {
+                "timestamp": "1700003600",
+                "open": "103",
+                "high": "108",
+                "low": "101",
+                "close": "106.25",
+                "volume": "60",
+            },
         ]
         ticks = bars_to_ticks(bars, "BTC/USD")
         assert len(ticks) == 2
@@ -74,6 +101,7 @@ class TestCSVOperations:
 
 
 # --- Metrics computation tests ---
+
 
 class TestMetrics:
     def test_empty_equity_curve(self):
@@ -114,6 +142,7 @@ class TestMetrics:
 
 
 # --- Backtest engine tests ---
+
 
 class TestBacktester:
     async def test_backtest_too_few_ticks(self):

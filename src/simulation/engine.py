@@ -1,4 +1,5 @@
 """Simulation engine: orchestrates data fetch, backtest, MC projection, and assessment."""
+
 from __future__ import annotations
 
 import logging
@@ -6,14 +7,13 @@ import math
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
 
 from src.core.config import RiskLevel, RiskSettings
 from src.core.models import AssetType, MarketTick
 from src.data.backtester import BacktestResult, run_backtest
-from src.data.providers.base import OHLCBar
 from src.simulation.models import (
     MonteCarloProjection,
     PortfolioMonteCarloProjection,
@@ -25,6 +25,9 @@ from src.simulation.models import (
 )
 from src.simulation.portfolio import PortfolioSimulator
 from src.simulation.projector import MonteCarloProjector
+
+if TYPE_CHECKING:
+    from src.data.providers.base import OHLCBar
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +51,7 @@ class SimulationEngine:
         self._progress_cb = progress_cb
         if use_cache:
             from src.simulation.cache import BarCache
+
             self._bar_cache: BarCache | None = BarCache()
         else:
             self._bar_cache = None
@@ -68,16 +72,14 @@ class SimulationEngine:
             # Derive unique but deterministic child seeds per risk level
             # from a single parent RNG seeded with the user's mc_seed.
             parent_rng = np.random.default_rng(self._config.mc_seed)
-            child_seeds = [
-                int(parent_rng.integers(0, 2**31))
-                for _ in self._config.risk_levels
-            ]
+            child_seeds = [int(parent_rng.integers(0, 2**31)) for _ in self._config.risk_levels]
 
             for i, risk_level in enumerate(self._config.risk_levels):
                 if self._progress_cb:
                     self._progress_cb("risk_level", i + 1, num_levels, risk_level.value)
                 result = await self._run_risk_level(
-                    risk_level, mc_seed=child_seeds[i],
+                    risk_level,
+                    mc_seed=child_seeds[i],
                 )
                 risk_results[risk_level.value] = result
 
@@ -90,20 +92,23 @@ class SimulationEngine:
                 spy_bars = await self._fetch_bars("SPY")
                 total_needed = self._config.train_days + self._config.test_days
                 if len(spy_bars) >= total_needed:
-                    test_bars = spy_bars[self._config.train_days:total_needed]
+                    test_bars = spy_bars[self._config.train_days : total_needed]
                 else:
                     split = len(spy_bars) * 2 // 3
                     test_bars = spy_bars[split:]
 
                 if test_bars:
                     from src.simulation.benchmark import BenchmarkSimulator
+
                     bench = BenchmarkSimulator()
                     report.benchmarks = {
                         "spy_buy_hold": bench.buy_and_hold(
-                            test_bars, self._config.initial_balance,
+                            test_bars,
+                            self._config.initial_balance,
                         ),
                         "spy_dca": bench.monthly_dca(
-                            test_bars, self._config.initial_balance,
+                            test_bars,
+                            self._config.initial_balance,
                         ),
                     }
             except Exception:
@@ -119,7 +124,12 @@ class SimulationEngine:
         report.completed_at = datetime.now(UTC).isoformat()
         return report
 
-    async def _run_risk_level(self, risk_level: RiskLevel, *, mc_seed: int | None = None) -> RiskLevelResult:
+    async def _run_risk_level(
+        self,
+        risk_level: RiskLevel,
+        *,
+        mc_seed: int | None = None,
+    ) -> RiskLevelResult:
         """Run simulation for one risk level across all stocks."""
         overrides: dict[str, float] = {}
         if self._config.max_position_pct is not None:
@@ -147,8 +157,8 @@ class SimulationEngine:
 
             # Split into train and test
             if len(bars) >= total_needed:
-                train_bars = bars[:self._config.train_days]
-                test_bars = bars[self._config.train_days:total_needed]
+                train_bars = bars[: self._config.train_days]
+                test_bars = bars[self._config.train_days : total_needed]
             else:
                 # Use what we have: 2/3 train, 1/3 test
                 split = len(bars) * 2 // 3
@@ -186,7 +196,8 @@ class SimulationEngine:
                 train_prices_per_stock[symbol] = train_prices
             if len(train_prices) > 5:
                 projector = MonteCarloProjector(
-                    n_paths=self._config.mc_simulations, seed=mc_seed,
+                    n_paths=self._config.mc_simulations,
+                    seed=mc_seed,
                 )
                 paths = projector.generate_paths(train_prices, self._config.test_days)
                 # Use allocated balance per stock in portfolio mode
@@ -195,35 +206,40 @@ class SimulationEngine:
                 else:
                     mc_balance = self._config.initial_balance
                 summary = projector.summarize(
-                    paths, mc_balance, train_prices[-1],
+                    paths,
+                    mc_balance,
+                    train_prices[-1],
                 )
-                mc_projections.append(MonteCarloProjection(
-                    symbol=symbol,
-                    median_final=summary["median_final"],
-                    p5_final=summary["p5_final"],
-                    p95_final=summary["p95_final"],
-                    median_return_pct=summary["median_return_pct"],
-                    p5_return_pct=summary["p5_return_pct"],
-                    p95_return_pct=summary["p95_return_pct"],
-                    worst_drawdown_p95=summary["worst_drawdown_p95"],
-                    n_paths=self._config.mc_simulations,
-                ))
+                mc_projections.append(
+                    MonteCarloProjection(
+                        symbol=symbol,
+                        median_final=summary["median_final"],
+                        p5_final=summary["p5_final"],
+                        p95_final=summary["p95_final"],
+                        median_return_pct=summary["median_return_pct"],
+                        p5_return_pct=summary["p5_return_pct"],
+                        p95_return_pct=summary["p95_return_pct"],
+                        worst_drawdown_p95=summary["worst_drawdown_p95"],
+                        n_paths=self._config.mc_simulations,
+                    )
+                )
 
             if self._progress_cb:
                 self._progress_cb("stock", j + 1, num_stocks, symbol)
 
         # Aggregate metrics
         total_return = (
-            sum(r.return_pct for r in stock_results) / len(stock_results)
-            if stock_results else 0.0
+            sum(r.return_pct for r in stock_results) / len(stock_results) if stock_results else 0.0
         )
         avg_sharpe = (
             sum(r.sharpe_ratio for r in stock_results) / len(stock_results)
-            if stock_results else 0.0
+            if stock_results
+            else 0.0
         )
         avg_dd = (
             sum(r.max_drawdown for r in stock_results) / len(stock_results)
-            if stock_results else 0.0
+            if stock_results
+            else 0.0
         )
         total_trades = sum(r.total_trades for r in stock_results)
 
@@ -233,28 +249,32 @@ class SimulationEngine:
             stock_equity_curves: dict[str, list[float]] = {
                 r.symbol: r.equity_curve for r in stock_results
             }
-            portfolio_curve, rebalance_days = portfolio_sim.build_portfolio_equity_curve(stock_equity_curves)
+            portfolio_curve, rebalance_days = portfolio_sim.build_portfolio_equity_curve(
+                stock_equity_curves
+            )
             if portfolio_curve:
                 portfolio_metrics = portfolio_sim.compute_portfolio_metrics(
-                    portfolio_curve, total_trades, rebalance_days=rebalance_days,
+                    portfolio_curve,
+                    total_trades,
+                    rebalance_days=rebalance_days,
                 )
 
         # Correlated Monte Carlo for portfolio mode
         portfolio_mc: PortfolioMonteCarloProjection | None = None
         if portfolio_sim is not None and len(train_prices_per_stock) > 0:
             projector = MonteCarloProjector(
-                n_paths=self._config.mc_simulations, seed=mc_seed,
+                n_paths=self._config.mc_simulations,
+                seed=mc_seed,
             )
-            portfolio_paths, corr_matrix = (
-                projector.generate_correlated_portfolio_paths(
-                    historical_prices=train_prices_per_stock,
-                    days_forward=self._config.test_days,
-                    weights=portfolio_sim.weights,
-                    initial_balance=self._config.initial_balance,
-                )
+            portfolio_paths, corr_matrix = projector.generate_correlated_portfolio_paths(
+                historical_prices=train_prices_per_stock,
+                days_forward=self._config.test_days,
+                weights=portfolio_sim.weights,
+                initial_balance=self._config.initial_balance,
             )
             pmc_summary = projector.summarize_portfolio_paths(
-                portfolio_paths, self._config.initial_balance,
+                portfolio_paths,
+                self._config.initial_balance,
             )
             portfolio_mc = PortfolioMonteCarloProjection(
                 median_final=pmc_summary["median_final"],
@@ -296,7 +316,9 @@ class SimulationEngine:
         total_calendar_days = int(total_trading_days * 1.5) + 20
         since_ts = int((datetime.now(UTC) - timedelta(days=total_calendar_days)).timestamp())
         bars = await yfinance_provider.download(
-            symbol, interval=Interval.D1, since=since_ts,
+            symbol,
+            interval=Interval.D1,
+            since=since_ts,
         )
 
         if self._bar_cache is not None and bars:
@@ -308,13 +330,15 @@ class SimulationEngine:
         """Convert OHLCBar list to MarketTick list."""
         ticks = []
         for bar in bars:
-            ticks.append(MarketTick(
-                symbol=symbol,
-                price=Decimal(bar.close),
-                volume=int(float(bar.volume)),
-                timestamp=datetime.fromtimestamp(bar.timestamp, tz=UTC),
-                asset_type=AssetType.STOCK,
-            ))
+            ticks.append(
+                MarketTick(
+                    symbol=symbol,
+                    price=Decimal(bar.close),
+                    volume=int(float(bar.volume)),
+                    timestamp=datetime.fromtimestamp(bar.timestamp, tz=UTC),
+                    asset_type=AssetType.STOCK,
+                )
+            )
         return ticks
 
     def _to_stock_result(self, symbol: str, bt: BacktestResult) -> StockSimResult:

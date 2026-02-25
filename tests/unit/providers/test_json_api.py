@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -63,9 +62,13 @@ class TestJSONAPIAdapter:
         ]
         mock_response.raise_for_status = AsyncMock()
 
-        with patch.object(adapter, "_fetch_url", return_value=[
-            {"title": "Test Article", "url": "https://example.com", "time": 1700000000}
-        ]):
+        with patch.object(
+            adapter,
+            "_fetch_url",
+            return_value=[
+                {"title": "Test Article", "url": "https://example.com", "time": 1700000000}
+            ],
+        ):
             articles = await adapter.fetch_articles("AAPL")
 
         assert len(articles) >= 1

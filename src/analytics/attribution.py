@@ -14,7 +14,12 @@ class StrategyAttribution:
     def analyze(self, fills: list[AttributedFill]) -> AttributionReport:
         """Group fills by strategy, pair into trades, and return an AttributionReport."""
         if not fills:
-            return AttributionReport(strategies={}, total_pnl=0.0, best_strategy="", worst_strategy="")
+            return AttributionReport(
+                strategies={},
+                total_pnl=0.0,
+                best_strategy="",
+                worst_strategy="",
+            )
 
         # Group fills by strategy
         by_strategy: dict[str, list[AttributedFill]] = defaultdict(list)
@@ -36,8 +41,14 @@ class StrategyAttribution:
         }
 
         if strategies_with_trades:
-            best_strategy = max(strategies_with_trades, key=lambda n: strategies_with_trades[n].total_pnl)
-            worst_strategy = min(strategies_with_trades, key=lambda n: strategies_with_trades[n].total_pnl)
+            best_strategy = max(
+                strategies_with_trades,
+                key=lambda n: strategies_with_trades[n].total_pnl,
+            )
+            worst_strategy = min(
+                strategies_with_trades,
+                key=lambda n: strategies_with_trades[n].total_pnl,
+            )
         else:
             best_strategy = ""
             worst_strategy = ""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from src.db.database import Database
 from src.db.models import UserRecord, UserSettingsRecord
@@ -41,7 +42,9 @@ class TestGetUserSettings:
 class TestSaveUserSettings:
     async def test_creates_new_settings(self, db: Database, user: UserRecord):
         settings = UserSettingsRecord(
-            user_id=user.id, mode="paper", risk_preset="moderate",
+            user_id=user.id,
+            mode="paper",
+            risk_preset="moderate",
             symbols_config='{"stocks": ["AAPL"], "crypto": ["BTC/USD"]}',
             strategy_weights='{"momentum": 0.5}',
         )
@@ -52,7 +55,7 @@ class TestSaveUserSettings:
         s1 = UserSettingsRecord(user_id=user.id)
         await db.save_user_settings(s1)
         s2 = UserSettingsRecord(user_id=user.id)
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             await db.save_user_settings(s2)
 
 

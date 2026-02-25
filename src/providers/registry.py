@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.providers.mock import (
     MockDataStore,
@@ -21,6 +20,9 @@ from src.providers.protocols import (
     OnChainProvider,
     SentimentAnalyzer,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Map of protocol types to their protocol class for isinstance checking
 _PROTOCOL_MAP: dict[type, type] = {
@@ -44,12 +46,12 @@ class ProviderRegistry:
 
         Raises TypeError if the instance does not satisfy the protocol.
         """
-        if protocol_type in _PROTOCOL_MAP:
-            if not isinstance(instance, _PROTOCOL_MAP[protocol_type]):
-                raise TypeError(
-                    f"{type(instance).__name__} does not implement "
-                    f"{protocol_type.__name__}"
-                )
+        if protocol_type in _PROTOCOL_MAP and not isinstance(
+            instance, _PROTOCOL_MAP[protocol_type]
+        ):
+            raise TypeError(
+                f"{type(instance).__name__} does not implement {protocol_type.__name__}"
+            )
         self._providers[protocol_type] = instance
 
     def get(self, protocol_type: type) -> Any:
@@ -58,9 +60,7 @@ class ProviderRegistry:
         Raises KeyError if no provider is registered for the type.
         """
         if protocol_type not in self._providers:
-            raise KeyError(
-                f"No provider registered for {protocol_type.__name__}"
-            )
+            raise KeyError(f"No provider registered for {protocol_type.__name__}")
         return self._providers[protocol_type]
 
     def has(self, protocol_type: type) -> bool:

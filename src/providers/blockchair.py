@@ -1,10 +1,11 @@
 """Blockchair on-chain data provider."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from src.providers.configs import BlockchairConfig
-
+if TYPE_CHECKING:
+    from src.providers.configs import BlockchairConfig
 
 # Asset symbol to blockchain name mapping
 BLOCKCHAIN_MAP: dict[str, str] = {

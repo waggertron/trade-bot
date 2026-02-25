@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import typer
@@ -21,9 +21,7 @@ from src.core.models import AssetType, OrderSide, Position
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(
-    name="portfolio", help="Portfolio management commands.", no_args_is_help=True
-)
+app = typer.Typer(name="portfolio", help="Portfolio management commands.", no_args_is_help=True)
 
 console = Console()
 
@@ -67,7 +65,7 @@ def _example_positions() -> list[Position]:
 
 def _example_trades() -> list[dict[str, object]]:
     """Return example trades for demo output."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         {
             "timestamp": now - timedelta(hours=2),
@@ -172,9 +170,7 @@ def show() -> None:
             entry = float(pos.avg_entry_price)
             current = float(pos.current_price)
             steps = 8
-            trend_vals = [
-                entry + (current - entry) * i / steps for i in range(steps + 1)
-            ]
+            trend_vals = [entry + (current - entry) * i / steps for i in range(steps + 1)]
             trend_str = spark_line(trend_vals)
         except Exception:
             logger.debug("Chart render error", exc_info=True)

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from src.auth.oauth import SUPPORTED_PROVIDERS, oauth
 from src.auth.tokens import create_access_token, create_refresh_token
@@ -62,15 +63,15 @@ async def oauth_redirect(provider: str, redirect_uri: str):
     return {"authorize_url": full_url}
 
 
-class OAuthCallbackRequest(
-    __import__("pydantic").BaseModel,  # noqa: UP
-):
+class OAuthCallbackRequest(BaseModel):
     code: str
     redirect_uri: str
 
 
 async def _fetch_oauth_user_info(
-    provider: str, code: str, redirect_uri: str,
+    provider: str,
+    code: str,
+    redirect_uri: str,
 ) -> tuple[str, str, str]:
     """Exchange code for token and fetch user info. Returns (provider_user_id, email, name).
 
@@ -82,7 +83,8 @@ async def _fetch_oauth_user_info(
 
     # Exchange code for token
     token = await client.fetch_access_token(
-        code=code, redirect_uri=redirect_uri,
+        code=code,
+        redirect_uri=redirect_uri,
     )
 
     if provider == "google":
@@ -113,12 +115,15 @@ async def oauth_callback(provider: str, req: OAuthCallbackRequest):
         raise HTTPException(status_code=503, detail="Database not available")
 
     provider_user_id, email, name = await _fetch_oauth_user_info(
-        provider, req.code, req.redirect_uri,
+        provider,
+        req.code,
+        req.redirect_uri,
     )
 
     if not email:
         raise HTTPException(
-            status_code=400, detail="Could not retrieve email from OAuth provider",
+            status_code=400,
+            detail="Could not retrieve email from OAuth provider",
         )
 
     is_new_user = False
@@ -133,7 +138,8 @@ async def oauth_callback(provider: str, req: OAuthCallbackRequest):
         if user is None:
             # Create new user
             user = UserRecord(
-                email=email, name=name,
+                email=email,
+                name=name,
                 is_verified=True,  # OAuth-verified email
             )
             await state.db.create_user(user)
@@ -141,8 +147,10 @@ async def oauth_callback(provider: str, req: OAuthCallbackRequest):
 
         # Link OAuth account to user
         oauth_account = OAuthAccountRecord(
-            user_id=user.id, provider=provider,
-            provider_user_id=provider_user_id, email=email,
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+            email=email,
         )
         await state.db.link_oauth_account(oauth_account)
 

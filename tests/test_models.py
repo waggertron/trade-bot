@@ -1,34 +1,34 @@
-import pytest
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
+import pytest
 from pydantic import ValidationError
 
 from src.core.models import (
     AssetType,
+    Fill,
     MarketTick,
-    Signal,
-    SignalDirection,
     Order,
     OrderSide,
     OrderType,
-    Fill,
-    Position,
     PortfolioSnapshot,
+    Position,
     ResearchReport,
-    RiskDecision,
     RiskAction,
+    RiskDecision,
+    Signal,
+    SignalDirection,
 )
 
-
 # -- Existing tests (preserved) -------------------------------------------
+
 
 def test_market_tick_creation():
     tick = MarketTick(
         symbol="AAPL",
         price=Decimal("150.25"),
         volume=1000,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         asset_type=AssetType.STOCK,
     )
     assert tick.symbol == "AAPL"
@@ -42,7 +42,7 @@ def test_signal_creation():
         direction=SignalDirection.BUY,
         confidence=0.85,
         strategy_name="momentum",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         reasoning="Strong upward trend with volume confirmation",
     )
     assert signal.direction == SignalDirection.BUY
@@ -55,7 +55,7 @@ def test_signal_confidence_clamped():
         direction=SignalDirection.BUY,
         confidence=1.5,
         strategy_name="momentum",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         reasoning="test",
     )
     assert signal.confidence == 1.0
@@ -81,7 +81,7 @@ def test_fill_creation():
         side=OrderSide.BUY,
         quantity=Decimal("10"),
         fill_price=Decimal("150.10"),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         commission=Decimal("1.00"),
     )
     assert fill.fill_price == Decimal("150.10")
@@ -110,7 +110,7 @@ def test_portfolio_snapshot_total_value():
                 asset_type=AssetType.STOCK,
             )
         ],
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     assert snapshot.total_value == Decimal("11550.00")
 
@@ -137,7 +137,7 @@ def test_research_report_creation():
         symbol="AAPL",
         summary="Strong earnings beat with raised guidance",
         sentiment_score=0.8,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         sources=["earnings_call", "sec_filing"],
     )
     assert report.sentiment_score == 0.8
@@ -146,27 +146,34 @@ def test_research_report_creation():
 
 # -- New validation tests --------------------------------------------------
 
+
 class TestMarketTickValidation:
     def test_rejects_negative_price(self):
         with pytest.raises(ValidationError):
             MarketTick(
-                symbol="BTC/USD", price=Decimal("-1"),
-                volume=100, timestamp=datetime.now(UTC),
+                symbol="BTC/USD",
+                price=Decimal("-1"),
+                volume=100,
+                timestamp=datetime.now(UTC),
                 asset_type=AssetType.CRYPTO,
             )
 
     def test_rejects_negative_volume(self):
         with pytest.raises(ValidationError):
             MarketTick(
-                symbol="BTC/USD", price=Decimal("50000"),
-                volume=-1, timestamp=datetime.now(UTC),
+                symbol="BTC/USD",
+                price=Decimal("50000"),
+                volume=-1,
+                timestamp=datetime.now(UTC),
                 asset_type=AssetType.CRYPTO,
             )
 
     def test_frozen(self):
         tick = MarketTick(
-            symbol="BTC/USD", price=Decimal("50000"),
-            volume=100, timestamp=datetime.now(UTC),
+            symbol="BTC/USD",
+            price=Decimal("50000"),
+            volume=100,
+            timestamp=datetime.now(UTC),
             asset_type=AssetType.CRYPTO,
         )
         with pytest.raises(ValidationError):
@@ -174,8 +181,10 @@ class TestMarketTickValidation:
 
     def test_serialization_roundtrip(self):
         tick = MarketTick(
-            symbol="BTC/USD", price=Decimal("50000"),
-            volume=100, timestamp=datetime.now(UTC),
+            symbol="BTC/USD",
+            price=Decimal("50000"),
+            volume=100,
+            timestamp=datetime.now(UTC),
             asset_type=AssetType.CRYPTO,
         )
         data = tick.model_dump()
@@ -186,25 +195,34 @@ class TestMarketTickValidation:
 class TestSignalValidation:
     def test_clamps_confidence_above_one(self):
         sig = Signal(
-            symbol="BTC/USD", direction=SignalDirection.BUY,
-            confidence=1.5, strategy_name="test",
-            timestamp=datetime.now(UTC), reasoning="test",
+            symbol="BTC/USD",
+            direction=SignalDirection.BUY,
+            confidence=1.5,
+            strategy_name="test",
+            timestamp=datetime.now(UTC),
+            reasoning="test",
         )
         assert sig.confidence == 1.0
 
     def test_clamps_confidence_below_zero(self):
         sig = Signal(
-            symbol="BTC/USD", direction=SignalDirection.BUY,
-            confidence=-0.5, strategy_name="test",
-            timestamp=datetime.now(UTC), reasoning="test",
+            symbol="BTC/USD",
+            direction=SignalDirection.BUY,
+            confidence=-0.5,
+            strategy_name="test",
+            timestamp=datetime.now(UTC),
+            reasoning="test",
         )
         assert sig.confidence == 0.0
 
     def test_auto_generates_id(self):
         sig = Signal(
-            symbol="BTC/USD", direction=SignalDirection.BUY,
-            confidence=0.8, strategy_name="test",
-            timestamp=datetime.now(UTC), reasoning="test",
+            symbol="BTC/USD",
+            direction=SignalDirection.BUY,
+            confidence=0.8,
+            strategy_name="test",
+            timestamp=datetime.now(UTC),
+            reasoning="test",
         )
         assert sig.id is not None
         assert len(sig.id) > 0
@@ -213,7 +231,8 @@ class TestSignalValidation:
 class TestPositionProperties:
     def test_market_value(self):
         pos = Position(
-            symbol="BTC/USD", quantity=Decimal("2"),
+            symbol="BTC/USD",
+            quantity=Decimal("2"),
             avg_entry_price=Decimal("50000"),
             current_price=Decimal("55000"),
             asset_type=AssetType.CRYPTO,
@@ -222,7 +241,8 @@ class TestPositionProperties:
 
     def test_unrealized_pnl(self):
         pos = Position(
-            symbol="BTC/USD", quantity=Decimal("2"),
+            symbol="BTC/USD",
+            quantity=Decimal("2"),
             avg_entry_price=Decimal("50000"),
             current_price=Decimal("55000"),
             asset_type=AssetType.CRYPTO,
@@ -236,7 +256,8 @@ class TestPortfolioSnapshotProperties:
             cash=Decimal("10000"),
             positions=[
                 Position(
-                    symbol="BTC/USD", quantity=Decimal("1"),
+                    symbol="BTC/USD",
+                    quantity=Decimal("1"),
                     avg_entry_price=Decimal("50000"),
                     current_price=Decimal("55000"),
                     asset_type=AssetType.CRYPTO,
@@ -257,18 +278,25 @@ class TestRiskDecisionProperties:
         assert d.is_approved is False
 
     def test_resize_is_approved(self):
-        d = RiskDecision(action=RiskAction.RESIZE, reason="reducing", adjusted_quantity=Decimal("5"))
+        d = RiskDecision(
+            action=RiskAction.RESIZE,
+            reason="reducing",
+            adjusted_quantity=Decimal("5"),
+        )
         assert d.is_approved is True
 
 
 # -- Missing validation tests (code review fixes) --------------------------
 
+
 class TestMarketTickZeroPrice:
     def test_rejects_zero_price(self):
         with pytest.raises(ValidationError):
             MarketTick(
-                symbol="BTC/USD", price=Decimal("0"),
-                volume=100, timestamp=datetime.now(UTC),
+                symbol="BTC/USD",
+                price=Decimal("0"),
+                volume=100,
+                timestamp=datetime.now(UTC),
                 asset_type=AssetType.CRYPTO,
             )
 
@@ -277,16 +305,20 @@ class TestOrderQuantityValidation:
     def test_rejects_zero_quantity(self):
         with pytest.raises(ValidationError):
             Order(
-                symbol="AAPL", side=OrderSide.BUY,
-                order_type=OrderType.MARKET, quantity=Decimal("0"),
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                order_type=OrderType.MARKET,
+                quantity=Decimal("0"),
                 asset_type=AssetType.STOCK,
             )
 
     def test_rejects_negative_quantity(self):
         with pytest.raises(ValidationError):
             Order(
-                symbol="AAPL", side=OrderSide.BUY,
-                order_type=OrderType.MARKET, quantity=Decimal("-5"),
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                order_type=OrderType.MARKET,
+                quantity=Decimal("-5"),
                 asset_type=AssetType.STOCK,
             )
 
@@ -295,41 +327,61 @@ class TestFillValidation:
     def test_rejects_zero_quantity(self):
         with pytest.raises(ValidationError):
             Fill(
-                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-                quantity=Decimal("0"), fill_price=Decimal("150"),
-                timestamp=datetime.now(UTC), commission=Decimal("1"),
+                order_id="ord-1",
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                quantity=Decimal("0"),
+                fill_price=Decimal("150"),
+                timestamp=datetime.now(UTC),
+                commission=Decimal("1"),
             )
 
     def test_rejects_negative_quantity(self):
         with pytest.raises(ValidationError):
             Fill(
-                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-                quantity=Decimal("-10"), fill_price=Decimal("150"),
-                timestamp=datetime.now(UTC), commission=Decimal("1"),
+                order_id="ord-1",
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                quantity=Decimal("-10"),
+                fill_price=Decimal("150"),
+                timestamp=datetime.now(UTC),
+                commission=Decimal("1"),
             )
 
     def test_rejects_zero_fill_price(self):
         with pytest.raises(ValidationError):
             Fill(
-                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-                quantity=Decimal("10"), fill_price=Decimal("0"),
-                timestamp=datetime.now(UTC), commission=Decimal("1"),
+                order_id="ord-1",
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                quantity=Decimal("10"),
+                fill_price=Decimal("0"),
+                timestamp=datetime.now(UTC),
+                commission=Decimal("1"),
             )
 
     def test_rejects_negative_fill_price(self):
         with pytest.raises(ValidationError):
             Fill(
-                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-                quantity=Decimal("10"), fill_price=Decimal("-50"),
-                timestamp=datetime.now(UTC), commission=Decimal("1"),
+                order_id="ord-1",
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                quantity=Decimal("10"),
+                fill_price=Decimal("-50"),
+                timestamp=datetime.now(UTC),
+                commission=Decimal("1"),
             )
 
     def test_rejects_negative_commission(self):
         with pytest.raises(ValidationError):
             Fill(
-                order_id="ord-1", symbol="AAPL", side=OrderSide.BUY,
-                quantity=Decimal("10"), fill_price=Decimal("150"),
-                timestamp=datetime.now(UTC), commission=Decimal("-1"),
+                order_id="ord-1",
+                symbol="AAPL",
+                side=OrderSide.BUY,
+                quantity=Decimal("10"),
+                fill_price=Decimal("150"),
+                timestamp=datetime.now(UTC),
+                commission=Decimal("-1"),
             )
 
 
@@ -337,15 +389,19 @@ class TestResearchReportSentimentValidation:
     def test_rejects_sentiment_above_one(self):
         with pytest.raises(ValidationError):
             ResearchReport(
-                symbol="AAPL", summary="test",
-                sentiment_score=1.5, timestamp=datetime.now(UTC),
+                symbol="AAPL",
+                summary="test",
+                sentiment_score=1.5,
+                timestamp=datetime.now(UTC),
             )
 
     def test_rejects_sentiment_below_negative_one(self):
         with pytest.raises(ValidationError):
             ResearchReport(
-                symbol="AAPL", summary="test",
-                sentiment_score=-1.5, timestamp=datetime.now(UTC),
+                symbol="AAPL",
+                summary="test",
+                sentiment_score=-1.5,
+                timestamp=datetime.now(UTC),
             )
 
 

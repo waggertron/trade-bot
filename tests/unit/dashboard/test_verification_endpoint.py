@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from unittest.mock import AsyncMock
 
 import pytest
@@ -12,7 +13,6 @@ from src.core.config import AuthSettings, Settings
 from src.dashboard.app import create_app
 from src.dashboard.dependencies import require_user
 from src.db.models import UserRecord
-
 
 JWT_SECRET = "test-secret-key-for-verification"
 
@@ -91,24 +91,29 @@ class TestTradingRequiresVerification:
         mock_executor = AsyncMock()
         mock_portfolio = AsyncMock()
         app = create_app(
-            db=mock_db, settings=settings,
-            executor=mock_executor, portfolio_manager=mock_portfolio,
+            db=mock_db,
+            settings=settings,
+            executor=mock_executor,
+            portfolio_manager=mock_portfolio,
         )
         app.dependency_overrides[require_user] = lambda: unverified_user
         with TestClient(app) as c:
-            resp = c.post("/api/trading/order", json={
-                "symbol": "BTC/USD",
-                "side": "buy",
-                "order_type": "market",
-                "quantity": "1",
-            })
+            resp = c.post(
+                "/api/trading/order",
+                json={
+                    "symbol": "BTC/USD",
+                    "side": "buy",
+                    "order_type": "market",
+                    "quantity": "1",
+                },
+            )
         app.dependency_overrides.clear()
         assert resp.status_code == 403
         assert "verified" in resp.json()["detail"].lower()
 
     def test_verified_user_can_place_orders(self, mock_db, settings, verified_user):
         """Verified users should be able to trade."""
-        from datetime import datetime, timezone
+        from datetime import datetime
         from decimal import Decimal
 
         from src.core.models import Fill, OrderSide
@@ -120,20 +125,25 @@ class TestTradingRequiresVerification:
             side=OrderSide.BUY,
             quantity=Decimal("1"),
             fill_price=Decimal("50000"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
         mock_portfolio = AsyncMock()
         app = create_app(
-            db=mock_db, settings=settings,
-            executor=mock_executor, portfolio_manager=mock_portfolio,
+            db=mock_db,
+            settings=settings,
+            executor=mock_executor,
+            portfolio_manager=mock_portfolio,
         )
         app.dependency_overrides[require_user] = lambda: verified_user
         with TestClient(app) as c:
-            resp = c.post("/api/trading/order", json={
-                "symbol": "BTC/USD",
-                "side": "buy",
-                "order_type": "market",
-                "quantity": "1",
-            })
+            resp = c.post(
+                "/api/trading/order",
+                json={
+                    "symbol": "BTC/USD",
+                    "side": "buy",
+                    "order_type": "market",
+                    "quantity": "1",
+                },
+            )
         app.dependency_overrides.clear()
         assert resp.status_code == 200

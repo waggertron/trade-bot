@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.models import MarketTick, ResearchReport, Signal, SignalDirection
 
@@ -43,6 +43,6 @@ class SentimentStrategy:
             direction=direction,
             confidence=confidence,
             strategy_name=self.name,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             reasoning=f"Avg sentiment: {avg_sentiment:.2f}. {summaries}",
         )

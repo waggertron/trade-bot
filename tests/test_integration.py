@@ -1,7 +1,9 @@
 """Full pipeline integration test: tick -> signal -> risk -> execution -> portfolio."""
-import pytest
-from datetime import datetime, timezone, timedelta
+
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from src.agents.execution import PaperExecutionAgent
 from src.agents.portfolio import PortfolioManager
@@ -13,7 +15,7 @@ from src.core.models import AssetType, MarketTick
 
 
 def make_uptrend_ticks(symbol="AAPL", count=60):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         MarketTick(
             symbol=symbol,
@@ -53,12 +55,15 @@ def pipeline():
 
 
 async def test_full_pipeline_executes_trade(pipeline):
-    orchestrator, portfolio, event_bus = pipeline
+    orchestrator, portfolio, _event_bus = pipeline
 
     # Feed a single tick (strategies will evaluate on just this + history)
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("130.00"), volume=5000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("130.00"),
+        volume=5000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
 
     # With only 1 tick, momentum returns None (insufficient data) -> no trade
@@ -76,8 +81,11 @@ async def test_pause_prevents_trading(pipeline):
     orchestrator.pause()
 
     tick = MarketTick(
-        symbol="AAPL", price=Decimal("130.00"), volume=5000,
-        timestamp=datetime.now(timezone.utc), asset_type=AssetType.STOCK,
+        symbol="AAPL",
+        price=Decimal("130.00"),
+        volume=5000,
+        timestamp=datetime.now(UTC),
+        asset_type=AssetType.STOCK,
     )
     fills = await orchestrator.process_tick(tick)
     assert len(fills) == 0

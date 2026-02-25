@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class JSONFormatter(logging.Formatter):
@@ -13,7 +13,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         entry: dict[str, object] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname.lower(),
             "logger": record.name,
             "message": record.getMessage(),
@@ -21,10 +21,27 @@ class JSONFormatter(logging.Formatter):
 
         # Merge extra fields (skip standard LogRecord attributes)
         _standard = {
-            "name", "msg", "args", "created", "relativeCreated", "exc_info",
-            "exc_text", "stack_info", "lineno", "funcName", "pathname",
-            "filename", "module", "levelname", "levelno", "msecs",
-            "processName", "process", "threadName", "thread", "message",
+            "name",
+            "msg",
+            "args",
+            "created",
+            "relativeCreated",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "lineno",
+            "funcName",
+            "pathname",
+            "filename",
+            "module",
+            "levelname",
+            "levelno",
+            "msecs",
+            "processName",
+            "process",
+            "threadName",
+            "thread",
+            "message",
             "taskName",
         }
         for key, value in record.__dict__.items():

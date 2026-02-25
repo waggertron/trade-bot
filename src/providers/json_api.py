@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from src.db.models import FeedRecord
 from src.sentiment.models import Article
+
+if TYPE_CHECKING:
+    from src.db.models import FeedRecord
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,9 @@ class JSONAPIAdapter:
 
     @staticmethod
     def _to_article(
-        item: dict[str, Any], feed: FeedRecord, symbol: str,
+        item: dict[str, Any],
+        feed: FeedRecord,
+        symbol: str,
     ) -> Article | None:
         title = item.get("title") or item.get("headline") or ""
         if not title:
@@ -74,16 +78,21 @@ class JSONAPIAdapter:
         url = item.get("url") or item.get("link") or ""
 
         # Parse published time from various formats
-        pub_raw = item.get("published_at") or item.get("publishedAt") or item.get("datetime") or item.get("time")
+        pub_raw = (
+            item.get("published_at")
+            or item.get("publishedAt")
+            or item.get("datetime")
+            or item.get("time")
+        )
         if isinstance(pub_raw, (int, float)):
-            published_at = datetime.fromtimestamp(pub_raw, tz=timezone.utc)
+            published_at = datetime.fromtimestamp(pub_raw, tz=UTC)
         elif isinstance(pub_raw, str):
             try:
                 published_at = datetime.fromisoformat(pub_raw.replace("Z", "+00:00"))
             except ValueError:
-                published_at = datetime.now(timezone.utc)
+                published_at = datetime.now(UTC)
         else:
-            published_at = datetime.now(timezone.utc)
+            published_at = datetime.now(UTC)
 
         return Article(
             title=title,

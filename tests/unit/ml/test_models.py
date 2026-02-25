@@ -1,12 +1,9 @@
 """Tests for ML pipeline Pydantic models."""
 
-import json
-
 import pytest
 from pydantic import ValidationError
 
 from src.ml.models import Dataset, EvalMetrics, FeatureVector, Prediction, TrainResult
-
 
 # ---------------------------------------------------------------------------
 # FeatureVector
@@ -251,9 +248,7 @@ class TestDataset:
         assert y == [0, 1]
 
     def test_to_arrays_with_missing_features(self):
-        fv = FeatureVector(
-            symbol="AAPL", timestamp=1700000000, features={"rsi": 55.0}
-        )
+        fv = FeatureVector(symbol="AAPL", timestamp=1700000000, features={"rsi": 55.0})
         ds = Dataset(
             feature_names=["rsi", "macd"],
             vectors=[fv],
@@ -276,9 +271,7 @@ class TestDataset:
         """Dataset is NOT frozen -- it should be mutable for building."""
         ds = Dataset()
         ds.feature_names = ["rsi"]
-        fv = FeatureVector(
-            symbol="AAPL", timestamp=1700000000, features={"rsi": 55.0}
-        )
+        fv = FeatureVector(symbol="AAPL", timestamp=1700000000, features={"rsi": 55.0})
         ds.vectors.append(fv)
         ds.labels.append(0)
         assert len(ds.vectors) == 1

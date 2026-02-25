@@ -5,13 +5,17 @@ from __future__ import annotations
 import asyncio
 import calendar
 import logging
-from datetime import datetime, timezone
-from time import struct_time
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import feedparser
 
-from src.db.models import FeedRecord
 from src.sentiment.models import Article
+
+if TYPE_CHECKING:
+    from time import struct_time
+
+    from src.db.models import FeedRecord
 
 logger = logging.getLogger(__name__)
 
@@ -70,18 +74,21 @@ class GovernmentFeedAdapter:
             title = entry.get("title", "")
             if not title:
                 continue
-            articles.append(Article(
-                title=title,
-                body=entry.get("summary", ""),
-                source=feed.name,
-                url=entry.get("link", ""),
-                published_at=_parse_time(entry.get("published_parsed")),
-                related_symbols=[symbol],
-            ))
+            articles.append(
+                Article(
+                    title=title,
+                    body=entry.get("summary", ""),
+                    source=feed.name,
+                    url=entry.get("link", ""),
+                    published_at=_parse_time(entry.get("published_parsed")),
+                    related_symbols=[symbol],
+                )
+            )
         return articles
 
     async def _fetch_json(self, feed: FeedRecord, symbol: str) -> list[Article]:
         import httpx
+
         headers = {}
         if "sec.gov" in feed.url:
             headers["User-Agent"] = "trade-bot/1.0 (contact@example.com)"
@@ -108,19 +115,21 @@ class GovernmentFeedAdapter:
             title = item.get("title") or item.get("name") or ""
             if not title:
                 continue
-            articles.append(Article(
-                title=title,
-                body=item.get("summary") or item.get("description") or "",
-                source=feed.name,
-                url=item.get("url") or item.get("link") or "",
-                published_at=datetime.now(timezone.utc),
-                related_symbols=[symbol],
-            ))
+            articles.append(
+                Article(
+                    title=title,
+                    body=item.get("summary") or item.get("description") or "",
+                    source=feed.name,
+                    url=item.get("url") or item.get("link") or "",
+                    published_at=datetime.now(UTC),
+                    related_symbols=[symbol],
+                )
+            )
         return articles
 
 
 def _parse_time(t: struct_time | tuple | None) -> datetime:
     if t is None:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     ts = calendar.timegm(t)
-    return datetime.fromtimestamp(ts, tz=timezone.utc)
+    return datetime.fromtimestamp(ts, tz=UTC)

@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import httpx
 
-from src.providers.configs import OllamaSentimentConfig
 from src.sentiment.models import SentimentResult
+
+if TYPE_CHECKING:
+    from src.providers.configs import OllamaSentimentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -53,16 +56,20 @@ class OllamaSentimentAnalyzer:
             return SentimentResult(
                 score=max(-1.0, min(1.0, float(data["score"]))),
                 magnitude=max(0.0, min(1.0, float(data["magnitude"]))),
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 reasoning=data.get("reasoning"),
                 analyzer=self.name,
             )
         except (json.JSONDecodeError, KeyError, ValueError, TypeError, httpx.HTTPError) as exc:
-            logger.warning("Failed to parse Ollama response (%s: %s), returning neutral fallback", type(exc).__name__, exc)
+            logger.warning(
+                "Failed to parse Ollama response (%s: %s), returning neutral fallback",
+                type(exc).__name__,
+                exc,
+            )
             return SentimentResult(
                 score=0.0,
                 magnitude=0.0,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 reasoning="Failed to parse Ollama response",
                 analyzer=self.name,
             )

@@ -6,11 +6,11 @@ Using @runtime_checkable allows isinstance() checks at runtime.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from src.core.models import MarketTick
-from src.db.models import SignalRecord, TradeRecord
-
+if TYPE_CHECKING:
+    from src.core.models import MarketTick
+    from src.db.models import SignalRecord, TradeRecord
 
 # -- Concrete helper classes --------------------------------------------------
 

@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.dashboard.app import create_app
-from src.dashboard.dependencies import require_user, state
+from src.dashboard.dependencies import require_user
 from src.db.models import UserRecord
 
 

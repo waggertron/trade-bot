@@ -1,16 +1,19 @@
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from src.agents.strategies.quantitative import QuantitativeStrategy
 from src.core.models import AssetType, MarketTick, SignalDirection
 
 
 def make_ticks(prices, symbol="AAPL"):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         MarketTick(
-            symbol=symbol, price=Decimal(str(p)), volume=1000,
+            symbol=symbol,
+            price=Decimal(str(p)),
+            volume=1000,
             timestamp=now - timedelta(minutes=len(prices) - i),
             asset_type=AssetType.STOCK,
         )

@@ -1,9 +1,9 @@
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
-from decimal import Decimal
 
 from src.db.database import Database
-from src.db.models import TradeRecord, SignalRecord
+from src.db.models import SignalRecord, TradeRecord
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ async def test_save_and_get_trade(db):
         commission="1.00",
         strategy="momentum",
         paper=True,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     trade_id = await db.save_trade(trade)
     assert trade_id is not None
@@ -39,7 +39,7 @@ async def test_save_and_list_signals(db):
         confidence=0.85,
         strategy="momentum",
         reasoning="Strong trend",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     await db.save_signal(signal)
     signals = await db.list_signals(limit=10)
@@ -49,16 +49,30 @@ async def test_save_and_list_signals(db):
 
 async def test_list_trades_by_strategy(db):
     for symbol in ["AAPL", "MSFT"]:
-        await db.save_trade(TradeRecord(
-            symbol=symbol, side="buy", quantity="10", price="100",
-            commission="1", strategy="momentum", paper=True,
-            timestamp=datetime.now(timezone.utc),
-        ))
-    await db.save_trade(TradeRecord(
-        symbol="GOOGL", side="buy", quantity="5", price="200",
-        commission="1", strategy="sentiment", paper=True,
-        timestamp=datetime.now(timezone.utc),
-    ))
+        await db.save_trade(
+            TradeRecord(
+                symbol=symbol,
+                side="buy",
+                quantity="10",
+                price="100",
+                commission="1",
+                strategy="momentum",
+                paper=True,
+                timestamp=datetime.now(UTC),
+            )
+        )
+    await db.save_trade(
+        TradeRecord(
+            symbol="GOOGL",
+            side="buy",
+            quantity="5",
+            price="200",
+            commission="1",
+            strategy="sentiment",
+            paper=True,
+            timestamp=datetime.now(UTC),
+        )
+    )
     momentum_trades = await db.list_trades(strategy="momentum")
     assert len(momentum_trades) == 2
     all_trades = await db.list_trades()

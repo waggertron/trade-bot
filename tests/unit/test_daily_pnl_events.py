@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 from decimal import Decimal
-
-import pytest
 
 from src.core.event_bus import EventBus
 from src.core.event_types import DailyPnLEvent

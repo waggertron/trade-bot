@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
-import asyncio
+from typing import TYPE_CHECKING
 
-import pytest
-
-from src.core.models import Signal
 from src.core.protocols import FeatureStrategy, StrategyAgent
-from src.ml.models import FeatureVector
 
+if TYPE_CHECKING:
+    from src.core.models import Signal
+    from src.ml.models import FeatureVector
 
 # -- Dummy classes for protocol conformance testing -----------------------
+
 
 class _ConformingStrategy:
     """A dummy class that implements all FeatureStrategy requirements."""
 
     name: str = "test-strategy"
 
-    async def evaluate(
-        self, symbol: str, features: FeatureVector
-    ) -> Signal | None:
+    async def evaluate(self, symbol: str, features: FeatureVector) -> Signal | None:
         return None
 
     def required_features(self) -> list[str]:
@@ -32,17 +30,15 @@ class _NonConformingStrategy:
 
     name: str = "bad-strategy"
 
-    async def evaluate(
-        self, symbol: str, features: FeatureVector
-    ) -> Signal | None:
+    async def evaluate(self, symbol: str, features: FeatureVector) -> Signal | None:
         return None
 
 
 # -- Tests ----------------------------------------------------------------
 
+
 def test_feature_strategy_is_runtime_checkable() -> None:
     """FeatureStrategy should be a runtime-checkable Protocol."""
-    from typing import runtime_checkable
 
     # It should be a Protocol (has _is_protocol attribute)
     assert getattr(FeatureStrategy, "_is_protocol", False) is True

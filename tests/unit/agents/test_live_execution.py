@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
 import pytest
 
-from src.agents.execution import LiveExecutionAgent, PaperExecutionAgent
+from src.agents.execution import LiveExecutionAgent
 from src.core.models import AssetType, Fill, Order, OrderSide, OrderType
 
 
@@ -21,7 +21,7 @@ def mock_ibkr_executor():
         side=OrderSide.BUY,
         quantity=Decimal("10"),
         fill_price=Decimal("175.50"),
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         commission=Decimal("1.00"),
     )
     executor.cancel_order.return_value = True
@@ -38,7 +38,7 @@ def mock_kraken_executor():
         side=OrderSide.BUY,
         quantity=Decimal("0.5"),
         fill_price=Decimal("50000"),
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         commission=Decimal("5.00"),
     )
     executor.cancel_order.return_value = True
@@ -87,7 +87,12 @@ class TestLiveExecutionRouting:
         assert fill.symbol == "BTC/USD"
         assert fill.fill_price == Decimal("50000")
 
-    async def test_cancel_order_delegates_to_both(self, live_agent, mock_ibkr_executor, mock_kraken_executor):
+    async def test_cancel_order_delegates_to_both(
+        self,
+        live_agent,
+        mock_ibkr_executor,
+        mock_kraken_executor,
+    ):
         mock_ibkr_executor.cancel_order.return_value = False
         mock_kraken_executor.cancel_order.return_value = True
 
@@ -97,7 +102,12 @@ class TestLiveExecutionRouting:
         mock_ibkr_executor.cancel_order.assert_called_once_with("some-id")
         mock_kraken_executor.cancel_order.assert_called_once_with("some-id")
 
-    async def test_cancel_all_delegates_to_both(self, live_agent, mock_ibkr_executor, mock_kraken_executor):
+    async def test_cancel_all_delegates_to_both(
+        self,
+        live_agent,
+        mock_ibkr_executor,
+        mock_kraken_executor,
+    ):
         mock_ibkr_executor.cancel_all.return_value = 2
         mock_kraken_executor.cancel_all.return_value = 3
 
@@ -137,7 +147,7 @@ class TestLiveExecutionSafety:
             side=OrderSide.BUY,
             quantity=Decimal("0.5"),
             fill_price=Decimal("50000"),
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         )
 
         agent = LiveExecutionAgent(

@@ -1,4 +1,5 @@
 """Tests for the TUI DashboardApp."""
+
 from __future__ import annotations
 
 import pytest
@@ -14,7 +15,7 @@ from src.cli.tui.panels.system import SystemPanel
 async def test_app_mounts_with_four_tabs():
     """DashboardApp should mount with Portfolio, Risk, Simulations, System tabs."""
     app = DashboardApp(api_base="http://localhost:9999", refresh_interval=9999)
-    async with app.run_test(size=(120, 40)) as pilot:
+    async with app.run_test(size=(120, 40)):
         # Verify all four panels exist
         assert len(app.query(PortfolioPanel)) == 1
         assert len(app.query(RiskPanel)) == 1
@@ -28,7 +29,7 @@ async def test_app_has_header_and_footer():
     from textual.widgets import Footer, Header
 
     app = DashboardApp(api_base="http://localhost:9999", refresh_interval=9999)
-    async with app.run_test(size=(120, 40)) as pilot:
+    async with app.run_test(size=(120, 40)):
         assert len(app.query(Header)) == 1
         assert len(app.query(Footer)) == 1
 
@@ -37,5 +38,5 @@ async def test_app_has_header_and_footer():
 async def test_app_title():
     """DashboardApp should have correct title."""
     app = DashboardApp(api_base="http://localhost:9999", refresh_interval=9999)
-    async with app.run_test(size=(120, 40)) as pilot:
+    async with app.run_test(size=(120, 40)):
         assert app.title == "Trade Bot Dashboard"

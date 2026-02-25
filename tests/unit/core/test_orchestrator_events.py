@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock
 
@@ -37,7 +37,7 @@ def mock_portfolio():
     portfolio.get_snapshot.return_value = PortfolioSnapshot(
         cash=Decimal("100000"),
         positions=[],
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
     )
     portfolio.record_fill.return_value = None
     return portfolio
@@ -62,7 +62,7 @@ def mock_executor():
         side=OrderSide.BUY,
         quantity=Decimal("0.5"),
         fill_price=Decimal("50000"),
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
     )
     return executor
 
@@ -74,7 +74,7 @@ def buy_signal():
         direction=SignalDirection.BUY,
         confidence=0.9,
         strategy_name="momentum",
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 1, tzinfo=UTC),
         reasoning="breakout",
     )
 
@@ -89,7 +89,12 @@ def buy_strategy(buy_signal):
 
 class TestOrchestratorFillEvents:
     async def test_publishes_fill_event_with_payload(
-        self, event_bus, mock_portfolio, mock_risk_manager, mock_executor, buy_strategy,
+        self,
+        event_bus,
+        mock_portfolio,
+        mock_risk_manager,
+        mock_executor,
+        buy_strategy,
     ):
         orchestrator = Orchestrator(
             strategies=[buy_strategy],
@@ -103,7 +108,7 @@ class TestOrchestratorFillEvents:
             symbol="BTC/USD",
             price=Decimal("50000"),
             volume=100,
-            timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
             asset_type=AssetType.CRYPTO,
         )
 

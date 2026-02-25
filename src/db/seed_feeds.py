@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.db.models import FeedRecord
+
+if TYPE_CHECKING:
+    from src.db.database import Database
 
 # Map section headings to category slugs
 CATEGORY_MAP = {
@@ -53,14 +57,23 @@ def _extract_name(cell: str) -> str:
 
 def _detect_auth_type(url: str, extra_text: str = "") -> str:
     """Detect if a feed requires an API key."""
-    indicators = ["token=KEY", "apikey=KEY", "apiKey=KEY", "api_key=KEY",
-                  "access_key=KEY", "api_token=KEY"]
+    indicators = [
+        "token=KEY",
+        "apikey=KEY",
+        "apiKey=KEY",
+        "api_key=KEY",
+        "access_key=KEY",
+        "api_token=KEY",
+    ]
     for ind in indicators:
         if ind.lower() in url.lower():
             return "api_key"
-    if "key" in extra_text.lower() and "no key" not in extra_text.lower():
-        if "api key" in extra_text.lower() or "free key" in extra_text.lower():
-            return "api_key"
+    if (
+        "key" in extra_text.lower()
+        and "no key" not in extra_text.lower()
+        and ("api key" in extra_text.lower() or "free key" in extra_text.lower())
+    ):
+        return "api_key"
     return "free"
 
 
@@ -69,7 +82,7 @@ def _get_rate_limit(name: str, feed_type: str) -> int:
     for provider, rpm in RATE_LIMITS.items():
         if provider.lower() in name.lower():
             return rpm
-    return 60 if feed_type == "rss" else 60
+    return 60
 
 
 def parse_feeds_from_reference(path: Path | None = None) -> list[FeedRecord]:
@@ -84,7 +97,7 @@ def parse_feeds_from_reference(path: Path | None = None) -> list[FeedRecord]:
     current_category = ""
     current_sub_type = ""
 
-    for i, line in enumerate(lines):
+    for _i, line in enumerate(lines):
         # Detect category sections: ## N. Category Name
         if line.startswith("## "):
             heading = line[3:].strip()
@@ -117,7 +130,14 @@ def parse_feeds_from_reference(path: Path | None = None) -> list[FeedRecord]:
         if len(cells) < 2:
             continue
         # Skip header/separator rows
-        if cells[0].startswith("---") or cells[0].startswith("Source") or cells[0].startswith("Provider") or cells[0].startswith("Tool") or cells[0].startswith("Category") or cells[0].startswith("Feed URL"):
+        if (
+            cells[0].startswith("---")
+            or cells[0].startswith("Source")
+            or cells[0].startswith("Provider")
+            or cells[0].startswith("Tool")
+            or cells[0].startswith("Category")
+            or cells[0].startswith("Feed URL")
+        ):
             continue
 
         name = _extract_name(cells[0])
@@ -135,9 +155,22 @@ def parse_feeds_from_reference(path: Path | None = None) -> list[FeedRecord]:
         feed_type = current_sub_type
         if not feed_type:
             # Cross-category table: detect from URL/context
-            if "KEY" in url or "token=" in url or "apikey=" in url or "apiKey=" in url or "access_key=" in url or "api_token=" in url:
+            if (
+                "KEY" in url
+                or "token=" in url
+                or "apikey=" in url
+                or "apiKey=" in url
+                or "access_key=" in url
+                or "api_token=" in url
+            ):
                 feed_type = "json_api"
-            elif url.endswith(".xml") or url.endswith(".rss") or "/rss/" in url or "/feed/" in url or "/feeds/" in url:
+            elif (
+                url.endswith(".xml")
+                or url.endswith(".rss")
+                or "/rss/" in url
+                or "/feed/" in url
+                or "/feeds/" in url
+            ):
                 feed_type = "rss"
             else:
                 feed_type = "json_api"
@@ -150,20 +183,22 @@ def parse_feeds_from_reference(path: Path | None = None) -> list[FeedRecord]:
 
         rate_limit = _get_rate_limit(name, feed_type)
 
-        records.append(FeedRecord(
-            name=name,
-            url=url,
-            feed_type=feed_type,
-            category=category,
-            auth_type=auth_type,
-            rate_limit_rpm=rate_limit,
-        ))
+        records.append(
+            FeedRecord(
+                name=name,
+                url=url,
+                feed_type=feed_type,
+                category=category,
+                auth_type=auth_type,
+                rate_limit_rpm=rate_limit,
+            )
+        )
 
     return records
 
 
 async def seed_feeds_from_reference(
-    db: "Database",  # noqa: F821
+    db: Database,
     path: Path | None = None,
 ) -> int:
     """Parse reference doc and seed feeds into the database."""

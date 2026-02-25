@@ -1,5 +1,8 @@
 """Textual TUI dashboard application."""
+
 from __future__ import annotations
+
+from typing import ClassVar
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -18,7 +21,7 @@ class DashboardApp(App):
     CSS_PATH = "app.tcss"
     TITLE = "Trade Bot Dashboard"
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[Binding]] = [
         Binding("q", "quit", "Quit"),
         Binding("r", "refresh_all", "Refresh"),
     ]

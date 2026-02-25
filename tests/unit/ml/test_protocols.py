@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from src.ml.protocols import ModelProvider
 
 
@@ -14,14 +12,11 @@ class _ConformingModel:
     def name(self) -> str:
         return "conforming"
 
-    async def predict(self, features):
-        ...
+    async def predict(self, features): ...
 
-    async def train(self, dataset):
-        ...
+    async def train(self, dataset): ...
 
-    async def evaluate(self, dataset):
-        ...
+    async def evaluate(self, dataset): ...
 
 
 class _NonConformingModel:
@@ -35,9 +30,7 @@ class _NonConformingModel:
 class TestModelProviderProtocol:
     def test_runtime_checkable(self):
         """ModelProvider should be decorated with @runtime_checkable."""
-        assert hasattr(ModelProvider, "__protocol_attrs__") or isinstance(
-            ModelProvider, type
-        )
+        assert hasattr(ModelProvider, "__protocol_attrs__") or isinstance(ModelProvider, type)
         # The key test: isinstance checks should work
         obj = _ConformingModel()
         assert isinstance(obj, ModelProvider)

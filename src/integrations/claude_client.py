@@ -19,9 +19,15 @@ class ClaudeClient:
 
     async def score_sentiment(self, text: str) -> float:
         response = await self.analyze(
-            prompt=f"Rate the sentiment of this text from -1.0 (very negative) to 1.0 (very positive). "
-                   f"Respond with ONLY a number.\n\nText: {text}",
-            system="You are a financial sentiment analyzer. Respond with only a float between -1.0 and 1.0.",
+            prompt=(
+                f"Rate the sentiment of this text from -1.0"
+                f" (very negative) to 1.0 (very positive). "
+                f"Respond with ONLY a number.\n\nText: {text}"
+            ),
+            system=(
+                "You are a financial sentiment analyzer."
+                " Respond with only a float between -1.0 and 1.0."
+            ),
         )
         try:
             return max(-1.0, min(1.0, float(response.strip())))

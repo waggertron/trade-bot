@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -18,7 +18,6 @@ from src.analytics.models import (
 )
 from src.core.models import Fill, OrderSide
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -32,7 +31,7 @@ def sample_fill() -> Fill:
         side=OrderSide.BUY,
         quantity=Decimal("1.5"),
         fill_price=Decimal("50000"),
-        timestamp=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2025, 1, 1, tzinfo=UTC),
         commission=Decimal("10"),
     )
 
@@ -341,9 +340,7 @@ class TestAttributionReport:
         with pytest.raises(ValidationError):
             AttributionReport()  # type: ignore[call-arg]
 
-    def test_serialization_roundtrip(
-        self, sample_attribution_report: AttributionReport
-    ) -> None:
+    def test_serialization_roundtrip(self, sample_attribution_report: AttributionReport) -> None:
         data = sample_attribution_report.model_dump()
         restored = AttributionReport.model_validate(data)
         assert restored == sample_attribution_report
@@ -499,9 +496,7 @@ class TestMonteCarloResult:
         with pytest.raises(ValidationError):
             MonteCarloResult()  # type: ignore[call-arg]
 
-    def test_serialization_roundtrip(
-        self, sample_monte_carlo_result: MonteCarloResult
-    ) -> None:
+    def test_serialization_roundtrip(self, sample_monte_carlo_result: MonteCarloResult) -> None:
         data = sample_monte_carlo_result.model_dump()
         restored = MonteCarloResult.model_validate(data)
         assert restored == sample_monte_carlo_result

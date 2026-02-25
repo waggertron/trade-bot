@@ -1,10 +1,14 @@
 """Passive benchmark simulators (buy-and-hold, monthly DCA)."""
+
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
-from src.data.providers.base import OHLCBar
 from src.simulation.models import BenchmarkResult
+
+if TYPE_CHECKING:
+    from src.data.providers.base import OHLCBar
 
 
 class BenchmarkSimulator:

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import calendar
-from datetime import datetime, timezone
-from time import struct_time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import feedparser
@@ -14,6 +13,8 @@ from src.providers.configs import RSSConfig
 from src.sentiment.models import Article
 
 if TYPE_CHECKING:
+    from time import struct_time
+
     from src.db.models import FeedRecord
 
 
@@ -78,6 +79,6 @@ class RSSNewsProvider:
         If *t* is ``None``, returns the current UTC time.
         """
         if t is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         ts = calendar.timegm(t)
-        return datetime.fromtimestamp(ts, tz=timezone.utc)
+        return datetime.fromtimestamp(ts, tz=UTC)

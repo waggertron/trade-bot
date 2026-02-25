@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from src.sentiment.article_buffer import ArticleBuffer
 from src.sentiment.models import Article
@@ -21,7 +19,7 @@ def _make_article(
         title=title,
         body=body,
         source=source,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
         related_symbols=symbols or ["BTC"],
     )
 

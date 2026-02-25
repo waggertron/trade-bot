@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
 from src.agents.risk_manager import RiskManager
 from src.core.config import RiskSettings
 from src.core.models import (
@@ -21,7 +19,6 @@ from src.risk.circuit_breaker import DrawdownCircuitBreaker
 from src.risk.fixed_sizer import FixedPositionSizer
 from src.risk.kelly_sizer import KellyPositionSizer
 from src.risk.models import RiskContext, StrategyPerformance, VolatilityRegime
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -287,14 +284,10 @@ class TestRiskPipelineE2E:
         # So effective fraction = 5% of total_value = 5000
         assert size > Decimal("0"), f"Expected positive size, got {size}"
         max_allowed = portfolio.total_value * Decimal("0.05")
-        assert size <= max_allowed, (
-            f"Kelly size {size} exceeds 5% cap of {max_allowed}"
-        )
+        assert size <= max_allowed, f"Kelly size {size} exceeds 5% cap of {max_allowed}"
         assert size <= portfolio.cash, "Size must not exceed available cash"
 
         # With these stats, Kelly should produce a non-trivial allocation
         # (much more than the 1% fallback)
         fallback = portfolio.total_value * Decimal("0.01")
-        assert size >= fallback, (
-            f"Kelly size {size} should be at least the 1% fallback {fallback}"
-        )
+        assert size >= fallback, f"Kelly size {size} should be at least the 1% fallback {fallback}"

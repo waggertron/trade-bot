@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.core.models import ResearchReport
 
@@ -19,7 +19,7 @@ class ResearchManager:
     async def _research_symbol(self, symbol: str) -> ResearchReport:
         analysis = await self._claude.analyze(
             prompt=f"Analyze the current market outlook for {symbol}. "
-                   f"Consider recent earnings, news, and market conditions.",
+            f"Consider recent earnings, news, and market conditions.",
             system="You are a senior financial analyst. Provide concise, actionable analysis.",
         )
         sentiment = await self._claude.score_sentiment(analysis)
@@ -28,7 +28,7 @@ class ResearchManager:
             symbol=symbol,
             summary=analysis,
             sentiment_score=sentiment,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             sources=["claude_analysis"],
         )
 

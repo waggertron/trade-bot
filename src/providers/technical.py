@@ -1,4 +1,5 @@
 """Technical indicator feature provider using TA-Lib."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -36,7 +37,7 @@ class TechnicalFeatureProvider:
         close = np.asarray(inputs.get("close", []), dtype=float)
         high = np.asarray(inputs.get("high", []), dtype=float)
         low = np.asarray(inputs.get("low", []), dtype=float)
-        volume = np.asarray(inputs.get("volume", []), dtype=float)
+        np.asarray(inputs.get("volume", []), dtype=float)
 
         features: dict[str, float] = {}
 
@@ -75,17 +76,17 @@ class TechnicalFeatureProvider:
 
     def _compute_macd(self, close: np.ndarray, features: dict[str, float]) -> None:
         if len(close) >= 34:  # MACD needs 26+8 for signal line
-            macd, signal, hist = talib.MACD(close)
+            _macd, _signal, hist = talib.MACD(close)
             val = hist[-1]
             if not np.isnan(val):
                 features["macd_signal"] = float(val)
 
     def _compute_bbands(self, close: np.ndarray, features: dict[str, float]) -> None:
         if len(close) >= 20:
-            upper, middle, lower = talib.BBANDS(close, timeperiod=20)
-            u, l, c = upper[-1], lower[-1], close[-1]
-            if not np.isnan(u) and not np.isnan(l) and u != l:
-                features["bbands_position"] = float((c - l) / (u - l))
+            upper, _middle, lower = talib.BBANDS(close, timeperiod=20)
+            u, lo, c = upper[-1], lower[-1], close[-1]
+            if not np.isnan(u) and not np.isnan(lo) and u != lo:
+                features["bbands_position"] = float((c - lo) / (u - lo))
 
     def _compute_atr(
         self, high: np.ndarray, low: np.ndarray, close: np.ndarray, features: dict[str, float]

@@ -37,13 +37,15 @@ class TestOllamaSentimentAnalyzer:
         assert custom.name == "ollama:mistral"
 
     def test_implements_sentiment_analyzer_protocol(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """Implements SentimentAnalyzer protocol."""
         assert isinstance(analyzer, SentimentAnalyzer)
 
     async def test_score_returns_sentiment_result_on_valid_json(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """score returns SentimentResult on valid JSON response."""
         mock_response = {
@@ -63,7 +65,8 @@ class TestOllamaSentimentAnalyzer:
         assert result.analyzer == "ollama:llama3.2"
 
     async def test_score_clamps_out_of_range_values(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """score clamps values to valid ranges."""
         mock_response = {
@@ -80,7 +83,8 @@ class TestOllamaSentimentAnalyzer:
         assert result.magnitude == 0.0
 
     async def test_score_batch_processes_all_texts(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """score_batch processes all texts."""
         mock_responses = [
@@ -111,7 +115,8 @@ class TestOllamaSentimentAnalyzer:
         assert results[2].score == 0.0
 
     async def test_handles_malformed_response_gracefully(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """Handles malformed response gracefully (neutral fallback)."""
         mock_response = {
@@ -131,7 +136,8 @@ class TestOllamaSentimentAnalyzer:
         assert result.analyzer == "ollama:llama3.2"
 
     async def test_handles_missing_keys_gracefully(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """Handles response with missing keys gracefully (neutral fallback)."""
         mock_response = {
@@ -149,7 +155,8 @@ class TestOllamaSentimentAnalyzer:
         assert result.reasoning == "Failed to parse Ollama response"
 
     async def test_handles_api_error_gracefully(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """Handles API error gracefully (neutral fallback)."""
         with patch.object(
@@ -171,7 +178,8 @@ class TestOllamaSentimentAnalyzer:
         assert result.analyzer == "ollama:llama3.2"
 
     async def test_handles_connection_error_gracefully(
-        self, analyzer: OllamaSentimentAnalyzer,
+        self,
+        analyzer: OllamaSentimentAnalyzer,
     ):
         """Handles connection error gracefully (neutral fallback)."""
         with patch.object(

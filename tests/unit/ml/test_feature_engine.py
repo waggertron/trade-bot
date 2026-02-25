@@ -64,18 +64,14 @@ class TestComputeAndStore:
         }
 
     @pytest.mark.asyncio
-    async def test_handles_provider_failure_gracefully(
-        self, store: FeatureStore
-    ) -> None:
+    async def test_handles_provider_failure_gracefully(self, store: FeatureStore) -> None:
         """Skips failed provider and keeps results from successful ones."""
         good_provider = MockFeatureProvider()
         good_provider.set_features({"rsi_14": 55.0})
 
         failing_provider = FailingProvider()
 
-        engine = FeatureEngine(
-            providers=[good_provider, failing_provider], store=store
-        )
+        engine = FeatureEngine(providers=[good_provider, failing_provider], store=store)
 
         vector = await engine.compute_and_store("AAPL", {}, 3000)
 
@@ -95,9 +91,7 @@ class TestComputeAndStore:
         assert stored == {"rsi_14": 55.0, "sma_14": 100.5}
 
     @pytest.mark.asyncio
-    async def test_empty_providers_returns_empty_features(
-        self, store: FeatureStore
-    ) -> None:
+    async def test_empty_providers_returns_empty_features(self, store: FeatureStore) -> None:
         """No providers means empty features dict."""
         engine = FeatureEngine(providers=[], store=store)
 
@@ -126,9 +120,7 @@ class TestGetVector:
         assert vector.features == {"rsi_14": 55.0, "sma_14": 100.5}
 
     @pytest.mark.asyncio
-    async def test_get_vector_missing_returns_empty_features(
-        self, store: FeatureStore
-    ) -> None:
+    async def test_get_vector_missing_returns_empty_features(self, store: FeatureStore) -> None:
         """get_vector for missing data returns empty features."""
         engine = FeatureEngine(providers=[], store=store)
 

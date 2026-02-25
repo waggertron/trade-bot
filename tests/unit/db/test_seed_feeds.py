@@ -9,7 +9,6 @@ import pytest
 from src.db.database import Database
 from src.db.seed_feeds import parse_feeds_from_reference, seed_feeds_from_reference
 
-
 REFERENCE_DOC = Path("docs/reference/free-news-feeds-reference.md")
 
 
@@ -86,7 +85,7 @@ class TestSeedFeedsFromReference:
         await db.initialize()
         try:
             count1 = await seed_feeds_from_reference(db)
-            count2 = await seed_feeds_from_reference(db)
+            await seed_feeds_from_reference(db)
             feeds = await db.list_feeds()
             assert len(feeds) == count1  # No duplicates added
         finally:

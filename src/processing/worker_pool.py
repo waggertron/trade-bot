@@ -20,16 +20,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
-from src.processing.protocols import Processor
+if TYPE_CHECKING:
+    from src.processing.protocols import Processor
 
 T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
 
-class AsyncWorkerPool(Generic[T]):
+class AsyncWorkerPool[T]:
     """Runs *workers* concurrent coroutines that drain a shared asyncio.Queue.
 
     Parameters
@@ -108,8 +109,6 @@ class AsyncWorkerPool(Generic[T]):
                 self._processed_count += 1
             except Exception:
                 self._error_count += 1
-                logger.exception(
-                    "[%s] Error processing item", self._processor.name
-                )
+                logger.exception("[%s] Error processing item", self._processor.name)
             finally:
                 self._queue.task_done()

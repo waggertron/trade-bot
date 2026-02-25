@@ -6,33 +6,27 @@ Concrete test classes apply them to mock implementations.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 import pytest
 
 from src.db.models import SignalRecord, TradeRecord
 from src.providers.mock import (
     MockDataStore,
-    MockFeatureProvider,
     MockHttpClient,
     MockMarketDataProvider,
     MockNewsProvider,
-    MockOnChainProvider,
     MockSentimentAnalyzer,
 )
 from src.providers.protocols import (
     DataStore,
-    FeatureProvider,
     HttpClient,
     HttpResponse,
     MarketDataProvider,
     NewsProvider,
-    OnChainProvider,
     SentimentAnalyzer,
 )
-
 
 # ---------------------------------------------------------------------------
 # Base compliance classes
@@ -176,7 +170,7 @@ class DataStoreCompliance:
             commission="10.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         trade_id = await store.save_trade(trade)
         assert isinstance(trade_id, str)
@@ -197,7 +191,7 @@ class DataStoreCompliance:
             confidence=0.85,
             strategy="sentiment",
             reasoning="bullish news",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         signal_id = await store.save_signal(signal)
         assert isinstance(signal_id, str)
@@ -212,17 +206,29 @@ class DataStoreCompliance:
     async def test_list_trades_with_strategy_filter(self):
         store = self.make_store()
         await store.initialize()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await store.save_trade(
             TradeRecord(
-                symbol="BTC/USD", side="buy", quantity="1", price="50000",
-                commission="0", strategy="momentum", paper=True, timestamp=now,
+                symbol="BTC/USD",
+                side="buy",
+                quantity="1",
+                price="50000",
+                commission="0",
+                strategy="momentum",
+                paper=True,
+                timestamp=now,
             )
         )
         await store.save_trade(
             TradeRecord(
-                symbol="ETH/USD", side="sell", quantity="10", price="3000",
-                commission="0", strategy="sentiment", paper=True, timestamp=now,
+                symbol="ETH/USD",
+                side="sell",
+                quantity="10",
+                price="3000",
+                commission="0",
+                strategy="sentiment",
+                paper=True,
+                timestamp=now,
             )
         )
         filtered = await store.list_trades(strategy="momentum")

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from src.risk.circuit_breaker import DrawdownCircuitBreaker
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 class TestDrawdownCircuitBreaker:
@@ -94,7 +94,7 @@ class TestDrawdownCircuitBreaker:
             Decimal("200"),
             Decimal("200"),
         ]
-        for value, expected_peak in zip(values, expected_peaks):
+        for value, expected_peak in zip(values, expected_peaks, strict=False):
             breaker.update(value, NOW)
             assert breaker.peak_value == expected_peak
 

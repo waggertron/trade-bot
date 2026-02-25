@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from src.sentiment.models import Article, SentimentResult
 from src.sentiment.store import SentimentStore
-
 
 # -- Helpers ------------------------------------------------------------------
 
@@ -25,7 +22,7 @@ def _make_article(
         body=body,
         source=source,
         url=url,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
         related_symbols=symbols or ["BTC"],
     )
 
@@ -39,7 +36,7 @@ def _make_score(
     return SentimentResult(
         score=score,
         magnitude=magnitude,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         article_id=article_id,
         analyzer=analyzer,
     )
@@ -296,11 +293,13 @@ class TestCounts:
 
     def test_article_count_by_symbol(self):
         store = SentimentStore()
-        store.save_articles([
-            _make_article(symbols=["BTC"]),
-            _make_article(title="ETH article", symbols=["ETH"]),
-            _make_article(title="Both", symbols=["BTC", "ETH"]),
-        ])
+        store.save_articles(
+            [
+                _make_article(symbols=["BTC"]),
+                _make_article(title="ETH article", symbols=["ETH"]),
+                _make_article(title="Both", symbols=["BTC", "ETH"]),
+            ]
+        )
         assert store.article_count(symbol="BTC") == 2
         assert store.article_count(symbol="ETH") == 2
 
@@ -315,11 +314,13 @@ class TestCounts:
         eth_art = _make_article(title="ETH news", symbols=["ETH"])
         store.save_articles([btc_art, eth_art])
 
-        store.save_scores([
-            _make_score(article_id=btc_art.id),
-            _make_score(article_id=eth_art.id),
-            _make_score(article_id=btc_art.id, score=-0.2),
-        ])
+        store.save_scores(
+            [
+                _make_score(article_id=btc_art.id),
+                _make_score(article_id=eth_art.id),
+                _make_score(article_id=btc_art.id, score=-0.2),
+            ]
+        )
         assert store.score_count(symbol="BTC") == 2
         assert store.score_count(symbol="ETH") == 1
 

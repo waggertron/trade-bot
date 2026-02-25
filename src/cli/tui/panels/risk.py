@@ -1,12 +1,16 @@
 """Risk panel for the TUI dashboard."""
+
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
+from textual import work
 from textual.containers import Vertical
 from textual.widgets import DataTable, Label, ProgressBar, Static
-from textual import work
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +69,8 @@ class RiskPanel(Static):
             current = dd.get("current_drawdown_pct", 0)
             limit = dd.get("max_allowed_pct", 10)
             self._update_label(
-                "#risk-dd-label", f"Current: {current:.2f}% / {limit:.1f}% limit",
+                "#risk-dd-label",
+                f"Current: {current:.2f}% / {limit:.1f}% limit",
             )
             try:
                 bar = self.query_one("#risk-dd-bar", ProgressBar)

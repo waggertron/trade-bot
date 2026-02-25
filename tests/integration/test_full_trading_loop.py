@@ -6,7 +6,7 @@ Exercises the complete pipeline: Orchestrator -> MomentumStrategy -> RiskManager
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -20,13 +20,12 @@ from src.core.event_bus import EventBus
 from src.core.models import AssetType, MarketTick, OrderSide
 from src.core.orchestrator import Orchestrator
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 SYMBOL = "BTC/USD"
-BASE_TIME = datetime(2025, 7, 1, 12, 0, 0, tzinfo=timezone.utc)
+BASE_TIME = datetime(2025, 7, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def _make_tick(price: Decimal, index: int) -> MarketTick:
@@ -94,8 +93,9 @@ class TestFullTradingLoop:
         """Feed 30 ticks with rising prices; the momentum strategy should
         eventually trigger a BUY signal that passes risk checks and results
         in at least one fill."""
-        orchestrator, executor, portfolio = _build_components(
-            short_window=5, long_window=10,
+        orchestrator, executor, _portfolio = _build_components(
+            short_window=5,
+            long_window=10,
         )
 
         prices = _rising_prices(30)
@@ -117,7 +117,8 @@ class TestFullTradingLoop:
         """Feed 30 ticks at the exact same price; momentum strategy should
         never produce a signal because short MA == long MA."""
         orchestrator, executor, _portfolio = _build_components(
-            short_window=5, long_window=10,
+            short_window=5,
+            long_window=10,
         )
 
         prices = _flat_prices(30)
@@ -129,16 +130,16 @@ class TestFullTradingLoop:
             fills = await orchestrator.process_tick(tick)
             all_fills.extend(fills)
 
-        assert len(all_fills) == 0, (
-            f"Expected 0 fills on a flat market, got {len(all_fills)}"
-        )
+        assert len(all_fills) == 0, f"Expected 0 fills on a flat market, got {len(all_fills)}"
 
     async def test_portfolio_updated_after_trade(self) -> None:
         """After a fill, the PortfolioManager should hold a position in BTC/USD
         and its cash balance should have decreased."""
         initial_cash = Decimal("100000")
         orchestrator, executor, portfolio = _build_components(
-            short_window=5, long_window=10, initial_cash=initial_cash,
+            short_window=5,
+            long_window=10,
+            initial_cash=initial_cash,
         )
 
         prices = _rising_prices(30)
@@ -153,9 +154,7 @@ class TestFullTradingLoop:
 
         # We must have at least one position after the uptrend
         btc_positions = [p for p in positions if p.symbol == SYMBOL]
-        assert len(btc_positions) == 1, (
-            f"Expected 1 BTC/USD position, got {len(btc_positions)}"
-        )
+        assert len(btc_positions) == 1, f"Expected 1 BTC/USD position, got {len(btc_positions)}"
 
         pos = btc_positions[0]
         assert pos.quantity > 0, "Position quantity should be positive"
@@ -167,7 +166,8 @@ class TestFullTradingLoop:
         """When the orchestrator is paused, feeding ticks should produce
         no fills even when the market is trending."""
         orchestrator, executor, _portfolio = _build_components(
-            short_window=5, long_window=10,
+            short_window=5,
+            long_window=10,
         )
 
         orchestrator.pause()
@@ -182,6 +182,4 @@ class TestFullTradingLoop:
             fills = await orchestrator.process_tick(tick)
             all_fills.extend(fills)
 
-        assert len(all_fills) == 0, (
-            f"Expected 0 fills while paused, got {len(all_fills)}"
-        )
+        assert len(all_fills) == 0, f"Expected 0 fills while paused, got {len(all_fills)}"

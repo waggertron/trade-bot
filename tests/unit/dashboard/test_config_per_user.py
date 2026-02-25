@@ -45,6 +45,7 @@ async def db(tmp_path):
 @pytest.fixture
 def settings():
     from src.core.config import Settings
+
     return Settings.for_testing()
 
 
@@ -57,9 +58,14 @@ async def client(db, settings):
 
 
 async def _register_and_get_token(client: AsyncClient, email: str) -> tuple[str, str]:
-    resp = await client.post("/api/auth/register", json={
-        "email": email, "password": "TestPass1!", "name": "Test",
-    })
+    resp = await client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": "TestPass1!",
+            "name": "Test",
+        },
+    )
     data = resp.json()
     return data["user"]["id"], data["access_token"]
 
@@ -73,6 +79,7 @@ class TestConfigModePerUser:
         uid, token = await _register_and_get_token(client, "alice@test.com")
         # Save custom user setting
         from src.db.models import UserSettingsRecord
+
         await db.save_user_settings(UserSettingsRecord(user_id=uid, mode="live"))
 
         resp = await client.get("/api/config/mode", headers=_auth(token))
@@ -109,14 +116,20 @@ class TestConfigModePerUser:
 class TestConfigSymbolsPerUser:
     async def test_update_symbols_persists(self, client: AsyncClient, db: Database):
         uid, token = await _register_and_get_token(client, "alice@test.com")
-        resp = await client.put("/api/config/symbols", json={
-            "stocks": ["MSFT", "GOOG"], "crypto": ["ETH/USD"],
-        }, headers=_auth(token))
+        resp = await client.put(
+            "/api/config/symbols",
+            json={
+                "stocks": ["MSFT", "GOOG"],
+                "crypto": ["ETH/USD"],
+            },
+            headers=_auth(token),
+        )
         assert resp.status_code == 200
 
         settings = await db.get_user_settings(uid)
         assert settings is not None
         import json
+
         config = json.loads(settings.symbols_config)
         assert config["stocks"] == ["MSFT", "GOOG"]
         assert config["crypto"] == ["ETH/USD"]

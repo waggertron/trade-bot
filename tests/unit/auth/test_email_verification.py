@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
+from datetime import UTC
 
 from src.auth.tokens import create_verification_token, decode_token
 
@@ -20,12 +20,12 @@ class TestVerificationTokens:
         assert payload["type"] == "verification"
 
     def test_verification_token_expires_in_24h(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         token = create_verification_token(user_id="user-123", secret="test-secret")
         payload = decode_token(token, secret="test-secret")
-        exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        iat = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+        exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
+        iat = datetime.fromtimestamp(payload["iat"], tz=UTC)
         delta = exp - iat
         # Should be 24 hours
         assert 23 * 3600 <= delta.total_seconds() <= 25 * 3600

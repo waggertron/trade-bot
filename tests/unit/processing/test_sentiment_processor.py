@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -30,7 +30,7 @@ def _make_article(content_hash: str = "h1", symbol: str = "BTC") -> ArticleRecor
         title="BTC hits new high",
         body="Bitcoin surged today...",
         source="rss",
-        published_at=datetime(2026, 1, 15, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 15, tzinfo=UTC),
         symbols=[symbol],
     )
 
@@ -95,8 +95,9 @@ class TestSentimentScoringProcessorBehavior:
         await db.save_article(article)
         await proc.process(article)
 
-        from datetime import datetime, timezone
-        score = aggregator.aggregate("BTC", datetime.now(timezone.utc))
+        from datetime import datetime
+
+        score = aggregator.aggregate("BTC", datetime.now(UTC))
         assert score != 0.0
 
     @pytest.mark.asyncio

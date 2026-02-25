@@ -8,11 +8,10 @@ from src.auth.passwords import hash_password, verify_password
 from src.auth.tokens import (
     create_access_token,
     create_refresh_token,
-    create_verification_token,
     decode_token,
 )
 from src.dashboard.dependencies import _jwt_secret, require_user, state
-from src.dashboard.schemas import (
+from src.dashboard.schemas import (  # noqa: TC001
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
@@ -88,7 +87,7 @@ async def refresh(req: RefreshRequest):
     try:
         payload = decode_token(req.refresh_token, secret=secret)
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        raise HTTPException(status_code=401, detail="Invalid refresh token") from None
 
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -108,14 +107,14 @@ async def refresh(req: RefreshRequest):
 
 
 @router.get("/me")
-async def me(current_user: UserRecord = Depends(require_user)):
+async def me(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     return _user_response(current_user)
 
 
 @router.put("/me")
 async def update_me(
     req: UpdateProfileRequest,
-    current_user: UserRecord = Depends(require_user),
+    current_user: UserRecord = Depends(require_user),  # noqa: B008
 ):
     if state.db is None:
         raise HTTPException(status_code=503, detail="Database not available")
@@ -143,7 +142,10 @@ async def verify_email(token: str):
     try:
         payload = decode_token(token, secret=secret)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired verification token",
+        ) from None
 
     if payload.get("type") != "verification":
         raise HTTPException(status_code=400, detail="Invalid verification token")

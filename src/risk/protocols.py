@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from src.core.models import PortfolioSnapshot, Signal
-from src.risk.models import RiskContext
+if TYPE_CHECKING:
+    from decimal import Decimal
+
+    from src.core.models import PortfolioSnapshot, Signal
+    from src.risk.models import RiskContext
 
 
 @runtime_checkable

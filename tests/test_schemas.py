@@ -1,5 +1,6 @@
 # tests/test_schemas.py
 """Tests for all Pydantic schemas in src/dashboard/schemas.py."""
+
 import pytest
 from pydantic import ValidationError
 
@@ -14,7 +15,6 @@ from src.dashboard.schemas import (
     UpdateSymbolsRequest,
     UpdateWeightRequest,
 )
-
 
 # -- PlaceOrderRequest -------------------------------------------------------
 
@@ -44,8 +44,11 @@ class TestPlaceOrderRequest:
 
     def test_limit_price_optional(self):
         req = PlaceOrderRequest(
-            symbol="AAPL", side="buy", order_type="limit",
-            quantity=10.0, limit_price=150.0,
+            symbol="AAPL",
+            side="buy",
+            order_type="limit",
+            quantity=10.0,
+            limit_price=150.0,
         )
         assert req.limit_price == 150.0
 
@@ -67,7 +70,13 @@ class TestPlaceOrderRequest:
 
 class TestOrderResponse:
     def test_creation(self):
-        resp = OrderResponse(id="abc", symbol="AAPL", side="buy", order_type="market", quantity="10")
+        resp = OrderResponse(
+            id="abc",
+            symbol="AAPL",
+            side="buy",
+            order_type="market",
+            quantity="10",
+        )
         assert resp.id == "abc"
         assert resp.status == "open"
 
@@ -187,7 +196,8 @@ class TestBacktestRequest:
 
     def test_custom_initial_capital(self):
         req = BacktestRequest(
-            start_date="2024-01-01", end_date="2024-06-30",
+            start_date="2024-01-01",
+            end_date="2024-06-30",
             initial_capital=50000.0,
         )
         assert req.initial_capital == 50000.0

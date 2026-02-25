@@ -1,12 +1,21 @@
 from __future__ import annotations
 
-from typing import AsyncIterator, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from src.core.models import (
-    Fill, MarketTick, Order, PortfolioSnapshot, Position,
-    ResearchReport, RiskDecision, Signal,
-)
-from src.ml.models import FeatureVector
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from src.core.models import (
+        Fill,
+        MarketTick,
+        Order,
+        PortfolioSnapshot,
+        Position,
+        ResearchReport,
+        RiskDecision,
+        Signal,
+    )
+    from src.ml.models import FeatureVector
 
 
 @runtime_checkable
@@ -26,6 +35,7 @@ class ResearchAgent(Protocol):
 @runtime_checkable
 class StrategyAgent(Protocol):
     name: str
+
     async def evaluate(
         self,
         symbol: str,
@@ -37,10 +47,13 @@ class StrategyAgent(Protocol):
 @runtime_checkable
 class RiskManagerAgent(Protocol):
     async def evaluate_trade(
-        self, signal: Signal, portfolio: PortfolioSnapshot,
+        self,
+        signal: Signal,
+        portfolio: PortfolioSnapshot,
     ) -> RiskDecision: ...
     async def check_portfolio_health(
-        self, portfolio: PortfolioSnapshot,
+        self,
+        portfolio: PortfolioSnapshot,
     ) -> list[str]: ...
 
 
@@ -66,7 +79,9 @@ class FeatureStrategy(Protocol):
     name: str
 
     async def evaluate(
-        self, symbol: str, features: FeatureVector,
+        self,
+        symbol: str,
+        features: FeatureVector,
     ) -> Signal | None: ...
 
     def required_features(self) -> list[str]: ...

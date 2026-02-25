@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.core.config import RISK_LEVEL_PRESETS, RiskLevel, RiskSettings
+from src.core.config import RISK_LEVEL_PRESETS, RiskSettings
 from src.dashboard.dependencies import require_user, state
-from src.db.models import UserRecord
-from src.dashboard.schemas import RiskPresetRequest, RiskSettingsUpdate
+from src.dashboard.schemas import RiskPresetRequest, RiskSettingsUpdate  # noqa: TC001
+from src.db.models import UserRecord  # noqa: TC001
 from src.risk.models import VolatilityRegime
 
 router = APIRouter(prefix="/api/risk", tags=["risk"])
 
 
 @router.get("/status")
-async def get_risk_status(current_user: UserRecord = Depends(require_user)):
+async def get_risk_status(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Current risk settings."""
     if state.risk_manager is None:
         return {"error": "Risk manager not available"}
@@ -33,7 +33,10 @@ async def get_risk_status(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/limits")
-async def get_regime_limits(regime: str = "medium", current_user: UserRecord = Depends(require_user)):
+async def get_regime_limits(
+    regime: str = "medium",
+    current_user: UserRecord = Depends(require_user),  # noqa: B008
+):
     """Regime-specific limits."""
     from src.agents.risk_manager import REGIME_LIMITS
 
@@ -44,25 +47,25 @@ async def get_regime_limits(regime: str = "medium", current_user: UserRecord = D
         regime_map = {r.value.lower(): r for r in VolatilityRegime}
         vol_regime = regime_map.get(regime.lower())
         if vol_regime is None:
-            raise HTTPException(status_code=400, detail=f"Invalid regime: {regime}")
+            raise HTTPException(status_code=400, detail=f"Invalid regime: {regime}") from None
 
     limits = REGIME_LIMITS.get(vol_regime, {})
     return {"regime": vol_regime.value, "limits": limits}
 
 
 @router.get("/limits/all")
-async def get_all_regime_limits(current_user: UserRecord = Depends(require_user)):
+async def get_all_regime_limits(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """All regime limits."""
     from src.agents.risk_manager import REGIME_LIMITS
 
-    return {
-        regime.value: limits
-        for regime, limits in REGIME_LIMITS.items()
-    }
+    return {regime.value: limits for regime, limits in REGIME_LIMITS.items()}
 
 
 @router.put("/settings")
-async def update_risk_settings(req: RiskSettingsUpdate, current_user: UserRecord = Depends(require_user)):
+async def update_risk_settings(
+    req: RiskSettingsUpdate,
+    current_user: UserRecord = Depends(require_user),  # noqa: B008
+):
     """Update risk parameters (partial update)."""
     if state.risk_manager is None:
         raise HTTPException(status_code=503, detail="Risk manager not available")
@@ -72,15 +75,13 @@ async def update_risk_settings(req: RiskSettingsUpdate, current_user: UserRecord
     if not updates:
         return {"message": "No changes"}
 
-    new_settings = RiskSettings.model_validate(
-        {**current.model_dump(), **updates}
-    )
+    new_settings = RiskSettings.model_validate({**current.model_dump(), **updates})
     state.risk_manager._settings = new_settings
     return {"message": "Settings updated", "settings": new_settings.model_dump()}
 
 
 @router.put("/preset")
-async def apply_preset(req: RiskPresetRequest, current_user: UserRecord = Depends(require_user)):
+async def apply_preset(req: RiskPresetRequest, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Apply a risk preset level."""
     if state.risk_manager is None:
         raise HTTPException(status_code=503, detail="Risk manager not available")
@@ -91,22 +92,19 @@ async def apply_preset(req: RiskPresetRequest, current_user: UserRecord = Depend
 
 
 @router.get("/presets")
-async def get_presets(current_user: UserRecord = Depends(require_user)):
+async def get_presets(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Available risk presets."""
-    return {
-        level.value: params
-        for level, params in RISK_LEVEL_PRESETS.items()
-    }
+    return {level.value: params for level, params in RISK_LEVEL_PRESETS.items()}
 
 
 @router.get("/regime")
-async def get_current_regime(current_user: UserRecord = Depends(require_user)):
+async def get_current_regime(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Current volatility regime."""
     return {"regime": "medium", "description": "Normal market conditions"}
 
 
 @router.get("/drawdown")
-async def get_drawdown_status(current_user: UserRecord = Depends(require_user)):
+async def get_drawdown_status(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Daily/weekly drawdown progress."""
     if state.risk_manager is None or state.portfolio is None:
         return {"daily_pct": 0, "weekly_pct": 0, "positions_used": 0}
@@ -129,7 +127,7 @@ async def get_drawdown_status(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/circuit-breaker")
-async def get_circuit_breaker(current_user: UserRecord = Depends(require_user)):
+async def get_circuit_breaker(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Circuit breaker status."""
     if state.risk_manager is None:
         return {"tripped": False, "cooldown_remaining": 0}
@@ -146,7 +144,7 @@ async def get_circuit_breaker(current_user: UserRecord = Depends(require_user)):
 
 
 @router.post("/circuit-breaker/reset")
-async def reset_circuit_breaker(current_user: UserRecord = Depends(require_user)):
+async def reset_circuit_breaker(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Manual circuit breaker reset."""
     if state.risk_manager is None:
         raise HTTPException(status_code=503, detail="Risk manager not available")
@@ -158,7 +156,7 @@ async def reset_circuit_breaker(current_user: UserRecord = Depends(require_user)
 
 
 @router.get("/decisions")
-async def get_risk_decisions(current_user: UserRecord = Depends(require_user)):
+async def get_risk_decisions(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Risk decision log. Uses event bus history if available."""
     if state.event_bus is None:
         return []

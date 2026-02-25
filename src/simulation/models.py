@@ -1,4 +1,5 @@
 """Data models for the simulation system."""
+
 from __future__ import annotations
 
 from pydantic import ConfigDict, Field, model_validator
@@ -9,6 +10,7 @@ from src.core.config import RiskLevel
 
 class AllocationWeights(StrictBase):
     """Portfolio allocation weights per stock."""
+
     model_config = ConfigDict(frozen=True)
 
     mode: str = Field(default="equal_weight", pattern=r"^(equal_weight|custom)$")
@@ -21,19 +23,16 @@ class AllocationWeights(StrictBase):
                 raise ValueError("weights must be non-empty when mode is 'custom'")
             for symbol, w in self.weights.items():
                 if w < 0 or w > 1:
-                    raise ValueError(
-                        f"weight for {symbol} must be in [0, 1], got {w}"
-                    )
+                    raise ValueError(f"weight for {symbol} must be in [0, 1], got {w}")
             total = sum(self.weights.values())
             if abs(total - 1.0) >= 0.01:
-                raise ValueError(
-                    f"weights must sum to ~1.0 (tolerance 0.01), got {total}"
-                )
+                raise ValueError(f"weights must sum to ~1.0 (tolerance 0.01), got {total}")
         return self
 
 
 class RebalanceConfig(StrictBase):
     """Rebalancing configuration."""
+
     model_config = ConfigDict(frozen=True)
 
     frequency: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly)$")
@@ -42,6 +41,7 @@ class RebalanceConfig(StrictBase):
 
 class SimulationConfig(StrictBase):
     """Configuration for a simulation run."""
+
     model_config = ConfigDict(frozen=True)
 
     stocks: list[str]
@@ -51,7 +51,12 @@ class SimulationConfig(StrictBase):
     risk_levels: list[RiskLevel] = Field(default_factory=lambda: list(RiskLevel))
     mc_simulations: int = Field(default=1000, gt=0)
     mc_seed: int | None = Field(default=None, description="Monte Carlo random seed (None = random)")
-    max_position_pct: float | None = Field(default=None, ge=0.1, le=100.0, description="Override max position size % (None = use risk level default)")
+    max_position_pct: float | None = Field(
+        default=None,
+        ge=0.1,
+        le=100.0,
+        description="Override max position size % (None = use risk level default)",
+    )
     portfolio_mode: bool = False
     allocation: AllocationWeights = Field(default_factory=AllocationWeights)
     rebalance: RebalanceConfig = Field(default_factory=RebalanceConfig)
@@ -59,6 +64,7 @@ class SimulationConfig(StrictBase):
 
 class StockSimResult(StrictBase):
     """Walk-forward backtest result for a single stock."""
+
     model_config = ConfigDict(frozen=True)
 
     symbol: str
@@ -77,6 +83,7 @@ class StockSimResult(StrictBase):
 
 class MonteCarloProjection(StrictBase):
     """Monte Carlo forward projection for a stock."""
+
     model_config = ConfigDict(frozen=True)
 
     symbol: str
@@ -92,6 +99,7 @@ class MonteCarloProjection(StrictBase):
 
 class StrategyAssessment(StrictBase):
     """Per-strategy performance assessment across a simulation."""
+
     model_config = ConfigDict(frozen=True)
 
     strategy_name: str
@@ -107,6 +115,7 @@ class StrategyAssessment(StrictBase):
 
 class PortfolioMetrics(StrictBase):
     """Portfolio-level performance metrics."""
+
     model_config = ConfigDict(frozen=True)
 
     initial_balance: float = Field(gt=0)
@@ -124,6 +133,7 @@ class PortfolioMetrics(StrictBase):
 
 class PortfolioMonteCarloProjection(StrictBase):
     """Correlated Monte Carlo projection for the entire portfolio."""
+
     model_config = ConfigDict(frozen=True)
 
     median_final: float
@@ -139,6 +149,7 @@ class PortfolioMonteCarloProjection(StrictBase):
 
 class RiskLevelResult(StrictBase):
     """Aggregated results for one risk level across all stocks."""
+
     model_config = ConfigDict(frozen=True)
 
     risk_level: str
@@ -155,6 +166,7 @@ class RiskLevelResult(StrictBase):
 
 class Recommendation(StrictBase):
     """System recommendation based on simulation results."""
+
     model_config = ConfigDict(frozen=True)
 
     optimal_risk_level: str
@@ -165,6 +177,7 @@ class Recommendation(StrictBase):
 
 class BenchmarkResult(StrictBase):
     """Passive benchmark result (buy-and-hold or DCA)."""
+
     model_config = ConfigDict(frozen=True)
 
     name: str

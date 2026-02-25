@@ -2,48 +2,49 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TC003
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from uuid import uuid4
 
 from pydantic import ConfigDict, Field, field_validator
 
 from src.core.base import StrictBase
 
-
 # -- Enums ----------------------------------------------------------------
 
-class AssetType(str, Enum):
+
+class AssetType(StrEnum):
     STOCK = "stock"
     CRYPTO = "crypto"
 
 
-class SignalDirection(str, Enum):
+class SignalDirection(StrEnum):
     BUY = "buy"
     SELL = "sell"
     HOLD = "hold"
 
 
-class OrderSide(str, Enum):
+class OrderSide(StrEnum):
     BUY = "buy"
     SELL = "sell"
 
 
-class OrderType(str, Enum):
+class OrderType(StrEnum):
     MARKET = "market"
     LIMIT = "limit"
     STOP = "stop"
     STOP_LIMIT = "stop_limit"
 
 
-class RiskAction(str, Enum):
+class RiskAction(StrEnum):
     APPROVE = "approve"
     VETO = "veto"
     RESIZE = "resize"
 
 
 # -- Models ---------------------------------------------------------------
+
 
 class MarketTick(StrictBase):
     model_config = ConfigDict(frozen=True)

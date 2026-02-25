@@ -8,13 +8,15 @@ Already-scored articles are skipped (idempotent).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
-from src.db.database import Database
 from src.db.models import ArticleRecord, SentimentScoreRecord
-from src.sentiment.aggregator import SentimentAggregator
 from src.sentiment.models import SentimentResult
+
+if TYPE_CHECKING:
+    from src.db.database import Database
+    from src.sentiment.aggregator import SentimentAggregator
 
 
 class SentimentScoringProcessor:
@@ -58,7 +60,7 @@ class SentimentScoringProcessor:
             sentiment_result = SentimentResult(
                 score=result.score,
                 magnitude=result.magnitude,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 reasoning=result.reasoning,
                 article_id=article.id,
                 analyzer=self._analyzer.name,

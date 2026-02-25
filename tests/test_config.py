@@ -1,8 +1,14 @@
 import pytest
 from pydantic import ValidationError
+
 from src.core.config import (
-    RiskSettings, RiskLevel, Settings, TradingSettings,
-    SymbolsConfig, AISettings, DashboardSettings,
+    AISettings,
+    DashboardSettings,
+    RiskLevel,
+    RiskSettings,
+    Settings,
+    SymbolsConfig,
+    TradingSettings,
 )
 
 
@@ -82,10 +88,12 @@ class TestTradingSettings:
         assert ts.market_hours == {}
 
     def test_nested_symbols(self):
-        ts = TradingSettings.model_validate({
-            "symbols": {"stocks": ["AAPL"], "crypto": ["BTC/USD"]},
-            "market_hours": {"stocks_open": "09:30"},
-        })
+        ts = TradingSettings.model_validate(
+            {
+                "symbols": {"stocks": ["AAPL"], "crypto": ["BTC/USD"]},
+                "market_hours": {"stocks_open": "09:30"},
+            }
+        )
         assert ts.symbols.stocks == ["AAPL"]
         assert ts.market_hours["stocks_open"] == "09:30"
 
@@ -167,9 +175,7 @@ dashboard:
         assert settings.is_paper
 
     def test_for_testing_with_risk_override(self):
-        settings = Settings.for_testing(
-            risk={"max_position_pct": 5.0, "max_open_positions": 3}
-        )
+        settings = Settings.for_testing(risk={"max_position_pct": 5.0, "max_open_positions": 3})
         assert settings.risk.max_position_pct == 5.0
         assert settings.risk.max_open_positions == 3
 

@@ -5,8 +5,7 @@ from __future__ import annotations
 from pydantic import ConfigDict, Field
 
 from src.core.base import StrictBase
-
-from src.core.models import Fill
+from src.core.models import Fill  # noqa: TC001
 
 
 class AttributedFill(StrictBase):

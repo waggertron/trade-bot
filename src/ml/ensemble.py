@@ -42,7 +42,7 @@ class EnsembleModel:
         )
 
         direction_scores: dict[str, float] = defaultdict(float)
-        for pred, weight in zip(results, self._weights):
+        for pred, weight in zip(results, self._weights, strict=False):
             if isinstance(pred, BaseException):
                 logger.warning("Sub-model predict failed: %s", pred)
                 continue

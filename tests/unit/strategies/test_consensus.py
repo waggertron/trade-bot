@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 
 from src.agents.strategies.consensus import WeightedConsensus
 from src.core.models import (
-    AssetType,
     PortfolioSnapshot,
     Signal,
     SignalDirection,
@@ -19,7 +18,6 @@ from src.risk.models import (
     StrategyPerformance,
     VolatilityRegime,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -36,7 +34,7 @@ def make_signal(
         direction=direction,
         confidence=confidence,
         strategy_name=strategy_name,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         reasoning="test signal",
     )
 
@@ -53,7 +51,7 @@ def make_risk_context(
         portfolio=PortfolioSnapshot(
             cash=Decimal("10000"),
             positions=[],
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         ),
         daily_pnl=Decimal("0"),
     )

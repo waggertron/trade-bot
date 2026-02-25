@@ -1,24 +1,34 @@
 # tests/test_dashboard_routers.py
 """Integration tests for all dashboard router modules."""
-import pytest
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 
+from src.core.config import RiskSettings, Settings
+from src.core.models import (
+    AssetType,
+    Fill,
+    OrderSide,
+    PortfolioSnapshot,
+    Position,
+)
 from src.dashboard import dependencies
 from src.dashboard.app import create_app
 from src.dashboard.dependencies import require_user
 from src.dashboard.routers import backtest as backtest_router
-from src.core.config import RiskSettings, Settings
-from src.core.models import (
-    AssetType, Fill, Order, OrderSide, OrderType, PortfolioSnapshot, Position,
-)
 from src.db.models import OHLCRecord, SignalRecord, TradeRecord, UserRecord
 
-_test_user = UserRecord(email="test@example.com", hashed_password="h", name="Test", is_verified=True)
+_test_user = UserRecord(
+    email="test@example.com",
+    hashed_password="h",
+    name="Test",
+    is_verified=True,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -59,17 +69,21 @@ def mock_portfolio():
         cash=Decimal("50000"),
         positions=[
             Position(
-                symbol="AAPL", quantity=Decimal("10"),
-                avg_entry_price=Decimal("150"), current_price=Decimal("155"),
+                symbol="AAPL",
+                quantity=Decimal("10"),
+                avg_entry_price=Decimal("150"),
+                current_price=Decimal("155"),
                 asset_type=AssetType.STOCK,
             )
         ],
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
     portfolio.get_positions.return_value = [
         Position(
-            symbol="AAPL", quantity=Decimal("10"),
-            avg_entry_price=Decimal("150"), current_price=Decimal("155"),
+            symbol="AAPL",
+            quantity=Decimal("10"),
+            avg_entry_price=Decimal("150"),
+            current_price=Decimal("155"),
             asset_type=AssetType.STOCK,
         )
     ]
@@ -85,16 +99,24 @@ def mock_db():
     db = AsyncMock()
     db.list_trades.return_value = [
         TradeRecord(
-            symbol="AAPL", side="buy", quantity="10", price="150",
-            commission="1", strategy="momentum", paper=True,
-            timestamp=datetime.now(timezone.utc),
+            symbol="AAPL",
+            side="buy",
+            quantity="10",
+            price="150",
+            commission="1",
+            strategy="momentum",
+            paper=True,
+            timestamp=datetime.now(UTC),
         )
     ]
     db.list_signals.return_value = [
         SignalRecord(
-            symbol="AAPL", direction="buy", confidence=0.8,
-            strategy="momentum", reasoning="uptrend",
-            timestamp=datetime.now(timezone.utc),
+            symbol="AAPL",
+            direction="buy",
+            confidence=0.8,
+            strategy="momentum",
+            reasoning="uptrend",
+            timestamp=datetime.now(UTC),
         )
     ]
     db.get_trade.return_value = None
@@ -119,9 +141,12 @@ def mock_executor():
     executor.cancel_all.return_value = 0
     executor.cancel_order.return_value = True
     executor.submit_order.return_value = Fill(
-        order_id="order-1", symbol="AAPL", side=OrderSide.BUY,
-        quantity=Decimal("10"), fill_price=Decimal("150"),
-        timestamp=datetime.now(timezone.utc),
+        order_id="order-1",
+        symbol="AAPL",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        fill_price=Decimal("150"),
+        timestamp=datetime.now(UTC),
     )
     return executor
 
@@ -151,12 +176,16 @@ def mock_settings():
 def mock_strategies():
     return [
         SimpleNamespace(
-            name="momentum", enabled=True, weight=0.4,
+            name="momentum",
+            enabled=True,
+            weight=0.4,
             description="Momentum strategy",
             __class__=type("MomentumStrategy", (), {}),
         ),
         SimpleNamespace(
-            name="mean_reversion", enabled=False, weight=0.6,
+            name="mean_reversion",
+            enabled=False,
+            weight=0.6,
             description="Mean reversion strategy",
             __class__=type("MeanReversionStrategy", (), {}),
         ),
@@ -165,8 +194,14 @@ def mock_strategies():
 
 @pytest.fixture
 async def client(
-    mock_portfolio, mock_db, mock_orchestrator, mock_executor,
-    mock_risk_manager, mock_event_bus, mock_settings, mock_strategies,
+    mock_portfolio,
+    mock_db,
+    mock_orchestrator,
+    mock_executor,
+    mock_risk_manager,
+    mock_event_bus,
+    mock_settings,
+    mock_strategies,
 ):
     app = create_app(
         portfolio_manager=mock_portfolio,
@@ -265,18 +300,28 @@ class TestPortfolioRouter:
 
 class TestTradingRouter:
     async def test_place_order(self, client):
-        resp = await client.post("/api/trading/order", json={
-            "symbol": "AAPL", "side": "buy", "quantity": 10,
-        })
+        resp = await client.post(
+            "/api/trading/order",
+            json={
+                "symbol": "AAPL",
+                "side": "buy",
+                "quantity": 10,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "fill" in data
         assert data["fill"]["symbol"] == "AAPL"
 
     async def test_place_order_503_no_executor(self, client_minimal):
-        resp = await client_minimal.post("/api/trading/order", json={
-            "symbol": "AAPL", "side": "buy", "quantity": 10,
-        })
+        resp = await client_minimal.post(
+            "/api/trading/order",
+            json={
+                "symbol": "AAPL",
+                "side": "buy",
+                "quantity": 10,
+            },
+        )
         assert resp.status_code == 503
 
     async def test_get_orders(self, client):
@@ -361,14 +406,20 @@ class TestSignalsRouter:
         """Two signals for same strategy+symbol -> only one latest."""
         mock_db.list_signals.return_value = [
             SignalRecord(
-                symbol="AAPL", direction="buy", confidence=0.9,
-                strategy="momentum", reasoning="strong",
-                timestamp=datetime.now(timezone.utc),
+                symbol="AAPL",
+                direction="buy",
+                confidence=0.9,
+                strategy="momentum",
+                reasoning="strong",
+                timestamp=datetime.now(UTC),
             ),
             SignalRecord(
-                symbol="AAPL", direction="sell", confidence=0.5,
-                strategy="momentum", reasoning="weak",
-                timestamp=datetime.now(timezone.utc),
+                symbol="AAPL",
+                direction="sell",
+                confidence=0.5,
+                strategy="momentum",
+                reasoning="weak",
+                timestamp=datetime.now(UTC),
             ),
         ]
         resp = await client.get("/api/signals/latest")
@@ -561,9 +612,13 @@ class TestRiskRouter:
 
 class TestBacktestRouter:
     async def test_run_backtest(self, client):
-        resp = await client.post("/api/backtest/run", json={
-            "start_date": "2024-01-01", "end_date": "2024-06-30",
-        })
+        resp = await client.post(
+            "/api/backtest/run",
+            json={
+                "start_date": "2024-01-01",
+                "end_date": "2024-06-30",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "id" in data
@@ -575,9 +630,13 @@ class TestBacktestRouter:
         assert resp.json() == []
 
     async def test_list_runs_after_create(self, client):
-        await client.post("/api/backtest/run", json={
-            "start_date": "2024-01-01", "end_date": "2024-06-30",
-        })
+        await client.post(
+            "/api/backtest/run",
+            json={
+                "start_date": "2024-01-01",
+                "end_date": "2024-06-30",
+            },
+        )
         resp = await client.get("/api/backtest/runs")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
@@ -587,9 +646,13 @@ class TestBacktestRouter:
         assert resp.status_code == 404
 
     async def test_get_run_after_create(self, client):
-        create_resp = await client.post("/api/backtest/run", json={
-            "start_date": "2024-01-01", "end_date": "2024-06-30",
-        })
+        create_resp = await client.post(
+            "/api/backtest/run",
+            json={
+                "start_date": "2024-01-01",
+                "end_date": "2024-06-30",
+            },
+        )
         run_id = create_resp.json()["id"]
         resp = await client.get(f"/api/backtest/runs/{run_id}")
         assert resp.status_code == 200
@@ -713,18 +776,25 @@ class TestConfigRouter:
         assert "crypto" in data
 
     async def test_update_symbols(self, client):
-        resp = await client.put("/api/config/symbols", json={
-            "stocks": ["AAPL", "GOOG"], "crypto": ["BTC/USD"],
-        })
+        resp = await client.put(
+            "/api/config/symbols",
+            json={
+                "stocks": ["AAPL", "GOOG"],
+                "crypto": ["BTC/USD"],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["stocks"] == ["AAPL", "GOOG"]
         assert data["crypto"] == ["BTC/USD"]
 
     async def test_update_symbols_503(self, client_minimal):
-        resp = await client_minimal.put("/api/config/symbols", json={
-            "stocks": ["AAPL"],
-        })
+        resp = await client_minimal.put(
+            "/api/config/symbols",
+            json={
+                "stocks": ["AAPL"],
+            },
+        )
         assert resp.status_code == 503
 
 
@@ -762,9 +832,15 @@ class TestMarketRouter:
     async def test_get_sparklines_with_data(self, client, mock_db):
         mock_db.query_ohlc_bars.return_value = [
             OHLCRecord(
-                symbol="AAPL", interval="1h", timestamp=1700000000 + i * 3600,
-                open="150", high="155", low="149", close=str(150 + i),
-                volume="1000", source="test",
+                symbol="AAPL",
+                interval="1h",
+                timestamp=1700000000 + i * 3600,
+                open="150",
+                high="155",
+                low="149",
+                close=str(150 + i),
+                volume="1000",
+                source="test",
             )
             for i in range(5)
         ]
@@ -782,7 +858,7 @@ class TestMarketRouter:
 
 class TestWebSocketBroadcast:
     async def test_broadcast_sends_to_clients(self):
-        from src.dashboard.routers.websocket import broadcast, _clients
+        from src.dashboard.routers.websocket import _clients, broadcast
 
         mock_ws = AsyncMock()
         _clients.add(mock_ws)
@@ -790,6 +866,7 @@ class TestWebSocketBroadcast:
             await broadcast("test_event", {"key": "value"})
             mock_ws.send_text.assert_called_once()
             import json
+
             sent = json.loads(mock_ws.send_text.call_args[0][0])
             assert sent["type"] == "test_event"
             assert sent["data"]["key"] == "value"
@@ -797,7 +874,7 @@ class TestWebSocketBroadcast:
             _clients.clear()
 
     async def test_broadcast_removes_disconnected(self):
-        from src.dashboard.routers.websocket import broadcast, _clients
+        from src.dashboard.routers.websocket import _clients, broadcast
 
         good_ws = AsyncMock()
         bad_ws = AsyncMock()

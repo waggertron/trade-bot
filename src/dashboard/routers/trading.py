@@ -8,17 +8,20 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.models import AssetType, Order, OrderSide, OrderType
 from src.dashboard.dependencies import require_user, state
-from src.dashboard.schemas import PlaceOrderRequest
-from src.db.models import UserRecord
+from src.dashboard.schemas import PlaceOrderRequest  # noqa: TC001
+from src.db.models import UserRecord  # noqa: TC001
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
 
 
 @router.post("/order")
-async def place_order(req: PlaceOrderRequest, current_user: UserRecord = Depends(require_user)):
+async def place_order(req: PlaceOrderRequest, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Place a paper trading order."""
     if not current_user.is_verified:
-        raise HTTPException(status_code=403, detail="Email not verified. Please verify your email before trading.")
+        raise HTTPException(
+            status_code=403,
+            detail="Email not verified. Please verify your email before trading.",
+        )
 
     if state.executor is None or state.portfolio is None:
         raise HTTPException(status_code=503, detail="Trading not available")
@@ -68,7 +71,7 @@ async def place_order(req: PlaceOrderRequest, current_user: UserRecord = Depends
 
 
 @router.get("/orders")
-async def get_orders(current_user: UserRecord = Depends(require_user)):
+async def get_orders(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Get active/pending orders."""
     if state.executor is None:
         return []
@@ -86,7 +89,7 @@ async def get_orders(current_user: UserRecord = Depends(require_user)):
 
 
 @router.delete("/orders/{order_id}")
-async def cancel_order(order_id: str, current_user: UserRecord = Depends(require_user)):
+async def cancel_order(order_id: str, current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Cancel a specific order."""
     if state.executor is None:
         raise HTTPException(status_code=503, detail="Trading not available")
@@ -95,7 +98,7 @@ async def cancel_order(order_id: str, current_user: UserRecord = Depends(require
 
 
 @router.post("/cancel-all")
-async def cancel_all(current_user: UserRecord = Depends(require_user)):
+async def cancel_all(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Cancel all open orders."""
     if state.executor is None:
         raise HTTPException(status_code=503, detail="Trading not available")
@@ -104,11 +107,8 @@ async def cancel_all(current_user: UserRecord = Depends(require_user)):
 
 
 @router.get("/prices")
-async def get_prices(current_user: UserRecord = Depends(require_user)):
+async def get_prices(current_user: UserRecord = Depends(require_user)):  # noqa: B008
     """Current prices for all watched symbols."""
     if state.executor is None:
         return {}
-    return {
-        symbol: str(price)
-        for symbol, price in state.executor._current_prices.items()
-    }
+    return {symbol: str(price) for symbol, price in state.executor._current_prices.items()}

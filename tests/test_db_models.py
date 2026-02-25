@@ -1,6 +1,6 @@
 """Tests for Pydantic DB record models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -18,7 +18,7 @@ class TestTradeRecord:
             commission="1.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert trade.symbol == "AAPL"
         assert trade.side == "buy"
@@ -33,7 +33,7 @@ class TestTradeRecord:
             commission="1.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert trade.id is not None
         assert len(trade.id) == 36  # UUID format
@@ -47,7 +47,7 @@ class TestTradeRecord:
             commission="1.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         t1 = TradeRecord(**kwargs)
         t2 = TradeRecord(**kwargs)
@@ -62,7 +62,7 @@ class TestTradeRecord:
             commission="1.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            timestamp=datetime(2025, 1, 1, tzinfo=UTC),
         )
         data = trade.model_dump()
         restored = TradeRecord(**data)
@@ -78,7 +78,7 @@ class TestTradeRecord:
             commission="1.00",
             strategy="momentum",
             paper=True,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         with pytest.raises(ValidationError):
             trade.symbol = "MSFT"
@@ -92,7 +92,7 @@ class TestSignalRecord:
             confidence=0.85,
             strategy="momentum",
             reasoning="Strong trend",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert signal.symbol == "AAPL"
         assert signal.confidence == 0.85
@@ -105,7 +105,7 @@ class TestSignalRecord:
                 confidence=1.5,
                 strategy="momentum",
                 reasoning="test",
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_rejects_confidence_below_0(self):
@@ -116,7 +116,7 @@ class TestSignalRecord:
                 confidence=-0.1,
                 strategy="momentum",
                 reasoning="test",
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
             )
 
     def test_accepts_boundary_confidence(self):
@@ -126,7 +126,7 @@ class TestSignalRecord:
             confidence=0.0,
             strategy="momentum",
             reasoning="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         s1 = SignalRecord(
             symbol="AAPL",
@@ -134,7 +134,7 @@ class TestSignalRecord:
             confidence=1.0,
             strategy="momentum",
             reasoning="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert s0.confidence == 0.0
         assert s1.confidence == 1.0
@@ -146,7 +146,7 @@ class TestSignalRecord:
             confidence=0.5,
             strategy="momentum",
             reasoning="test",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         assert signal.id is not None
         assert len(signal.id) == 36

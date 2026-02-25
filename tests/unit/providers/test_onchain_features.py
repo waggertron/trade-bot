@@ -1,10 +1,10 @@
 """Tests for OnChainFeatureProvider."""
+
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
-
 
 # -- Minimal stub provider that returns dicts --------------------------------
 
@@ -78,9 +78,7 @@ class TestComputeBasic:
 
     async def test_avg_tx_value_matches_metric(self, feature_provider, btc_metrics):
         features = await feature_provider.compute("BTC")
-        assert features["onchain_avg_tx_value"] == float(
-            btc_metrics["average_transaction_value"]
-        )
+        assert features["onchain_avg_tx_value"] == float(btc_metrics["average_transaction_value"])
 
 
 # -- Error handling ----------------------------------------------------------

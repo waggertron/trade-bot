@@ -1,4 +1,5 @@
 """Tests for correlated Monte Carlo portfolio projection."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -8,10 +9,10 @@ import pytest
 
 from src.simulation.projector import MonteCarloProjector
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_prices(n: int, start: float = 100.0, drift: float = 0.5) -> list[float]:
     """Create a simple price series with upward drift."""
@@ -29,6 +30,7 @@ def _make_two_stock_prices(n: int = 60) -> dict[str, list[float]]:
 # ---------------------------------------------------------------------------
 # Test 1: Shape
 # ---------------------------------------------------------------------------
+
 
 def test_correlated_paths_shape():
     """2 stocks, 100 paths, 30 days -> portfolio_paths shape is (100, 30)."""
@@ -53,6 +55,7 @@ def test_correlated_paths_shape():
 # Test 2: Positive values
 # ---------------------------------------------------------------------------
 
+
 def test_correlated_paths_positive_values():
     """All portfolio values should be positive (GBM produces positive prices)."""
     projector = MonteCarloProjector(n_paths=200, seed=123)
@@ -72,6 +75,7 @@ def test_correlated_paths_positive_values():
 # ---------------------------------------------------------------------------
 # Test 3: Correlation matrix diagonal
 # ---------------------------------------------------------------------------
+
 
 def test_correlation_matrix_diagonal():
     """Diagonal entries of correlation matrix should be ~1.0."""
@@ -100,6 +104,7 @@ def test_correlation_matrix_diagonal():
 # ---------------------------------------------------------------------------
 # Test 4: Single stock matches uncorrelated
 # ---------------------------------------------------------------------------
+
 
 def test_single_stock_matches_uncorrelated():
     """With 1 stock and weight 1.0, correlated MC should produce same paths as uncorrelated.
@@ -140,6 +145,7 @@ def test_single_stock_matches_uncorrelated():
 # Test 5: Cholesky fallback
 # ---------------------------------------------------------------------------
 
+
 def test_cholesky_fallback():
     """When Cholesky decomposition fails, fall back to uncorrelated simulation.
 
@@ -170,6 +176,7 @@ def test_cholesky_fallback():
 # ---------------------------------------------------------------------------
 # Test 6: Summarize portfolio paths
 # ---------------------------------------------------------------------------
+
 
 def test_summarize_portfolio_paths():
     """Verify summary statistics from known portfolio paths.
@@ -209,6 +216,7 @@ def test_summarize_portfolio_paths():
 # Test 7: Engine integration
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_engine_portfolio_monte_carlo():
     """Full engine test: portfolio_mode=True produces portfolio_monte_carlo.
@@ -228,15 +236,17 @@ async def test_engine_portfolio_monte_carlo():
         base_ts = 1700000000
         for i in range(n):
             price = start_price + i * 0.5
-            bars.append(OHLCBar(
-                timestamp=base_ts + i * 86400,
-                open=str(price - 0.2),
-                high=str(price + 1.0),
-                low=str(price - 1.0),
-                close=str(price),
-                volume=str(1000000),
-                source="yfinance",
-            ))
+            bars.append(
+                OHLCBar(
+                    timestamp=base_ts + i * 86400,
+                    open=str(price - 0.2),
+                    high=str(price + 1.0),
+                    low=str(price - 1.0),
+                    close=str(price),
+                    volume=str(1000000),
+                    source="yfinance",
+                )
+            )
         return bars
 
     config = SimulationConfig(

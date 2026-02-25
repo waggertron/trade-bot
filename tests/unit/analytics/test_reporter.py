@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from src.analytics.attribution import StrategyAttribution
@@ -11,10 +11,10 @@ from src.analytics.monte_carlo import MonteCarloSimulator
 from src.analytics.reporter import AnalyticsReporter
 from src.core.models import Fill, OrderSide
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_fill(
     symbol: str = "BTC/USD",
@@ -28,7 +28,7 @@ def make_fill(
         side=side,
         quantity=Decimal(str(qty)),
         fill_price=Decimal(str(price)),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 
@@ -44,25 +44,18 @@ def _sample_fills() -> list[AttributedFill]:
     """Two strategies, each with one completed trade."""
     return [
         # momentum: buy 100, sell 130 -> +30
-        make_attributed(
-            make_fill(side=OrderSide.BUY, price=100.0), strategy="momentum"
-        ),
-        make_attributed(
-            make_fill(side=OrderSide.SELL, price=130.0), strategy="momentum"
-        ),
+        make_attributed(make_fill(side=OrderSide.BUY, price=100.0), strategy="momentum"),
+        make_attributed(make_fill(side=OrderSide.SELL, price=130.0), strategy="momentum"),
         # ml_ensemble: buy 200, sell 190 -> -10
-        make_attributed(
-            make_fill(side=OrderSide.BUY, price=200.0), strategy="ml_ensemble"
-        ),
-        make_attributed(
-            make_fill(side=OrderSide.SELL, price=190.0), strategy="ml_ensemble"
-        ),
+        make_attributed(make_fill(side=OrderSide.BUY, price=200.0), strategy="ml_ensemble"),
+        make_attributed(make_fill(side=OrderSide.SELL, price=190.0), strategy="ml_ensemble"),
     ]
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestAnalyticsReporter:
     """Tests for AnalyticsReporter.generate_report()."""

@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import os
-from enum import Enum
-from pathlib import Path
-from typing import Any
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from pydantic import ConfigDict, Field
 
 from src.core.base import StrictBase
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-class RiskLevel(str, Enum):
+
+class RiskLevel(StrEnum):
     """Preset risk levels mapping to position sizing and risk parameters."""
+
     CONSERVATIVE = "conservative"
     MODERATE = "moderate"
     AGGRESSIVE = "aggressive"
@@ -189,11 +192,13 @@ class Settings(StrictBase):
         crypto_symbols = [s.strip() for s in crypto_raw.split(",") if s.strip()]
         stock_symbols = [s.strip() for s in stock_raw.split(",") if s.strip()]
 
-        return cls.model_validate({
-            "mode": mode,
-            "trading": {"symbols": {"stocks": stock_symbols, "crypto": crypto_symbols}},
-            "dashboard": {"port": int(port_str)},
-        })
+        return cls.model_validate(
+            {
+                "mode": mode,
+                "trading": {"symbols": {"stocks": stock_symbols, "crypto": crypto_symbols}},
+                "dashboard": {"port": int(port_str)},
+            }
+        )
 
     @classmethod
     def for_testing(cls, **overrides: Any) -> Settings:

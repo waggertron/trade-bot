@@ -1,4 +1,5 @@
 """Tests for scripts.fetch_all task builder."""
+
 from __future__ import annotations
 
 from scripts.fetch_all import (
@@ -74,8 +75,10 @@ def test_all_bond_symbols_present() -> None:
 
 def test_download_task_dataclass() -> None:
     task = DownloadTask(
-        symbol="SPY", source=ProviderName.YFINANCE,
-        interval=Interval.D1, category="stocks",
+        symbol="SPY",
+        source=ProviderName.YFINANCE,
+        interval=Interval.D1,
+        category="stocks",
     )
     assert task.symbol == "SPY"
     assert task.source == ProviderName.YFINANCE

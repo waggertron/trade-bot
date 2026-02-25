@@ -1,17 +1,16 @@
 """Tests for simulation data models."""
-import pytest
 
+import pytest
+from pydantic import ValidationError
+
+from src.core.config import RiskLevel
 from src.simulation.models import (
     BenchmarkResult,
-    SimulationConfig,
-    StockSimResult,
-    RiskLevelResult,
-    MonteCarloProjection,
-    StrategyAssessment,
-    SimulationReport,
     Recommendation,
+    SimulationConfig,
+    SimulationReport,
+    StockSimResult,
 )
-from src.core.config import RiskLevel
 
 
 def test_simulation_config_defaults():
@@ -30,10 +29,9 @@ def test_simulation_config_max_position_pct_override():
 
 
 def test_simulation_config_max_position_pct_validation():
-    import pytest
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SimulationConfig(stocks=["AAPL"], max_position_pct=0.05)  # below 0.1
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SimulationConfig(stocks=["AAPL"], max_position_pct=101.0)  # above 100
 
 
@@ -91,7 +89,7 @@ def test_benchmark_result_frozen():
         max_drawdown=3.0,
         sharpe_ratio=0.9,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         br.name = "changed"
 
 

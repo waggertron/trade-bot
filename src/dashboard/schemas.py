@@ -8,6 +8,7 @@ from src.core.base import StrictBase
 
 # -- Auth ---------------------------------------------------------------------
 
+
 class RegisterRequest(StrictBase):
     email: str
     password: str = Field(min_length=6)
@@ -30,6 +31,7 @@ class UpdateProfileRequest(StrictBase):
 
 # -- Trading ------------------------------------------------------------------
 
+
 class PlaceOrderRequest(StrictBase):
     symbol: str
     side: str = Field(pattern=r"^(buy|sell)$")
@@ -50,6 +52,7 @@ class OrderResponse(StrictBase):
 
 # -- Risk ---------------------------------------------------------------------
 
+
 class RiskSettingsUpdate(StrictBase):
     max_position_pct: float | None = None
     max_sector_exposure_pct: float | None = None
@@ -68,6 +71,7 @@ class RiskPresetRequest(StrictBase):
 
 # -- Strategies ---------------------------------------------------------------
 
+
 class UpdateWeightRequest(StrictBase):
     weight: float = Field(ge=0, le=1.0)
 
@@ -77,6 +81,7 @@ class UpdateEnabledRequest(StrictBase):
 
 
 # -- Config -------------------------------------------------------------------
+
 
 class UpdateModeRequest(StrictBase):
     mode: str = Field(pattern=r"^(paper|live)$")
@@ -89,6 +94,7 @@ class UpdateSymbolsRequest(StrictBase):
 
 # -- Backtest -----------------------------------------------------------------
 
+
 class BacktestRequest(StrictBase):
     start_date: str
     end_date: str
@@ -99,21 +105,47 @@ class BacktestRequest(StrictBase):
 
 # -- Simulation ---------------------------------------------------------------
 
+
 class SimulationRequest(StrictBase):
-    stocks: list[str] = Field(default_factory=lambda: [
-        "SPY", "QQQ", "DIA", "IWM",
-        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
-        "XLF", "XLK", "XLE", "XLV", "XLI",
-    ])
+    stocks: list[str] = Field(
+        default_factory=lambda: [
+            "SPY",
+            "QQQ",
+            "DIA",
+            "IWM",
+            "AAPL",
+            "MSFT",
+            "GOOGL",
+            "AMZN",
+            "NVDA",
+            "META",
+            "TSLA",
+            "XLF",
+            "XLK",
+            "XLE",
+            "XLV",
+            "XLI",
+        ]
+    )
     initial_balance: float = Field(default=10_000.0, gt=0)
     train_days: int = Field(default=60, gt=0)
     test_days: int = Field(default=30, gt=0)
-    risk_levels: list[str] = Field(default_factory=lambda: [
-        "conservative", "moderate", "aggressive", "very_aggressive",
-    ])
+    risk_levels: list[str] = Field(
+        default_factory=lambda: [
+            "conservative",
+            "moderate",
+            "aggressive",
+            "very_aggressive",
+        ]
+    )
     mc_simulations: int = Field(default=1000, gt=0)
     mc_seed: int | None = Field(default=None, description="Monte Carlo random seed")
-    max_position_pct: float | None = Field(default=None, ge=0.1, le=100.0, description="Override max position size %")
+    max_position_pct: float | None = Field(
+        default=None,
+        ge=0.1,
+        le=100.0,
+        description="Override max position size %",
+    )
     # Portfolio simulation fields
     portfolio_mode: bool = False
     allocation_mode: str = Field(default="equal_weight", pattern=r"^(equal_weight|custom)$")

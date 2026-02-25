@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from src.core.models import Fill, PortfolioSnapshot
+if TYPE_CHECKING:
+    from src.core.models import Fill, PortfolioSnapshot
 
 
 def format_trade_alert(fill: Fill, strategy: str = "", reasoning: str = "") -> str:
@@ -21,7 +22,7 @@ def format_trade_alert(fill: Fill, strategy: str = "", reasoning: str = "") -> s
 
 def format_portfolio_status(snapshot: PortfolioSnapshot) -> str:
     lines = [
-        f"**Portfolio Status**",
+        "**Portfolio Status**",
         f"Cash: ${snapshot.cash:,.2f}",
         f"Total Value: ${snapshot.total_value:,.2f}",
         f"Positions: {len(snapshot.positions)}",

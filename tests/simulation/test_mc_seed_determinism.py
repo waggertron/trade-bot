@@ -1,4 +1,5 @@
 """Tests that mc_seed produces deterministic Monte Carlo projections at the engine level."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -17,15 +18,17 @@ def _make_bars(n: int, start_price: float = 100.0) -> list[OHLCBar]:
     base_ts = 1700000000
     for i in range(n):
         price = start_price + i * 0.5
-        bars.append(OHLCBar(
-            timestamp=base_ts + i * 86400,
-            open=str(price - 0.2),
-            high=str(price + 1.0),
-            low=str(price - 1.0),
-            close=str(price),
-            volume=str(1000000),
-            source="yfinance",
-        ))
+        bars.append(
+            OHLCBar(
+                timestamp=base_ts + i * 86400,
+                open=str(price - 0.2),
+                high=str(price + 1.0),
+                low=str(price - 1.0),
+                close=str(price),
+                volume=str(1000000),
+                source="yfinance",
+            )
+        )
     return bars
 
 
@@ -66,7 +69,7 @@ async def test_same_mc_seed_produces_identical_projections():
 
     # Compare MC projections: same seed -> identical results
     for mc1, mc2 in zip(
-        result1.monte_carlo_projections, result2.monte_carlo_projections
+        result1.monte_carlo_projections, result2.monte_carlo_projections, strict=False
     ):
         assert mc1.symbol == mc2.symbol
         assert mc1.median_final == pytest.approx(mc2.median_final), (

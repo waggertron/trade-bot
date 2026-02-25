@@ -1,4 +1,5 @@
 """Tests for PortfolioSimulator core logic."""
+
 from __future__ import annotations
 
 import math
@@ -12,10 +13,10 @@ from src.simulation.models import (
 )
 from src.simulation.portfolio import PortfolioSimulator
 
-
 # ---------------------------------------------------------------------------
 # Helpers to build configs quickly
 # ---------------------------------------------------------------------------
+
 
 def _cfg(
     stocks: list[str] | None = None,
@@ -38,6 +39,7 @@ def _cfg(
 # ===================================================================
 # 1. Weight computation
 # ===================================================================
+
 
 class TestWeightComputation:
     def test_equal_weight_three_stocks(self):
@@ -67,6 +69,7 @@ class TestWeightComputation:
 # 2. get_stock_balance
 # ===================================================================
 
+
 class TestGetStockBalance:
     def test_equal_weight_balance(self):
         sim = PortfolioSimulator(_cfg(stocks=["A", "B", "C"], balance=30_000))
@@ -91,12 +94,11 @@ class TestGetStockBalance:
 # 3. build_portfolio_equity_curve
 # ===================================================================
 
+
 class TestBuildPortfolioEquityCurve:
     def test_two_stocks_equal_weight(self):
         """One stock +10%, the other -5%, equal weight -> portfolio +2.5%."""
-        sim = PortfolioSimulator(
-            _cfg(stocks=["UP", "DOWN"], balance=10_000)
-        )
+        sim = PortfolioSimulator(_cfg(stocks=["UP", "DOWN"], balance=10_000))
         curves = {
             "UP": [10_000.0, 11_000.0],
             "DOWN": [10_000.0, 9_500.0],
@@ -154,6 +156,7 @@ class TestBuildPortfolioEquityCurve:
 # 4. compute_portfolio_metrics
 # ===================================================================
 
+
 class TestComputePortfolioMetrics:
     def test_known_curve(self):
         sim = PortfolioSimulator(_cfg(stocks=["A"], balance=10_000))
@@ -168,7 +171,7 @@ class TestComputePortfolioMetrics:
             (10_300 - 10_050) / 10_050,
         ]
         assert len(metrics.daily_returns) == 4
-        for actual, expected in zip(metrics.daily_returns, expected_dr):
+        for actual, expected in zip(metrics.daily_returns, expected_dr, strict=False):
             assert actual == pytest.approx(expected, rel=1e-9)
 
         # total_return_pct
@@ -241,6 +244,7 @@ class TestComputePortfolioMetrics:
 # 5. should_rebalance
 # ===================================================================
 
+
 class TestShouldRebalance:
     def test_none_always_false(self):
         sim = PortfolioSimulator(_cfg(rebalance_freq="none"))
@@ -277,6 +281,7 @@ class TestShouldRebalance:
 # 6. weights property
 # ===================================================================
 
+
 class TestWeightsProperty:
     def test_returns_correct_weights(self):
         sim = PortfolioSimulator(_cfg(stocks=["A", "B"], balance=10_000))
@@ -294,12 +299,11 @@ class TestWeightsProperty:
 # 7. Rebalancing wired into equity curve
 # ===================================================================
 
+
 class TestEquityCurveRebalancing:
     def test_build_equity_curve_no_rebalance_unchanged(self):
         """With frequency='none', result matches current fixed-weight behavior."""
-        sim = PortfolioSimulator(
-            _cfg(stocks=["UP", "DOWN"], balance=10_000, rebalance_freq="none")
-        )
+        sim = PortfolioSimulator(_cfg(stocks=["UP", "DOWN"], balance=10_000, rebalance_freq="none"))
         curves = {
             "UP": [100.0, 110.0, 120.0],
             "DOWN": [100.0, 95.0, 90.0],
@@ -320,12 +324,10 @@ class TestEquityCurveRebalancing:
         stocks = ["WINNER", "LOSER"]
         # Build curves: WINNER doubles, LOSER halves over 42+ days
         n_days = 50
-        winner_curve = [100.0 * (1.02 ** i) for i in range(n_days)]  # +2%/day
-        loser_curve = [100.0 * (0.98 ** i) for i in range(n_days)]   # -2%/day
+        winner_curve = [100.0 * (1.02**i) for i in range(n_days)]  # +2%/day
+        loser_curve = [100.0 * (0.98**i) for i in range(n_days)]  # -2%/day
 
-        sim_none = PortfolioSimulator(
-            _cfg(stocks=stocks, balance=10_000, rebalance_freq="none")
-        )
+        sim_none = PortfolioSimulator(_cfg(stocks=stocks, balance=10_000, rebalance_freq="none"))
         sim_monthly = PortfolioSimulator(
             _cfg(stocks=stocks, balance=10_000, rebalance_freq="monthly")
         )
@@ -341,9 +343,7 @@ class TestEquityCurveRebalancing:
 
     def test_rebalance_dates_returned(self):
         """Verify the returned rebalance_days list has correct indices."""
-        sim = PortfolioSimulator(
-            _cfg(stocks=["A", "B"], balance=10_000, rebalance_freq="monthly")
-        )
+        sim = PortfolioSimulator(_cfg(stocks=["A", "B"], balance=10_000, rebalance_freq="monthly"))
         n_days = 50
         curves = {
             "A": [100.0 + i for i in range(n_days)],

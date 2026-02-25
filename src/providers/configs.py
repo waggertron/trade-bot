@@ -6,7 +6,6 @@ from pydantic import ConfigDict, Field, SecretStr
 
 from src.core.base import StrictBase
 
-
 # -- Shared -------------------------------------------------------------------
 
 

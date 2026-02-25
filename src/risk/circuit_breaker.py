@@ -5,9 +5,12 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from src.core.event_bus import EventBus
 from src.core.event_types import CircuitBreakerEvent
+
+if TYPE_CHECKING:
+    from src.core.event_bus import EventBus
 
 
 class DrawdownCircuitBreaker:
@@ -28,6 +31,7 @@ class DrawdownCircuitBreaker:
         self._peak_value: Decimal = Decimal("0")
         self._tripped_at: datetime | None = None
         self._event_bus: EventBus | None = None
+        self._background_tasks: set[asyncio.Task] = set()
 
     def set_event_bus(self, event_bus: EventBus) -> None:
         """Attach an event bus for publishing circuit breaker events."""
@@ -86,7 +90,9 @@ class DrawdownCircuitBreaker:
         )
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self._event_bus.publish(event))
+            task = loop.create_task(self._event_bus.publish(event))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
         except RuntimeError:
             # No running loop — skip event publishing
             pass

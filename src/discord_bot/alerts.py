@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Coroutine
+from typing import TYPE_CHECKING, Any
 
-from src.core.event_bus import Event, EventBus
 from src.core.event_types import CircuitBreakerEvent, DailyPnLEvent, FillEvent
 from src.discord_bot.bot import format_trade_alert
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
+    from src.core.event_bus import Event, EventBus
 
 
 class DiscordAlertHandler:

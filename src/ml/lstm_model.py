@@ -10,6 +10,7 @@ from src.ml.models import Dataset, EvalMetrics, FeatureVector, Prediction, Train
 try:
     import torch
     import torch.nn as nn
+
     from src.ml.lstm_network import LSTMNetwork
 
     HAS_TORCH = True

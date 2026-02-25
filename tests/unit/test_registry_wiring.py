@@ -42,7 +42,6 @@ def test_build_registry_returns_registry():
 def test_build_registry_providers_accessible():
     """Registered providers should be accessible via get()."""
     from main import build_registry
-
     from src.providers.mock import (
         MockFeatureProvider,
         MockNewsProvider,

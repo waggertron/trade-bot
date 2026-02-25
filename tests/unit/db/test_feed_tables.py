@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -40,8 +40,8 @@ def _make_article(feed_id: str | None = None, **overrides) -> ArticleRecord:
         body="Some body text",
         source="rss",
         url="https://example.com/article",
-        published_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
-        fetched_at=datetime(2025, 1, 1, 0, 5, tzinfo=timezone.utc),
+        published_at=datetime(2025, 1, 1, tzinfo=UTC),
+        fetched_at=datetime(2025, 1, 1, 0, 5, tzinfo=UTC),
         feed_id=feed_id,
         symbols=["AAPL"],
     )
@@ -92,10 +92,7 @@ class TestFeedCRUD:
 
     @pytest.mark.asyncio
     async def test_seed_feeds_bulk_insert(self, db):
-        records = [
-            _make_feed(name=f"Feed {i}", url=f"https://feed{i}.com")
-            for i in range(5)
-        ]
+        records = [_make_feed(name=f"Feed {i}", url=f"https://feed{i}.com") for i in range(5)]
         await db.seed_feeds(records)
         feeds = await db.list_feeds()
         assert len(feeds) == 5

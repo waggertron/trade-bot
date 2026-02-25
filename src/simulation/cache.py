@@ -1,4 +1,5 @@
 """Disk cache for simulation bar data and full reports."""
+
 from __future__ import annotations
 
 import hashlib
@@ -6,9 +7,12 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.data.providers.base import OHLCBar
-from src.simulation.models import SimulationConfig
+
+if TYPE_CHECKING:
+    from src.simulation.models import SimulationConfig
 
 logger = logging.getLogger(__name__)
 

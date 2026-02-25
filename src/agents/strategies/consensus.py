@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from src.core.models import Signal, SignalDirection
-from src.risk.models import RiskContext
+
+if TYPE_CHECKING:
+    from src.risk.models import RiskContext
 
 
 class WeightedConsensus:
@@ -71,9 +74,7 @@ class WeightedConsensus:
                 accuracy_weight = 0.5
                 regime_weight = 1.0
 
-            weighted_score = (
-                signal.confidence * config_weight * accuracy_weight * regime_weight
-            )
+            weighted_score = signal.confidence * config_weight * accuracy_weight * regime_weight
 
             direction_scores[signal.direction] += weighted_score
 

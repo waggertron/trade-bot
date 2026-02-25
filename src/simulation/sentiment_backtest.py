@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import bisect
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from src.core.models import ResearchReport
 from src.sentiment.aggregator import SentimentAggregator
 from src.sentiment.bridge import SentimentBridge
 from src.sentiment.models import SentimentResult
+
+if TYPE_CHECKING:
+    from src.core.models import ResearchReport
 
 
 class SentimentBacktestLoader:
@@ -31,12 +34,15 @@ class SentimentBacktestLoader:
 
     async def load(self) -> None:
         """Pull ALL scored articles from DB into memory, sorted by published_at."""
-        far_future = datetime(9999, 12, 31, tzinfo=timezone.utc)
+        far_future = datetime(9999, 12, 31, tzinfo=UTC)
         raw = await self._db.get_scores_as_of(self._symbols, far_future, self._analyzer)
         # raw = list of (symbol, score, magnitude, published_at)
         # Sort by published_at ascending
         self._rows = sorted(
-            ((published_at, symbol, score, magnitude) for symbol, score, magnitude, published_at in raw),
+            (
+                (published_at, symbol, score, magnitude)
+                for symbol, score, magnitude, published_at in raw
+            ),
             key=lambda r: r[0],
         )
         self._timestamps = [r[0] for r in self._rows]

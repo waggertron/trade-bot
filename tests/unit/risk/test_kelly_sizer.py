@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -18,7 +18,7 @@ from src.risk.kelly_sizer import KellyPositionSizer
 from src.risk.models import RiskContext, StrategyPerformance, VolatilityRegime
 from src.risk.protocols import PositionSizer
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
 # -- Helpers ------------------------------------------------------------------

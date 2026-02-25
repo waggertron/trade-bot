@@ -121,17 +121,17 @@ def plotext_bar_chart(
     if max_abs == 0:
         max_abs = 1.0
 
-    label_width = max(len(str(l)) for l in labels)
+    label_width = max(len(str(lbl)) for lbl in labels)
     lines: list[str] = []
     if title:
         lines.append(title)
         lines.append("")
 
-    for label, val in zip(labels, fvals):
+    for label, val in zip(labels, fvals, strict=False):
         bar_len = int(abs(val) / max_abs * bar_width)
         bar = _BAR_CHAR * max(bar_len, 1)
         sign = "-" if val < 0 else " "
-        lines.append(f"  {str(label):>{label_width}}  {sign}{bar} {val:,.2f}")
+        lines.append(f"  {label!s:>{label_width}}  {sign}{bar} {val:,.2f}")
 
     return "\n".join(lines)
 
@@ -253,8 +253,8 @@ def plotext_heatmap(
     r_labels = list(row_labels) if row_labels else [str(i) for i in range(len(fmatrix))]
     c_labels = list(col_labels) if col_labels else [str(i) for i in range(n_cols)]
 
-    row_w = max(len(l) for l in r_labels)
-    col_w = max(max(len(l) for l in c_labels), 6)
+    row_w = max(len(lbl) for lbl in r_labels)
+    col_w = max(max(len(lbl) for lbl in c_labels), 6)
 
     lines: list[str] = []
     if title:
@@ -262,7 +262,7 @@ def plotext_heatmap(
         lines.append("")
 
     # Header row
-    header = " " * (row_w + 2) + "  ".join(f"{l:>{col_w}}" for l in c_labels)
+    header = " " * (row_w + 2) + "  ".join(f"{lbl:>{col_w}}" for lbl in c_labels)
     lines.append(header)
 
     for i, row in enumerate(fmatrix):
